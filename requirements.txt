@@ -3,3 +3,4 @@ line-bot-sdk==2.4.2
 requests
 gunicorn
 Werkzeug==2.2.3
+twstock
