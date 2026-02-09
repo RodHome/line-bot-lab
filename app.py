@@ -10,34 +10,34 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v14.1 (Price Format + Sector Filter + Stop Loss/Profit)
-BOT_VERSION = "v14.1"
+# 🟢 [版本號] v14.2 (Industry Insight + Rich Cards)
+BOT_VERSION = "v14.2"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
 
 # 菁英池 (含產業標籤)
 ELITE_STOCK_DATA = {
-    "台積電": {"code": "2330", "sector": "半導體"},
-    "鴻海": {"code": "2317", "sector": "電子代工"},
-    "聯發科": {"code": "2454", "sector": "IC設計"},
+    "台積電": {"code": "2330", "sector": "半導體/晶圓代工"},
+    "鴻海": {"code": "2317", "sector": "電子代工/AI伺服器"},
+    "聯發科": {"code": "2454", "sector": "IC設計/AI手機"},
     "廣達": {"code": "2382", "sector": "AI伺服器"},
     "緯創": {"code": "3231", "sector": "AI伺服器"},
     "技嘉": {"code": "2376", "sector": "板卡/伺服器"},
-    "台達電": {"code": "2308", "sector": "電源供應"},
-    "日月光": {"code": "3711", "sector": "封測"},
+    "台達電": {"code": "2308", "sector": "電源供應/電動車"},
+    "日月光": {"code": "3711", "sector": "封測/CoWoS"},
     "聯電": {"code": "2303", "sector": "晶圓代工"},
-    "瑞昱": {"code": "2379", "sector": "IC設計"},
-    "長榮": {"code": "2603", "sector": "航運"},
-    "陽明": {"code": "2609", "sector": "航運"},
-    "萬海": {"code": "2615", "sector": "航運"},
-    "富邦金": {"code": "2881", "sector": "金融"},
-    "國泰金": {"code": "2882", "sector": "金融"},
-    "中信金": {"code": "2891", "sector": "金融"},
-    "奇鋐": {"code": "3017", "sector": "散熱"},
-    "雙鴻": {"code": "3324", "sector": "散熱"},
-    "華城": {"code": "1519", "sector": "重電"},
-    "士電": {"code": "1503", "sector": "重電"},
+    "瑞昱": {"code": "2379", "sector": "IC設計/網通"},
+    "長榮": {"code": "2603", "sector": "航運/貨櫃"},
+    "陽明": {"code": "2609", "sector": "航運/貨櫃"},
+    "萬海": {"code": "2615", "sector": "航運/貨櫃"},
+    "富邦金": {"code": "2881", "sector": "金融/壽險"},
+    "國泰金": {"code": "2882", "sector": "金融/壽險"},
+    "中信金": {"code": "2891", "sector": "金融/銀行"},
+    "奇鋐": {"code": "3017", "sector": "散熱模組"},
+    "雙鴻": {"code": "3324", "sector": "散熱模組"},
+    "華城": {"code": "1519", "sector": "重電/綠能"},
+    "士電": {"code": "1503", "sector": "重電/綠能"},
     "世紀鋼": {"code": "9958", "sector": "風電/鋼鐵"}
 }
 ELITE_STOCK_POOL = {k: v["code"] for k, v in ELITE_STOCK_DATA.items()}
@@ -99,12 +99,11 @@ def get_technical_signals(data, chips_val):
     lows = data['raw_lows']
     volumes = data['raw_volumes']
     
-    # 1. 計算
     rsi = calculate_rsi(closes)
     k, d = calculate_kd(highs, lows, closes)
     ma5 = data['ma5']; ma20 = data['ma20']; ma60 = data['ma60']; close = data['close']
     
-    # 2. 判斷邏輯
+    # 判斷邏輯
     if rsi > 80: signals.append("🔥RSI過熱")
     elif rsi < 20: signals.append("💎RSI超賣")
     
@@ -175,7 +174,7 @@ def call_gemini_json(prompt, system_instruction=None):
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
                 payload = {
                     "contents": contents,
-                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.2, "responseMimeType": "application/json"}
+                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"} # 溫度調高一點讓AI比較會講話
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
                 if response.status_code == 200:
@@ -206,7 +205,6 @@ def fetch_data_light(stock_id):
         ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
         ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
         
-        # 🔥 修改 1: 格式化漲跌幅 (+0.5, +1.2%)
         prev_close = data[-2]['close'] if len(data) >= 2 else latest['close']
         change = latest['close'] - prev_close
         change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
@@ -214,15 +212,13 @@ def fetch_data_light(stock_id):
         sign = "+" if change > 0 else ""
         formatted_change = f"{sign}{round(change, 2)}"
         formatted_pct = f"{sign}{change_pct}%"
-        
-        # 組合顯示字串: (+1.5, +0.78%)
         change_display = f"({formatted_change}, {formatted_pct})"
         color = "#D32F2F" if change >= 0 else "#2E7D32"
 
         return {
             "code": stock_id, "close": latest['close'], "open": latest['open'], "low": latest['min'],
             "ma5": ma5, "ma20": ma20, "ma60": ma60,
-            "change": change, "change_display": change_display, "color": color, # 使用新的顯示格式
+            "change": change, "change_display": change_display, "color": color,
             "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes
         }
     except: return None
@@ -277,8 +273,7 @@ def check_stock_worker_turbo(code):
     try:
         data = fetch_data_light(code)
         if not data: return None
-        # 技術面初篩：股價 > MA20 (月線) 且 MA5 > MA20
-        if data['close'] > data['ma20'] and data['ma5'] > data['ma20']:
+        if data['ma5'] > data['ma20']:
             tf, tt, af, at = fetch_chips_accumulate(code)
             threshold = 50 if data['close'] > 100 else 200
             if (af + at) > threshold:
@@ -291,7 +286,7 @@ def check_stock_worker_turbo(code):
                 
                 return {
                     "code": code, "name": name, "sector": sector,
-                    "close": data['close'], "color": data['color'],
+                    "close": data['close'], "change_display": data['change_display'], "color": data['color'],
                     "chips": f"{af+at}張", "signal_str": signal_str,
                     "tag": "外資大買" if af > at else "投信認養"
                 }
@@ -300,15 +295,11 @@ def check_stock_worker_turbo(code):
 
 def scan_recommendations_turbo(target_sector=None):
     candidates = []
-    
-    # 🔥 修改 4: 支援指定產業
     if target_sector:
-        # 如果指定產業，先從菁英池撈出該產業的股票
         pool = [v['code'] for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
-        if not pool: return [] # 找不到該產業
-        sample_list = pool # 指定產業就不隨機抽樣了，全掃
+        if not pool: return []
+        sample_list = pool
     else:
-        # 沒指定產業，隨機抽 25 檔
         elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
         sample_list = random.sample(elite_codes, 25) if len(elite_codes) > 25 else elite_codes
     
@@ -331,37 +322,45 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # 🔥 [功能 1] 推薦選股 (支援 "推薦 半導體")
+    # 🔥 [功能 1] 推薦選股
     msg_parts = msg.split()
     if msg_parts[0] in ["推薦", "選股"]:
         target_sector = msg_parts[1] if len(msg_parts) > 1 else None
         
         good_stocks = scan_recommendations_turbo(target_sector)
         if not good_stocks:
-            sector_msg = f"「{target_sector}」產業" if target_sector else "菁英池"
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 掃描{sector_msg}後，暫無符合「多頭+籌碼」之標的，建議觀望。"))
+            sector_msg = f"「{target_sector}」" if target_sector else "菁英池"
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 掃描{sector_msg}後，暫無符合標的。"))
             return
             
         stocks_payload = []
         for s in good_stocks:
-            stocks_payload.append({"name": s['name'], "code": s['code'], "sector": s['sector'], "signals": s['signal_str']})
+            stocks_payload.append({"name": s['name'], "sector": s['sector']}) # 傳送產業資訊給AI
             
-        sys_prompt = "你是操盤手。請回傳JSON。Array中屬性: name, suggestion(🔴進場/🟡觀望/⚫不可進場), reason(50字內)。"
-        ai_json_str = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
+        # 🔥 修正 Prompt: 強制 AI 寫產業面，不要只重複技術訊號
+        sys_prompt = (
+            "你是專業操盤手。請針對下列股票回傳 JSON。Array屬性: name, reason。\n"
+            "⚠️ reason 撰寫規則(50字內)：\n"
+            "1. 必須結合該股票的『產業題材』或『基本面消息』(例如: AI伺服器需求、CoWoS產能、運價上漲)。\n"
+            "2. 禁止只寫『技術面轉強』這種廢話。\n"
+            "3. 語氣要內行、肯定。"
+        )
+        ai_json_str = call_gemini_json(f"股票清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
         
         reasons_map = {}
         if ai_json_str:
             try:
                 ai_data = json.loads(ai_json_str)
                 items = ai_data if isinstance(ai_data, list) else ai_data.get('stocks', [])
-                for item in items: reasons_map[item.get('name')] = item.get('reason', '趨勢偏多')
+                for item in items: reasons_map[item.get('name')] = item.get('reason', '產業趨勢向上。')
             except: pass
 
         bubbles = []
         for stock in good_stocks:
-            reason = reasons_map.get(stock['name'], "技術面強勢，籌碼集中。")
+            # 使用 AI 生成的產業理由
+            reason = reasons_map.get(stock['name'], f"受惠{stock['sector']}需求增溫，籌碼集中。")
             bubble = {
-                "type": "bubble", "size": "mega", # 🔥 修改 3: 改為 mega
+                "type": "bubble", "size": "kilo", 
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
@@ -371,6 +370,7 @@ def handle_message(event):
                 },
                 "body": {"type": "box", "layout": "vertical", "contents": [
                     {"type": "text", "text": str(stock['close']), "weight": "bold", "size": "3xl", "color": stock['color'], "align": "center"},
+                    {"type": "text", "text": stock['change_display'], "size": "xs", "color": stock['color'], "align": "center", "margin": "none"},
                     {"type": "text", "text": f"💰{stock['tag']} | 🏦籌碼:{stock['chips']}", "size": "xs", "color": "#555555", "align": "center", "margin": "md"},
                     {"type": "separator", "margin": "md"},
                     {"type": "text", "text": reason, "size": "sm", "color": "#333333", "wrap": True, "margin": "md"},
@@ -402,7 +402,6 @@ def handle_message(event):
         
         if not ai_reply_text:
             if user_cost:
-                # 持股診斷 (維持原樣)
                 sys_prompt = "你是專業分析師。請回傳JSON。屬性: analysis(分析), action(建議:🔴進場/🟡減碼/⚫停損), strategy(停利停損價)。"
                 user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}, 訊號:{signal_str}"
                 json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
@@ -411,10 +410,9 @@ def handle_message(event):
                     ai_reply_text = f"【診斷】{res['action']}\n{res['analysis']}\n【策略】{res['strategy']}"
                 except: ai_reply_text = "AI 數據解析失敗。"
             else:
-                # 🔥 修改 2: 個股查詢 (加入進場/觀望/不可進場 與 停利停損)
                 sys_prompt = (
                     "你是股市判官。請回傳 JSON。屬性:\n"
-                    "analysis (100字內,解讀技術與籌碼),\n"
+                    "analysis (100字內, 結合技術面與籌碼解析),\n"
                     "advice (🔴進場 / 🟡觀望 / ⚫不可進場),\n"
                     "target_price (停利價, 若advice非進場則填null),\n"
                     "stop_loss (停損價, 若advice非進場則填null)。"
@@ -424,10 +422,8 @@ def handle_message(event):
                 try:
                     res = json.loads(json_str)
                     advice_str = f"【建議】{res['advice']}"
-                    # 只有進場才顯示價格建議
                     if "進場" in res['advice']:
                         advice_str += f"\n🎯停利：{res.get('target_price','N/A')} | 🛑停損：{res.get('stop_loss','N/A')}"
-                    
                     ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
                 except: ai_reply_text = "AI 數據解析失敗。"
             
