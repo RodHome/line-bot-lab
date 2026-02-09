@@ -8,8 +8,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v10.9 (Model Fix: Gemini 2.5)
-BOT_VERSION = "v10.9"
+# 🟢 [版本號] v11.1 (Analyst Mode + Giga UI)
+BOT_VERSION = "v11.1"
 
 # --- 1. 菁英股票池 ---
 STOCK_CACHE = {
@@ -59,7 +59,6 @@ def call_gemini_fast(prompt, system_instruction=None):
     if not keys: return None, "NoKeys"
     random.shuffle(keys)
     
-    # 🔥 v10.9 修正：嚴格使用您指定的 2.5 系列 (Flash 最快)
     target_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] 
 
     for model in target_models:
@@ -76,12 +75,11 @@ def call_gemini_fast(prompt, system_instruction=None):
                 payload = {
                     "contents": contents,
                     "generationConfig": {
-                        "maxOutputTokens": 2000, 
-                        "temperature": 0.2
+                        "maxOutputTokens": 3000, 
+                        "temperature": 0.4
                     }
                 }
-                # 2.5 Flash 速度很快，30秒絕對夠
-                response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=35)
                 if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
@@ -230,7 +228,7 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # 🔥 [推薦選股] - 維持漂亮的 Flex Message
+    # 🔥 [推薦選股] - Flex Message (設定為 Giga 寬版)
     if msg in ["推薦", "選股"]:
         good_stocks = scan_recommendations_turbo()
         if not good_stocks:
@@ -241,6 +239,7 @@ def handle_message(event):
         for stock in good_stocks:
             bubble = {
                 "type": "bubble",
+                "size": "giga",  # 🔥 這裡加入了 Giga 寬度設定
                 "header": {
                     "type": "box",
                     "layout": "vertical",
@@ -273,7 +272,7 @@ def handle_message(event):
     if msg.lower() == "debug":
         token_chk = os.environ.get('FINMIND_TOKEN', '')
         ai_res, ai_stat = call_gemini_fast("Hi")
-        reply = f"🛠️ **v10.9 診斷**\nToken: {'✅' if token_chk else '❌'}\nAI: {ai_stat}"
+        reply = f"🛠️ **v11.1 診斷**\nToken: {'✅' if token_chk else '❌'}\nAI: {ai_stat}"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
@@ -297,17 +296,23 @@ def handle_message(event):
 
     # 4. 回覆邏輯 (雙軌制)
     if user_cost:
-        # 持股診斷 (Sniper Mode)
+        # 持股診斷 (Analyst Mode)
         profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
         profit_status = "獲利" if profit_pct > 0 else "虧損"
         profit_icon = "💰" if profit_pct > 0 else "💸"
         
-        sys_prompt = "你是無情的停損機器。不要廢話。限100字。"
+        sys_prompt = (
+            "你是果斷的操盤手。請根據成本與現價，結合籌碼技術面，給出具體且有邏輯的操作建議。"
+            "字數限制：150字以內。"
+            "回答格式：\n"
+            "【診斷】(🟢續抱/🟡減碼/🔴停損) 理由說明\n"
+            "【策略】(具體的停利點與防守點數值)"
+        )
         user_prompt = (
             f"標的：{stock_id} {name}\n"
             f"現價：{data['close']} (成本：{user_cost}，{profit_status} {profit_pct}%)\n"
             f"MA20={data['ma20']}, 籌碼5日={data['acc_foreign']+data['acc_trust']}張\n"
-            f"指令：\n【診斷】(🟢續抱/🟡減碼/🔴停損) 理由\n【策略】停利/防守價位"
+            f"任務：分析目前是該跑還是該抱？理由是什麼？"
         )
         ai_ans, status = call_gemini_fast(user_prompt, system_instruction=sys_prompt)
         
@@ -320,7 +325,7 @@ def handle_message(event):
             f"系統版本：{BOT_VERSION}"
         )
     else:
-        # 🔥 [個股健檢] - 強制顯示完整數據儀表板
+        # [個股健檢] - 恢復分析師靈魂 + 數據儀表板
         eps = fetch_eps(stock_id)
         
         data_dashboard = (
@@ -331,12 +336,18 @@ def handle_message(event):
             f"💎 EPS: {eps}"
         )
 
-        sys_prompt = "你是無情的分析機器。不要打招呼。限 50 字。"
+        sys_prompt = (
+            "你是專業且犀利的股市分析師。請針對提供的數據進行深度解讀，而非單純覆述數據。"
+            "分析重點：外資與投信的動向對股價的影響、目前股價在均線的位置意義。"
+            "字數限制：150字以內。"
+            "回答格式：\n"
+            "【分析】(解析技術面與籌碼面的多空力道)\n"
+            "【建議】(給出具體的觀察重點或操作區間)"
+        )
         user_prompt = (
             f"標的：{stock_id} {name}\n"
             f"數據：現價{data['close']} (MA20={data['ma20']})\n"
             f"籌碼：外資{data['acc_foreign']}張, 投信{data['acc_trust']}張\n"
-            f"指令：\n【分析】趨勢與籌碼解讀\n【支撐】價位"
         )
         ai_ans, status = call_gemini_fast(user_prompt, system_instruction=sys_prompt)
 
