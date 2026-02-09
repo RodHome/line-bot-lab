@@ -10,8 +10,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v14.2 (Industry Insight + Rich Cards)
-BOT_VERSION = "v14.2"
+# 🟢 [版本號] v15.1 (Concise Diagnosis + Kilo Cards)
+BOT_VERSION = "v15.1"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -103,7 +103,6 @@ def get_technical_signals(data, chips_val):
     k, d = calculate_kd(highs, lows, closes)
     ma5 = data['ma5']; ma20 = data['ma20']; ma60 = data['ma60']; close = data['close']
     
-    # 判斷邏輯
     if rsi > 80: signals.append("🔥RSI過熱")
     elif rsi < 20: signals.append("💎RSI超賣")
     
@@ -174,7 +173,7 @@ def call_gemini_json(prompt, system_instruction=None):
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
                 payload = {
                     "contents": contents,
-                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"} # 溫度調高一點讓AI比較會講話
+                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
                 if response.status_code == 200:
@@ -322,7 +321,7 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # 🔥 [功能 1] 推薦選股
+    # 🔥 [功能 1] 推薦選股 (Kilo Cards)
     msg_parts = msg.split()
     if msg_parts[0] in ["推薦", "選股"]:
         target_sector = msg_parts[1] if len(msg_parts) > 1 else None
@@ -333,17 +332,12 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 掃描{sector_msg}後，暫無符合標的。"))
             return
             
-        stocks_payload = []
-        for s in good_stocks:
-            stocks_payload.append({"name": s['name'], "sector": s['sector']}) # 傳送產業資訊給AI
-            
-        # 🔥 修正 Prompt: 強制 AI 寫產業面，不要只重複技術訊號
+        stocks_payload = [{"name": s['name'], "sector": s['sector']} for s in good_stocks]
         sys_prompt = (
             "你是專業操盤手。請針對下列股票回傳 JSON。Array屬性: name, reason。\n"
             "⚠️ reason 撰寫規則(50字內)：\n"
-            "1. 必須結合該股票的『產業題材』或『基本面消息』(例如: AI伺服器需求、CoWoS產能、運價上漲)。\n"
-            "2. 禁止只寫『技術面轉強』這種廢話。\n"
-            "3. 語氣要內行、肯定。"
+            "1. 必須結合『產業題材』(如AI、運價、CoWoS)。\n"
+            "2. 禁止只寫技術面廢話。"
         )
         ai_json_str = call_gemini_json(f"股票清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
         
@@ -357,23 +351,22 @@ def handle_message(event):
 
         bubbles = []
         for stock in good_stocks:
-            # 使用 AI 生成的產業理由
-            reason = reasons_map.get(stock['name'], f"受惠{stock['sector']}需求增溫，籌碼集中。")
+            reason = reasons_map.get(stock['name'], f"受惠{stock['sector']}需求，籌碼集中。")
             bubble = {
-                "type": "bubble", "size": "kilo", 
+                "type": "bubble", "size": "kilo", # 🔥 改為 Kilo (260px)
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
-                        {"type": "text", "text": f"{stock['name']} ({stock['sector']})", "weight": "bold", "size": "xl", "color": "#ffffff"},
+                        {"type": "text", "text": f"{stock['name']} ({stock['sector']})", "weight": "bold", "size": "lg", "color": "#ffffff"}, # 字體微調適應窄卡片
                         {"type": "text", "text": f"{stock['code']} | {stock['signal_str']}", "size": "xxs", "color": "#eeeeee"}
                     ], "backgroundColor": stock['color']
                 },
                 "body": {"type": "box", "layout": "vertical", "contents": [
                     {"type": "text", "text": str(stock['close']), "weight": "bold", "size": "3xl", "color": stock['color'], "align": "center"},
-                    {"type": "text", "text": stock['change_display'], "size": "xs", "color": stock['color'], "align": "center", "margin": "none"},
-                    {"type": "text", "text": f"💰{stock['tag']} | 🏦籌碼:{stock['chips']}", "size": "xs", "color": "#555555", "align": "center", "margin": "md"},
+                    {"type": "text", "text": stock['change_display'], "size": "xs", "color": stock['color'], "align": "center"},
+                    {"type": "text", "text": f"💰{stock['tag']}", "size": "xs", "color": "#555555", "align": "center", "margin": "md"},
                     {"type": "separator", "margin": "md"},
-                    {"type": "text", "text": reason, "size": "sm", "color": "#333333", "wrap": True, "margin": "md"},
+                    {"type": "text", "text": reason, "size": "xs", "color": "#333333", "wrap": True, "margin": "md"},
                     {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": stock['code']}, "style": "link", "margin": "md"}
                 ]}
             }
@@ -381,7 +374,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選強勢股", contents={"type": "carousel", "contents": bubbles}))
         return
 
-    # [功能 2] 個股診斷
+    # [功能 2] 個股診斷 / 持股診斷 (Concise Cost Mode)
     stock_id = get_stock_id(msg)
     user_cost = None
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
@@ -391,50 +384,61 @@ def handle_message(event):
         name = CODE_TO_NAME.get(stock_id, stock_id)
         data = fetch_data_light(stock_id) 
         if not data: return
+        
+        # 如果是問成本，就不抓籌碼與 EPS，加速回應並保持簡潔
+        if user_cost:
+            profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
+            profit_status = "獲利" if profit_pct > 0 else "虧損"
+            profit_icon = "💰" if profit_pct > 0 else "💸"
+            
+            # 專用的簡潔 Prompt
+            sys_prompt = "你是嚴格的操盤手。使用者持有股票。請回傳JSON。屬性: analysis(30字內簡述籌碼/技術現況), action(建議:🔴續抱/🟡減碼/⚫停損), strategy(明確的停利價與停損價)。"
+            user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}"
+            
+            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            try:
+                res = json.loads(json_str)
+                # 🔥 極簡回覆格式
+                reply = (
+                    f"🩺 **持股診斷：{name}({stock_id})**\n"
+                    f"{profit_icon} 帳面：{profit_status} {profit_pct}% (現價 {data['close']})\n"
+                    f"------------------\n"
+                    f"【診斷】{res['action']}\n"
+                    f"【分析】{res['analysis']}\n"
+                    f"【策略】{res['strategy']}\n"
+                    f"------------------\n"
+                    f"(系統: {BOT_VERSION})"
+                )
+            except: reply = "AI 數據解析失敗。"
+            
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+            return
+
+        # 如果沒問成本 (一般查詢)，顯示完整 Dashboard
         tf, tt, af, at = fetch_chips_accumulate(stock_id)
         eps = fetch_eps(stock_id)
-        
         signals = get_technical_signals(data, af+at)
         signal_str = " | ".join(signals)
-
-        cache_key = f"{stock_id}_{'cost' if user_cost else 'query'}"
+        
+        cache_key = f"{stock_id}_query"
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            if user_cost:
-                sys_prompt = "你是專業分析師。請回傳JSON。屬性: analysis(分析), action(建議:🔴進場/🟡減碼/⚫停損), strategy(停利停損價)。"
-                user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}, 訊號:{signal_str}"
-                json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
-                try:
-                    res = json.loads(json_str)
-                    ai_reply_text = f"【診斷】{res['action']}\n{res['analysis']}\n【策略】{res['strategy']}"
-                except: ai_reply_text = "AI 數據解析失敗。"
-            else:
-                sys_prompt = (
-                    "你是股市判官。請回傳 JSON。屬性:\n"
-                    "analysis (100字內, 結合技術面與籌碼解析),\n"
-                    "advice (🔴進場 / 🟡觀望 / ⚫不可進場),\n"
-                    "target_price (停利價, 若advice非進場則填null),\n"
-                    "stop_loss (停損價, 若advice非進場則填null)。"
-                )
-                user_prompt = f"標的:{name}, 現價:{data['close']}, 訊號:{signal_str}, 外資:{af}張"
-                json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
-                try:
-                    res = json.loads(json_str)
-                    advice_str = f"【建議】{res['advice']}"
-                    if "進場" in res['advice']:
-                        advice_str += f"\n🎯停利：{res.get('target_price','N/A')} | 🛑停損：{res.get('stop_loss','N/A')}"
-                    ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
-                except: ai_reply_text = "AI 數據解析失敗。"
-            
-            if "解析失敗" not in ai_reply_text:
-                set_cached_ai_response(cache_key, ai_reply_text)
+            sys_prompt = "你是股市判官。請回傳 JSON。屬性: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), target_price, stop_loss。"
+            user_prompt = f"標的:{name}, 現價:{data['close']}, 訊號:{signal_str}, 外資:{af}張"
+            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            try:
+                res = json.loads(json_str)
+                advice_str = f"【建議】{res['advice']}"
+                if "進場" in res['advice']:
+                    advice_str += f"\n🎯停利：{res.get('target_price','N/A')} | 🛑停損：{res.get('stop_loss','N/A')}"
+                ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
+            except: ai_reply_text = "AI 數據解析失敗。"
+            if "解析失敗" not in ai_reply_text: set_cached_ai_response(cache_key, ai_reply_text)
 
         data_dashboard = f"💰 現價：{data['close']} {data['change_display']}\n📊 週: {data['ma5']} | 月: {data['ma20']}\n🏦 外資: {af} | 投信: {at}\n💎 EPS: {eps}"
         cta = f"💡 輸入『{name}成本xxx』AI 幫你算！"
-        
         reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 **指標快篩** :\n{signal_str}\n------------------\n{ai_reply_text}\n------------------\n{cta}\n(系統: {BOT_VERSION})"
-        
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 if __name__ == "__main__":
