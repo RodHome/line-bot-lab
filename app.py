@@ -10,11 +10,24 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.1 (Concise Diagnosis + Kilo Cards)
-BOT_VERSION = "v15.1"
+# 🟢 [版本號] v15.2 (ETF Logic Split + Yield Anchoring)
+BOT_VERSION = "v15.2"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
+
+# ETF 屬性資料庫 (用於區分策略)
+ETF_META = {
+    "00878": {"type": "高股息", "focus": "殖利率/成分股除息"},
+    "0056":  {"type": "高股息", "focus": "殖利率/填息能力"},
+    "00919": {"type": "高股息", "focus": "殖利率/航運半導體週期"},
+    "00929": {"type": "高股息", "focus": "科技股配息"},
+    "00713": {"type": "高股息", "focus": "低波高息"},
+    "0050":  {"type": "市值型", "focus": "大盤乖離/台積電展望"},
+    "006208":{"type": "市值型", "focus": "大盤乖離/台積電展望"},
+    "00679B":{"type": "債券型", "focus": "美債殖利率/降息預期"},
+    "00687B":{"type": "債券型", "focus": "美債殖利率/降息預期"}
+}
 
 # 菁英池 (含產業標籤)
 ELITE_STOCK_DATA = {
@@ -321,11 +334,10 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # 🔥 [功能 1] 推薦選股 (Kilo Cards)
+    # [功能 1] 推薦選股 (Kilo Cards) - (與 v15.1 相同，略)
     msg_parts = msg.split()
     if msg_parts[0] in ["推薦", "選股"]:
         target_sector = msg_parts[1] if len(msg_parts) > 1 else None
-        
         good_stocks = scan_recommendations_turbo(target_sector)
         if not good_stocks:
             sector_msg = f"「{target_sector}」" if target_sector else "菁英池"
@@ -333,13 +345,8 @@ def handle_message(event):
             return
             
         stocks_payload = [{"name": s['name'], "sector": s['sector']} for s in good_stocks]
-        sys_prompt = (
-            "你是專業操盤手。請針對下列股票回傳 JSON。Array屬性: name, reason。\n"
-            "⚠️ reason 撰寫規則(50字內)：\n"
-            "1. 必須結合『產業題材』(如AI、運價、CoWoS)。\n"
-            "2. 禁止只寫技術面廢話。"
-        )
-        ai_json_str = call_gemini_json(f"股票清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
+        sys_prompt = "你是專業操盤手。回傳JSON {name, reason}。必須結合『產業題材』(如AI、運價)，禁止廢話。"
+        ai_json_str = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
         
         reasons_map = {}
         if ai_json_str:
@@ -353,11 +360,11 @@ def handle_message(event):
         for stock in good_stocks:
             reason = reasons_map.get(stock['name'], f"受惠{stock['sector']}需求，籌碼集中。")
             bubble = {
-                "type": "bubble", "size": "kilo", # 🔥 改為 Kilo (260px)
+                "type": "bubble", "size": "kilo",
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
-                        {"type": "text", "text": f"{stock['name']} ({stock['sector']})", "weight": "bold", "size": "lg", "color": "#ffffff"}, # 字體微調適應窄卡片
+                        {"type": "text", "text": f"{stock['name']} ({stock['sector']})", "weight": "bold", "size": "lg", "color": "#ffffff"},
                         {"type": "text", "text": f"{stock['code']} | {stock['signal_str']}", "size": "xxs", "color": "#eeeeee"}
                     ], "backgroundColor": stock['color']
                 },
@@ -374,7 +381,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選強勢股", contents={"type": "carousel", "contents": bubbles}))
         return
 
-    # [功能 2] 個股診斷 / 持股診斷 (Concise Cost Mode)
+    # [功能 2] 個股/ETF 診斷
     stock_id = get_stock_id(msg)
     user_cost = None
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
@@ -385,20 +392,41 @@ def handle_message(event):
         data = fetch_data_light(stock_id) 
         if not data: return
         
-        # 如果是問成本，就不抓籌碼與 EPS，加速回應並保持簡潔
+        # 🔥 v15.2: ETF 專屬邏輯
+        is_etf = stock_id.startswith("00")
+        etf_type = "一般"
+        etf_focus = "技術面"
+        if is_etf:
+            meta = ETF_META.get(stock_id, {"type": "ETF", "focus": "折溢價/成分股"})
+            etf_type = meta["type"]
+            etf_focus = meta["focus"]
+
+        # 持股診斷 (Cost Mode)
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             profit_status = "獲利" if profit_pct > 0 else "虧損"
             profit_icon = "💰" if profit_pct > 0 else "💸"
             
-            # 專用的簡潔 Prompt
-            sys_prompt = "你是嚴格的操盤手。使用者持有股票。請回傳JSON。屬性: analysis(30字內簡述籌碼/技術現況), action(建議:🔴續抱/🟡減碼/⚫停損), strategy(明確的停利價與停損價)。"
-            user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}"
+            # 針對 ETF 與 個股 使用不同 Prompt
+            if is_etf:
+                # ETF 專用 Prompt (Yield Anchoring)
+                sys_prompt = (
+                    f"你是ETF專家。標的:{name}({etf_type})。關注:{etf_focus}。\n"
+                    f"規則：\n"
+                    f"1. 若為高股息型，禁止單純因股價高而建議賣出，請用『殖利率錨定法』判斷。\n"
+                    f"2. 若為市值型，參考大盤趨勢。\n"
+                    f"3. 務必提醒『留意即時折溢價』。\n"
+                    f"4. 回傳JSON: analysis(30字內), action(建議:🔴續抱/🟡分批/⚫減碼), strategy(針對存股族的建議)。"
+                )
+            else:
+                # 個股專用 Prompt
+                sys_prompt = "你是操盤手。回傳JSON。屬性: analysis(30字內籌碼技術簡評), action(🔴續抱/🟡減碼/⚫停損), strategy(明確停利停損價)。"
             
+            user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            
             try:
                 res = json.loads(json_str)
-                # 🔥 極簡回覆格式
                 reply = (
                     f"🩺 **持股診斷：{name}({stock_id})**\n"
                     f"{profit_icon} 帳面：{profit_status} {profit_pct}% (現價 {data['close']})\n"
@@ -410,11 +438,10 @@ def handle_message(event):
                     f"(系統: {BOT_VERSION})"
                 )
             except: reply = "AI 數據解析失敗。"
-            
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
 
-        # 如果沒問成本 (一般查詢)，顯示完整 Dashboard
+        # 一般查詢 (Query Mode)
         tf, tt, af, at = fetch_chips_accumulate(stock_id)
         eps = fetch_eps(stock_id)
         signals = get_technical_signals(data, af+at)
@@ -424,14 +451,21 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            sys_prompt = "你是股市判官。請回傳 JSON。屬性: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), target_price, stop_loss。"
+            if is_etf:
+                 sys_prompt = (
+                    f"你是ETF分析師。標的:{name}({etf_type})。關注:{etf_focus}。\n"
+                    f"請回傳 JSON: analysis (100字內, 結合殖利率/折溢價/成分股解析), advice (🔴進場 / 🟡觀望 / ⚫不可進場), target_price (目標價/殖利率目標), stop_loss (長期存股請填『無』)。"
+                )
+            else:
+                sys_prompt = "你是股市判官。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), target_price, stop_loss。"
+            
             user_prompt = f"標的:{name}, 現價:{data['close']}, 訊號:{signal_str}, 外資:{af}張"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
                 advice_str = f"【建議】{res['advice']}"
-                if "進場" in res['advice']:
-                    advice_str += f"\n🎯停利：{res.get('target_price','N/A')} | 🛑停損：{res.get('stop_loss','N/A')}"
+                if "進場" in res['advice'] or is_etf: # ETF 總是顯示策略
+                    advice_str += f"\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
                 ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
             except: ai_reply_text = "AI 數據解析失敗。"
             if "解析失敗" not in ai_reply_text: set_cached_ai_response(cache_key, ai_reply_text)
