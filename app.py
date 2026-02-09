@@ -8,11 +8,12 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v11.3 (Actionable Advice: Enter/Wait/Avoid)
-BOT_VERSION = "v11.3"
+# 🟢 [版本號] v12.2 (JSON Load + Analysis First + CTA Restore)
+BOT_VERSION = "v12.2"
 
-# --- 1. 菁英股票池 ---
-STOCK_CACHE = {
+# --- 1. 菁英股票池 (專供「推薦選股」使用) ---
+# 為了避免掃描 1800 檔造成 Timeout，推薦功能只掃描這些權值與熱門股
+ELITE_STOCK_POOL = {
     "台積電": "2330", "鴻海": "2317", "聯發科": "2454", "廣達": "2382",
     "緯創": "3231", "技嘉": "2376", "台達電": "2308", "日月光": "3711",
     "聯電": "2303", "瑞昱": "2379", "聯詠": "3034", "華碩": "2357",
@@ -40,7 +41,24 @@ STOCK_CACHE = {
     "世紀鋼": "9958", "上緯": "3708"
 }
 
-CODE_TO_NAME = {v: k for k, v in STOCK_CACHE.items()}
+# --- 2. 全台股總表 (專供「個股查詢」使用) ---
+# 優先使用內建菁英池，再嘗試載入 stock_list.json 進行合併
+ALL_STOCK_MAP = ELITE_STOCK_POOL.copy()
+
+try:
+    if os.path.exists('stock_list.json'):
+        with open('stock_list.json', 'r', encoding='utf-8') as f:
+            full_list = json.load(f)
+            # 將外部名單合併進來
+            ALL_STOCK_MAP.update(full_list)
+            print(f"[System] 成功載入 stock_list.json，全台股資料庫擴充至 {len(ALL_STOCK_MAP)} 檔。")
+    else:
+        print("[System] ⚠️ 未發現 stock_list.json，僅使用內建菁英池。")
+except Exception as e:
+    print(f"[System] ❌ 讀取名單失敗: {e}，僅使用內建菁英池。")
+
+# 建立反向對照表 (代碼 -> 名稱)
+CODE_TO_NAME = {v: k for k, v in ALL_STOCK_MAP.items()}
 
 token = os.environ.get('LINE_CHANNEL_ACCESS_TOKEN')
 secret = os.environ.get('LINE_CHANNEL_SECRET')
@@ -49,7 +67,7 @@ handler = WebhookHandler(secret if secret else 'UNKNOWN')
 
 @app.route("/")
 def health_check():
-    return "OK", 200
+    return f"OK (Elite: {len(ELITE_STOCK_POOL)} / Full: {len(ALL_STOCK_MAP)})", 200
 
 def call_gemini_fast(prompt, system_instruction=None):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
@@ -76,7 +94,7 @@ def call_gemini_fast(prompt, system_instruction=None):
                     "contents": contents,
                     "generationConfig": {
                         "maxOutputTokens": 3000, 
-                        "temperature": 0.2
+                        "temperature": 0.3 # 稍微提高溫度，讓分析更有市場感
                     }
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=40)
@@ -170,7 +188,8 @@ def fetch_full_data(stock_id):
 def get_stock_id(text):
     text = text.strip()
     clean_text = re.sub(r'(成本|cost).*', '', text, flags=re.IGNORECASE).strip()
-    if clean_text in STOCK_CACHE: return STOCK_CACHE[clean_text]
+    # 🔥 關鍵：先查 ALL_STOCK_MAP (全名單)，確保能查到冷門股
+    if clean_text in ALL_STOCK_MAP: return ALL_STOCK_MAP[clean_text]
     if clean_text.isdigit() and len(clean_text) >= 4: return clean_text
     return None
 
@@ -188,7 +207,9 @@ def check_stock_worker_turbo(code):
 
 def scan_recommendations_turbo():
     candidates = []
-    sample_list = random.sample(list(STOCK_CACHE.values()), 40)
+    # 推薦選股：只掃描 ELITE_STOCK_POOL (菁英池)，確保推出來的都是好股票且速度快
+    sample_list = random.sample(list(ELITE_STOCK_POOL.values()), 40)
+    
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         results = executor.map(check_stock_worker_turbo, sample_list)
     for res in results:
@@ -208,15 +229,15 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # 🔥 [推薦選股]
+    # 🔥 [推薦選股] (Giga寬版 + AI 嵌入理由)
     if msg in ["推薦", "選股"]:
         good_stocks = scan_recommendations_turbo()
         if not good_stocks:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場目前無符合「強勢多頭+籌碼集中」之標的。"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 掃描菁英池後，暫無符合「強勢多頭+籌碼集中」之標的，建議觀望。"))
             return
             
         stocks_info = "\n".join([f"{s['name']}({s['code']})" for s in good_stocks])
-        # v11.3: 推薦卡片也加入簡易操作建議
+        # 推薦卡片的 AI Prompt
         sys_prompt = "你是無情的操盤手。請針對下列股票給出推薦原因與操作建議。格式：[股票名]：【建議】(進場/拉回佈局) [原因]"
         ai_ans, _ = call_gemini_fast(f"請分析這幾檔強勢股：\n{stocks_info}", system_instruction=sys_prompt)
         
@@ -232,7 +253,7 @@ def handle_message(event):
             reason = reasons.get(stock['name'], reasons.get(f"{stock['name']}({stock['code']})", "趨勢多頭，籌碼高度集中。"))
             bubble = {
                 "type": "bubble",
-                "size": "mega", 
+                "size": "giga", 
                 "header": {"type": "box", "layout": "vertical", "contents": [
                     {"type": "text", "text": stock['name'], "weight": "bold", "size": "xl", "color": "#ffffff"},
                     {"type": "text", "text": stock['code'], "size": "xs", "color": "#eeeeee"}
@@ -248,6 +269,14 @@ def handle_message(event):
             bubbles.append(bubble)
             
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選強勢股", contents={"type": "carousel", "contents": bubbles}))
+        return
+
+    # [Debug]
+    if msg.lower() == "debug":
+        token_chk = os.environ.get('FINMIND_TOKEN', '')
+        ai_res, ai_stat = call_gemini_fast("Hi")
+        reply = f"🛠️ **v12.2 診斷**\nToken: {'✅' if token_chk else '❌'}\nAI: {ai_stat}\n菁英池: {len(ELITE_STOCK_POOL)}\n全台股: {len(ALL_STOCK_MAP)}"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
     user_cost = None
@@ -274,13 +303,13 @@ def handle_message(event):
         eps = fetch_eps(stock_id)
         data_dashboard = f"💰 現價：{data['close']}\n📊 週: {data['ma5']} | 月: {data['ma20']} | 季: {data['ma60']}\n🏦 外資: {data['foreign']} (5日: {data['acc_foreign']})\n🏦 投信: {data['trust']} (5日: {data['acc_trust']})\n💎 EPS: {eps}"
         
-        # 🔥 v11.3 關鍵修正：個股健檢強制給予進出建議
+        # 🔥 v12.2 改進：先分析 (100字，結合市場)，後建議
         sys_prompt = (
-            "你是果斷的股市判官。請根據數據給出明確操作建議。"
-            "字數限制：100字以內。"
+            "你是專業股市分析師。請根據技術面與籌碼數據，結合該股票的產業特性與市場氛圍進行分析。"
+            "字數限制：100字左右。"
             "嚴格格式：\n"
-            "【建議】 (🔴進場 / 🟡觀望 / ⚫不可入場)\n"
-            "【分析】 (簡述多空理由)"
+            "【分析】 (結合市場面、技術、籌碼的綜合解讀)\n"
+            "【建議】 (🔴進場 / 🟡觀望 / ⚫不可入場)"
         )
         user_prompt = f"標的：{stock_id} {name}\n現價：{data['close']} (MA20={data['ma20']})\n外資{data['acc_foreign']}張, 投信{data['acc_trust']}張"
         ai_ans, _ = call_gemini_fast(user_prompt, system_instruction=sys_prompt)
@@ -290,7 +319,11 @@ def handle_message(event):
         if data['acc_foreign'] + data['acc_trust'] > 50: signals.append("💰法人進場")
         elif data['acc_foreign'] + data['acc_trust'] < -50: signals.append("💸法人提款")
         signal_str = " | ".join(signals) if signals else "🟡觀望"
-        reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 {signal_str}\n------------------\n{ai_ans}\n------------------\n系統版本：{BOT_VERSION}"
+        
+        # 🔥 找回互動小尾巴
+        cta_footer = f"💡 輸入『{name}成本xxx』\nAI 幫你算停利停損點！"
+        
+        reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 {signal_str}\n------------------\n{ai_ans}\n------------------\n{cta_footer}\n(系統: {BOT_VERSION})"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
