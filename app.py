@@ -10,13 +10,13 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.2 (ETF Logic Split + Yield Anchoring)
-BOT_VERSION = "v15.2"
+# 🟢 [版本號] v15.3 (Yield Data + Dynamic Advice + Chips Format)
+BOT_VERSION = "v15.3"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
 
-# ETF 屬性資料庫 (用於區分策略)
+# ETF 屬性資料庫
 ETF_META = {
     "00878": {"type": "高股息", "focus": "殖利率/成分股除息"},
     "0056":  {"type": "高股息", "focus": "殖利率/填息能力"},
@@ -25,11 +25,10 @@ ETF_META = {
     "00713": {"type": "高股息", "focus": "低波高息"},
     "0050":  {"type": "市值型", "focus": "大盤乖離/台積電展望"},
     "006208":{"type": "市值型", "focus": "大盤乖離/台積電展望"},
-    "00679B":{"type": "債券型", "focus": "美債殖利率/降息預期"},
-    "00687B":{"type": "債券型", "focus": "美債殖利率/降息預期"}
+    "00679B":{"type": "債券型", "focus": "美債殖利率/降息預期"}
 }
 
-# 菁英池 (含產業標籤)
+# 菁英池
 ELITE_STOCK_DATA = {
     "台積電": {"code": "2330", "sector": "半導體/晶圓代工"},
     "鴻海": {"code": "2317", "sector": "電子代工/AI伺服器"},
@@ -76,11 +75,11 @@ handler = WebhookHandler(secret if secret else 'UNKNOWN')
 def health_check():
     return f"OK ({BOT_VERSION})", 200
 
-# --- 2. 核心：技術指標計算引擎 ---
+# --- 2. 核心：數據與指標引擎 ---
+
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1: return 50
-    gains = []
-    losses = []
+    gains = []; losses = []
     for i in range(1, len(prices)):
         change = prices[i] - prices[i-1]
         gains.append(max(0, change))
@@ -107,29 +106,19 @@ def calculate_kd(highs, lows, closes, period=9):
 
 def get_technical_signals(data, chips_val):
     signals = []
-    closes = data['raw_closes']
-    highs = data['raw_highs']
-    lows = data['raw_lows']
-    volumes = data['raw_volumes']
-    
+    closes = data['raw_closes']; highs = data['raw_highs']; lows = data['raw_lows']; volumes = data['raw_volumes']
     rsi = calculate_rsi(closes)
     k, d = calculate_kd(highs, lows, closes)
     ma5 = data['ma5']; ma20 = data['ma20']; ma60 = data['ma60']; close = data['close']
     
     if rsi > 80: signals.append("🔥RSI過熱")
     elif rsi < 20: signals.append("💎RSI超賣")
-    
     bias_20 = (close - ma20) / ma20 * 100
     if bias_20 > 15: signals.append("⚠️乖離過大")
-    
     if len(volumes) >= 6:
         avg_vol = sum(volumes[-6:-1]) / 5
-        if avg_vol > 0 and volumes[-1] > avg_vol * 2 and close > data['open']:
-            signals.append("🚀爆量長紅")
-            
-    if (close - data['open']) / data['open'] > 0.05: signals.append("🧱長紅棒")
-    elif (min(data['open'], close) - data['low']) > (abs(close - data['open']) * 2): signals.append("📌長下影線")
-        
+        if avg_vol > 0 and volumes[-1] > avg_vol * 2 and close > data['open']: signals.append("🚀爆量長紅")
+    
     if k > 80: signals.append("📈KD高檔")
     elif k < 20: signals.append("📉KD低檔")
     
@@ -235,30 +224,62 @@ def fetch_data_light(stock_id):
         }
     except: return None
 
+# 🔥 修改：籌碼格式優化 (日 + 5日累積) + 回傳數值供訊號判斷
 def fetch_chips_accumulate(stock_id):
     token = os.environ.get('FINMIND_TOKEN', '')
     url = "https://api.finmindtrade.com/api/v4/data"
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
-        start = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d')
+        start = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d') # 抓多幾天確保有5筆
         res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": start, "token": token}, headers=headers, timeout=5)
         data = res.json().get('data', [])
-        if not data: return 0, 0, 0, 0
-        latest_date = data[-1]['date']
-        today_f = 0; today_t = 0
-        unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)[:5]
-        acc_f = 0; acc_t = 0
+        if not data: return "0 (5日: 0)", "0 (5日: 0)", 0, 0
+        
+        unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
+        latest_date = unique_dates[0] if unique_dates else ""
+        target_dates = unique_dates[:5] # 取最近5個交易日
+        
+        today_f = 0; acc_f = 0
+        today_t = 0; acc_t = 0
+        
         for row in data:
-            if row['date'] in unique_dates:
-                val = row['buy'] - row['sell']
+            if row['date'] in target_dates:
+                val = (row['buy'] - row['sell']) // 1000 # 換算張數
                 if row['name'] == 'Foreign_Investor':
                     acc_f += val
                     if row['date'] == latest_date: today_f = val
                 elif row['name'] == 'Investment_Trust':
                     acc_t += val
                     if row['date'] == latest_date: today_t = val
-        return int(today_f/1000), int(today_t/1000), int(acc_f/1000), int(acc_t/1000)
-    except: return 0, 0, 0, 0
+        
+        # 格式化輸出字串
+        f_str = f"{today_f} (5日: {acc_f})"
+        t_str = f"{today_t} (5日: {acc_t})"
+        return f_str, t_str, acc_f, acc_t # 回傳字串供顯示，數值供AI判斷
+    except: return "N/A", "N/A", 0, 0
+
+# 🔥 新增：抓取殖利率 (過去365天除息總和)
+def fetch_dividend_yield(stock_id, current_price):
+    token = os.environ.get('FINMIND_TOKEN', '')
+    url = "https://api.finmindtrade.com/api/v4/data"
+    try:
+        # 抓過去 365 天 (確保涵蓋年配或季配)
+        start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
+        data = res.json().get('data', [])
+        
+        total_dividend = 0
+        for d in data:
+            # 累加現金股利
+            val = d.get('CashEarningsDistribution', 0)
+            if val: total_dividend += float(val)
+            
+        if total_dividend > 0 and current_price > 0:
+            yield_pct = round((total_dividend / current_price) * 100, 2)
+            return f"{yield_pct}%"
+        else:
+            return "N/A"
+    except: return "N/A"
 
 def fetch_eps(stock_id):
     if stock_id.startswith("00"): return "ETF"
@@ -269,6 +290,7 @@ def fetch_eps(stock_id):
         data = res.json().get('data', [])
         if not data: return "N/A"
         eps_data = [d for d in data if d['type'] == 'EPS']
+        if not eps_data: return "N/A"
         latest_year = eps_data[-1]['date'][:4]
         vals = [d['value'] for d in eps_data if d['date'].startswith(latest_year)]
         return f"{latest_year}累計{round(sum(vals), 2)}元"
@@ -286,21 +308,22 @@ def check_stock_worker_turbo(code):
         data = fetch_data_light(code)
         if not data: return None
         if data['ma5'] > data['ma20']:
-            tf, tt, af, at = fetch_chips_accumulate(code)
+            # 注意這裡 fetch_chips 回傳 4 個值，前兩個是字串，後兩個是數值
+            f_str, t_str, af_val, at_val = fetch_chips_accumulate(code) 
             threshold = 50 if data['close'] > 100 else 200
-            if (af + at) > threshold:
+            if (af_val + at_val) > threshold:
                 name = CODE_TO_NAME.get(code, code)
                 sector = "熱門股"
                 if name in ELITE_STOCK_DATA: sector = ELITE_STOCK_DATA[name]['sector']
                 
-                signals = get_technical_signals(data, af+at)
+                signals = get_technical_signals(data, af_val + at_val)
                 signal_str = " | ".join(signals)
                 
                 return {
                     "code": code, "name": name, "sector": sector,
                     "close": data['close'], "change_display": data['change_display'], "color": data['color'],
-                    "chips": f"{af+at}張", "signal_str": signal_str,
-                    "tag": "外資大買" if af > at else "投信認養"
+                    "chips": f"{af_val + at_val}張", "signal_str": signal_str,
+                    "tag": "外資大買" if af_val > at_val else "投信認養"
                 }
     except: return None
     return None
@@ -334,7 +357,7 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # [功能 1] 推薦選股 (Kilo Cards) - (與 v15.1 相同，略)
+    # [功能 1] 推薦選股 (Kilo Cards)
     msg_parts = msg.split()
     if msg_parts[0] in ["推薦", "選股"]:
         target_sector = msg_parts[1] if len(msg_parts) > 1 else None
@@ -392,7 +415,6 @@ def handle_message(event):
         data = fetch_data_light(stock_id) 
         if not data: return
         
-        # 🔥 v15.2: ETF 專屬邏輯
         is_etf = stock_id.startswith("00")
         etf_type = "一般"
         etf_focus = "技術面"
@@ -407,19 +429,16 @@ def handle_message(event):
             profit_status = "獲利" if profit_pct > 0 else "虧損"
             profit_icon = "💰" if profit_pct > 0 else "💸"
             
-            # 針對 ETF 與 個股 使用不同 Prompt
             if is_etf:
-                # ETF 專用 Prompt (Yield Anchoring)
                 sys_prompt = (
                     f"你是ETF專家。標的:{name}({etf_type})。關注:{etf_focus}。\n"
                     f"規則：\n"
-                    f"1. 若為高股息型，禁止單純因股價高而建議賣出，請用『殖利率錨定法』判斷。\n"
-                    f"2. 若為市值型，參考大盤趨勢。\n"
-                    f"3. 務必提醒『留意即時折溢價』。\n"
-                    f"4. 回傳JSON: analysis(30字內), action(建議:🔴續抱/🟡分批/⚫減碼), strategy(針對存股族的建議)。"
+                    f"1. 高股息型：若獲利 >20% 可建議『分批減碼以領取本金』或『續抱領息』，勿輕易喊停損。\n"
+                    f"2. 市值型：看大盤趨勢。\n"
+                    f"3. 務必提醒『即時折溢價』。\n"
+                    f"4. 回傳JSON: analysis(30字內), action(建議:🔴續抱/🟡分批/⚫減碼), strategy(存股族操作建議)。"
                 )
             else:
-                # 個股專用 Prompt
                 sys_prompt = "你是操盤手。回傳JSON。屬性: analysis(30字內籌碼技術簡評), action(🔴續抱/🟡減碼/⚫停損), strategy(明確停利停損價)。"
             
             user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}"
@@ -442,35 +461,63 @@ def handle_message(event):
             return
 
         # 一般查詢 (Query Mode)
-        tf, tt, af, at = fetch_chips_accumulate(stock_id)
+        # 🔥 更新：fetch_chips 現在回傳 4 個值
+        f_str, t_str, af_val, at_val = fetch_chips_accumulate(stock_id) 
         eps = fetch_eps(stock_id)
-        signals = get_technical_signals(data, af+at)
+        yield_rate = fetch_dividend_yield(stock_id, data['close']) # 🔥 新增殖利率
+        
+        signals = get_technical_signals(data, af_val + at_val)
         signal_str = " | ".join(signals)
         
         cache_key = f"{stock_id}_query"
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
+            # 動態 Prompt：根據是否為 ETF 給予不同指示
             if is_etf:
                  sys_prompt = (
                     f"你是ETF分析師。標的:{name}({etf_type})。關注:{etf_focus}。\n"
-                    f"請回傳 JSON: analysis (100字內, 結合殖利率/折溢價/成分股解析), advice (🔴進場 / 🟡觀望 / ⚫不可進場), target_price (目標價/殖利率目標), stop_loss (長期存股請填『無』)。"
+                    f"殖利率: {yield_rate}。\n"
+                    f"請回傳 JSON: analysis (100字內, 結合殖利率/成分股/折溢價解析), advice (🔴進場 / 🟡觀望 / ⚫不可進場), "
+                    f"target_price (目標價/殖利率目標), stop_loss (長期存股請填『無』), "
+                    f"support (支撐位), resistance (壓力位)。"
                 )
             else:
-                sys_prompt = "你是股市判官。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), target_price, stop_loss。"
+                sys_prompt = (
+                    "你是股市判官。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), "
+                    "target_price (停利), stop_loss (停損), support (支撐), resistance (壓力)。"
+                )
             
-            user_prompt = f"標的:{name}, 現價:{data['close']}, 訊號:{signal_str}, 外資:{af}張"
+            user_prompt = f"標的:{name}, 現價:{data['close']}, 訊號:{signal_str}, 外資:{f_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
                 advice_str = f"【建議】{res['advice']}"
-                if "進場" in res['advice'] or is_etf: # ETF 總是顯示策略
+                
+                # 🔥 動態價格顯示邏輯 (修正矛盾)
+                if "進場" in res['advice']:
                     advice_str += f"\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
+                else: # 觀望或不可進場
+                    advice_str += f"\n🧱壓力：{res.get('resistance','N/A')} | 🛏️支撐：{res.get('support','N/A')}"
+                    
                 ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
             except: ai_reply_text = "AI 數據解析失敗。"
             if "解析失敗" not in ai_reply_text: set_cached_ai_response(cache_key, ai_reply_text)
 
-        data_dashboard = f"💰 現價：{data['close']} {data['change_display']}\n📊 週: {data['ma5']} | 月: {data['ma20']}\n🏦 外資: {af} | 投信: {at}\n💎 EPS: {eps}"
+        # 🔥 儀表板：加入殖利率 (取代 ETF 的 EPS 顯示，個股則顯示 EPS)
+        if is_etf:
+            indicator_line = f"💎 預估殖利率: {yield_rate}"
+        else:
+            indicator_line = f"💎 EPS: {eps}"
+
+        data_dashboard = (
+            f"💰 現價：{data['close']} {data['change_display']}\n"
+            f"📊 週: {data['ma5']} | 月: {data['ma20']}\n"
+            f"🏦 外資: {f_str}\n" # 顯示 5日累積格式
+            f"🏦 投信: {t_str}\n"
+            f"{indicator_line}"
+        )
+        
         cta = f"💡 輸入『{name}成本xxx』AI 幫你算！"
         reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 **指標快篩** :\n{signal_str}\n------------------\n{ai_reply_text}\n------------------\n{cta}\n(系統: {BOT_VERSION})"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
