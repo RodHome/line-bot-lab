@@ -1,4 +1,5 @@
 import os, requests, json, time, re, threading, random, concurrent.futures
+import twstock # 🟢 新增：即時股價套件
 from datetime import datetime, timedelta
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -6,8 +7,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v14.0 (Retro Gold) - 復刻 v10.4 介面
-BOT_VERSION = "v14.0 (Retro Gold)"
+# 🟢 [版本號] v14.1 (Real-Time)
+BOT_VERSION = "v14.1 (Real-Time)"
 
 # --- 1. 載入清單 ---
 STOCK_MAP = {}
@@ -43,7 +44,7 @@ secret = os.environ.get('LINE_CHANNEL_SECRET')
 line_bot_api = LineBotApi(token if token else 'UNKNOWN')
 handler = WebhookHandler(secret if secret else 'UNKNOWN')
 
-# --- 4. Gemini 核心 ---
+# --- 4. Gemini 核心 (增強解析) ---
 def call_gemini_v14(prompt, mode="NORMAL"):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
@@ -52,15 +53,16 @@ def call_gemini_v14(prompt, mode="NORMAL"):
 
     target_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"]
     
+    # Prompt 優化：要求更嚴格的 JSON
     if mode == "COST":
-        # 持股診斷：續抱/停損
         final_prompt = prompt + """
-        🔴 JSON ONLY. Keys: "diagnosis" (續抱/加碼/減碼/停損/停利), "reason" (20 words), "target_price", "stop_loss".
+        🔴 Output strict JSON. No Markdown.
+        Keys: "diagnosis" (續抱/加碼/減碼/停損/停利), "reason" (max 30 words), "target_price", "stop_loss".
         """
     else:
-        # 一般查詢：多空分析
         final_prompt = prompt + """
-        🔴 JSON ONLY. Keys: "trend" (e.g. 盤整偏多), "reason" (30 words), "action" (買進/觀望/賣出), "target_price", "stop_loss".
+        🔴 Output strict JSON. No Markdown.
+        Keys: "trend" (e.g. 盤整偏多), "reason" (max 50 words), "action" (買進/觀望/賣出), "target_price", "stop_loss".
         """
 
     for model in target_models:
@@ -76,27 +78,29 @@ def call_gemini_v14(prompt, mode="NORMAL"):
                 res = requests.post(url, headers=headers, params=params, json=payload, timeout=25)
                 if res.status_code == 200:
                     text = res.json().get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+                    # 1. 嘗試標準 JSON 解析
                     try:
-                        return json.loads(text.replace("```json", "").replace("```", "").strip())
+                        clean = text.replace("```json", "").replace("```", "").strip()
+                        return json.loads(clean)
                     except:
-                        # Regex 救援
+                        # 2. Regex 暴力解析 (增加 DOTALL 支援換行)
                         if mode == "COST":
-                            d = re.search(r'"diagnosis"\s*:\s*"(.*?)"', text)
-                            r = re.search(r'"reason"\s*:\s*"(.*?)"', text)
+                            d = re.search(r'"diagnosis"\s*:\s*"(.*?)"', text, re.DOTALL)
+                            r = re.search(r'"reason"\s*:\s*"(.*?)"', text, re.DOTALL)
                             t = re.search(r'"target_price"\s*:\s*"(.*?)"', text)
                             s = re.search(r'"stop_loss"\s*:\s*"(.*?)"', text)
                             if d: return {"diagnosis": d.group(1), "reason": r.group(1) if r else "...", "target_price": t.group(1) if t else "-", "stop_loss": s.group(1) if s else "-"}
                         else:
-                            t = re.search(r'"trend"\s*:\s*"(.*?)"', text)
-                            r = re.search(r'"reason"\s*:\s*"(.*?)"', text)
-                            a = re.search(r'"action"\s*:\s*"(.*?)"', text)
+                            t = re.search(r'"trend"\s*:\s*"(.*?)"', text, re.DOTALL)
+                            r = re.search(r'"reason"\s*:\s*"(.*?)"', text, re.DOTALL)
+                            a = re.search(r'"action"\s*:\s*"(.*?)"', text, re.DOTALL)
                             tp = re.search(r'"target_price"\s*:\s*"(.*?)"', text)
                             sl = re.search(r'"stop_loss"\s*:\s*"(.*?)"', text)
                             if t: return {"trend": t.group(1), "reason": r.group(1) if r else "...", "action": a.group(1) if a else "觀望", "target_price": tp.group(1) if tp else "-", "stop_loss": sl.group(1) if sl else "-"}
             except: continue
     return {"error": "AI Busy"}
 
-# --- 5. 數據與訊號計算 (復刻 v10.4 邏輯) ---
+# --- 5. 數據抓取 (FinMind + RealTime) ---
 def fetch_data_v14(stock_id):
     cached = get_cache(stock_id)
     if cached: return cached
@@ -105,12 +109,27 @@ def fetch_data_v14(stock_id):
     url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
-        # A. 股價與均線
+        # A. 歷史股價 (用來算均線)
         start = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
         res = requests.get(url, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
         data = res.json().get('data', [])
+        
+        # 🟢 [關鍵修改] 抓即時股價 (Real-Time)
+        current_price = 0
+        try:
+            real = twstock.realtime.get(stock_id)
+            if real['success']:
+                current_price = float(real['realtime']['latest_trade_price'])
+                # 如果即時價格是 "-", 代表還沒開盤或錯誤，沿用 FinMind 最新收盤
+                if current_price == 0 and data: current_price = data[-1]['close']
+            elif data:
+                current_price = data[-1]['close']
+        except:
+            if data: current_price = data[-1]['close']
+
         if not data: return None
-        latest = data[-1]
+        
+        # 計算均線 (使用最新的歷史收盤數據)
         closes = [d['close'] for d in data]
         ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
         ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
@@ -140,24 +159,23 @@ def fetch_data_v14(stock_id):
              if eps_list:
                  latest_eps = eps_list[-1]
                  eps_val = latest_eps['value']
-                 eps_year = latest_eps['date'][:4] # 取年份
+                 eps_year = latest_eps['date'][:4]
 
-        # D. 訊號快篩 (Python 邏輯)
+        # D. 訊號快篩 (使用 current_price 即時價來判斷)
         signals = []
-        # 1. 均線邏輯
-        if latest['close'] > ma20 and ma20 > ma60: signals.append("📈 **多頭排列** (趨勢強)")
-        elif latest['close'] > ma20: signals.append("📈 **站上月線** (轉強)")
-        elif latest['close'] < ma20: signals.append("📉 **跌破月線** (轉弱)")
-        # 2. 乖離邏輯
-        bias = ((latest['close'] - ma20) / ma20) * 100
+        if current_price > ma20 and ma20 > ma60: signals.append("📈 **多頭排列** (趨勢強)")
+        elif current_price > ma20: signals.append("📈 **站上月線** (轉強)")
+        elif current_price < ma20: signals.append("📉 **跌破月線** (轉弱)")
+        
+        bias = ((current_price - ma20) / ma20) * 100
         if bias > 5: signals.append("🔥 **乖離過大** (防回檔)")
         elif bias < -5: signals.append("❄️ **乖離過大** (醞釀反彈)")
-        # 3. 籌碼邏輯
+        
         if f_sum5 > 0 and t_sum5 > 0: signals.append("💰 **土洋合買** (籌碼佳)")
         elif f_sum5 < 0 and t_sum5 < 0: signals.append("💸 **土洋棄守** (籌碼爛)")
 
         result = {
-            "code": stock_id, "close": latest['close'], 
+            "code": stock_id, "close": current_price, # 這裡是即時價
             "ma5": ma5, "ma20": ma20, "ma60": ma60,
             "f_lat": f_lat, "f_sum5": f_sum5,
             "t_lat": t_lat, "t_sum5": t_sum5,
@@ -211,7 +229,6 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # 取得 ID
     stock_id = None
     cost = None
     
@@ -236,7 +253,7 @@ def handle_message(event):
     
     name = CODE_TO_NAME.get(stock_id, stock_id)
 
-    # === 🌟 成本模式 (Cost Mode) ===
+    # === 🌟 成本模式 ===
     if cost:
         profit_pct = round(((data['close'] - cost) / cost) * 100, 2)
         status_text = "獲利" if profit_pct > 0 else "虧損"
@@ -263,7 +280,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
-    # === 🌟 一般模式 (Normal Mode) - 復刻 v10.4 ===
+    # === 🌟 一般模式 ===
     prompt = (
         f"標的{name}, 現價{data['close']}\n"
         f"技術: MA5={data['ma5']}, MA20={data['ma20']}, MA60={data['ma60']}\n"
@@ -273,10 +290,7 @@ def handle_message(event):
     )
     ai = call_gemini_v14(prompt, mode="NORMAL")
     
-    # 組合 v10.4 風格
     signals_str = "\n".join([f"  {s}" for s in data['signals']]) if data['signals'] else "  (無特殊訊號)"
-    
-    # Icon
     act = ai.get('action', '觀望')
     if "買" in act: icon = "🔴"
     elif "賣" in act: icon = "🟢"
