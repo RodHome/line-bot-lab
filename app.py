@@ -6,8 +6,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v14.2 (Real-Time Final)
-BOT_VERSION = "v14.2 (RT-Final)"
+# 🟢 [版本號] v14.3 (Emergency Fix)
+BOT_VERSION = "v14.3 (Fix)"
 
 # --- 1. 載入清單 ---
 STOCK_MAP = {}
@@ -19,6 +19,7 @@ except: pass
 
 if not STOCK_MAP:
     STOCK_MAP = {"台積電": "2330", "鴻海": "2317", "南電": "8046"}
+# 反向查表：代碼 -> 名字
 CODE_TO_NAME = {v: k for k, v in STOCK_MAP.items()}
 
 # --- 2. 快取 ---
@@ -33,7 +34,7 @@ def get_cache(stock_id):
             else: del DATA_CACHE[stock_id]
     return None
 
-def set_cache(stock_id, data, ttl=120): # 縮短快取時間確保即時性
+def set_cache(stock_id, data, ttl=120):
     with CACHE_LOCK:
         DATA_CACHE[stock_id] = {"data": data, "expire": time.time() + ttl}
 
@@ -43,44 +44,36 @@ secret = os.environ.get('LINE_CHANNEL_SECRET')
 line_bot_api = LineBotApi(token if token else 'UNKNOWN')
 handler = WebhookHandler(secret if secret else 'UNKNOWN')
 
-# --- 4. 核心：官方即時股價抓取 (免 twstock) ---
+# --- 4. 即時價格 (官方 API) ---
 def get_realtime_price_official(stock_id):
-    """直接對接證交所/上櫃即時 API"""
-    # 試試上市
-    try:
-        url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_{stock_id}.tw"
-        res = requests.get(url, timeout=5).json()
-        if res.get('msgArray'):
-            info = res['msgArray'][0]
-            # z 為成交價, y 為昨收
-            p = info.get('z', info.get('y'))
-            if p == '-': p = info.get('y')
-            return float(p)
-    except: pass
-    # 試試上櫃
-    try:
-        url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_{stock_id}.tw"
-        res = requests.get(url, timeout=5).json()
-        if res.get('msgArray'):
-            info = res['msgArray'][0]
-            p = info.get('z', info.get('y'))
-            if p == '-': p = info.get('y')
-            return float(p)
-    except: pass
+    """直接對接證交所/上櫃即時 API，解決 1780 vs 1820 問題"""
+    # 建立隨機快取參數避免 API 快取舊資料
+    ts = int(time.time() * 1000)
+    for ex in ['tse', 'otc']:
+        try:
+            url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={ex}_{stock_id}.tw&_={ts}"
+            res = requests.get(url, timeout=5).json()
+            if res.get('msgArray'):
+                info = res['msgArray'][0]
+                # z=成交價, y=昨收, a=五檔買, b=五檔賣
+                p = info.get('z', info.get('y'))
+                if p == '-' or not p: p = info.get('y')
+                return float(p)
+        except: continue
     return None
 
-# --- 5. Gemini 核心 (強化解析與還原 v10.4 格式) ---
+# --- 5. Gemini 核心 ---
 def call_gemini_v14(prompt, mode="NORMAL"):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
     if not keys: return {"error": "No Keys"}
     random.shuffle(keys)
     
-    # 模式 Prompt 優化：還原 v10.4 的「文字建議」格式
+    # 強化 Prompt 確保不出現 ...
     if mode == "COST":
-        final_prompt = prompt + "\n🔴 JSON ONLY. Keys: 'diagnosis' (續抱/加碼/減碼/停損/停利), 'reason' (max 30 words), 'target_text' (e.g. 停利:400元/防守:340元)."
+        final_prompt = prompt + "\n🔴 JSON ONLY. Keys: 'diagnosis', 'reason', 'target_text'. Keep reason under 30 words."
     else:
-        final_prompt = prompt + "\n🔴 JSON ONLY. Keys: 'trend' (e.g. 趨勢向上), 'reason' (max 50 words), 'action' (買進/觀望/賣出), 'advice_text' (e.g. 支撐340元，壓力410元)."
+        final_prompt = prompt + "\n🔴 JSON ONLY. Keys: 'trend', 'reason', 'action', 'advice_text'. Keep reason under 50 words."
 
     for model in ["gemini-1.5-flash", "gemini-2.0-flash"]:
         for key in keys:
@@ -104,46 +97,44 @@ def fetch_all_data(stock_id):
     fin_url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
-        # A. 即時價格 (絕對精準)
-        rt_price = get_realtime_price_official(stock_id)
-        
-        # B. 歷史數據 (均線與籌碼)
-        res = requests.get(fin_url, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": (datetime.now()-timedelta(days=90)).strftime('%Y-%m-%d'), "token": token}, timeout=5).json()
+        # A. 歷史數據 (均線與籌碼)
+        start_date = (datetime.now()-timedelta(days=90)).strftime('%Y-%m-%d')
+        res = requests.get(fin_url, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start_date, "token": token}, timeout=5).json()
         hist = res.get('data', [])
         if not hist: return None
         
-        # 若即時抓不到，才用昨日收盤
+        # B. 即時價格 (優先使用官方最新價)
+        rt_price = get_realtime_price_official(stock_id)
         curr_p = rt_price if rt_price else hist[-1]['close']
         
+        # C. 計算均線
         closes = [d['close'] for d in hist]
         ma5 = round(sum(closes[-5:]) / 5, 2)
         ma20 = round(sum(closes[-20:]) / 20, 2)
         ma60 = round(sum(closes[-60:]) / 60, 2)
         
-        # C. 籌碼 (格式還原 v10.4)
+        # D. 籌碼
         c_res = requests.get(fin_url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": (datetime.now()-timedelta(days=12)).strftime('%Y-%m-%d'), "token": token}, timeout=5).json()
         chips = c_res.get('data', [])
         dates = sorted(list(set([d['date'] for d in chips])), reverse=True)
-        recent_5 = dates[:5]
-        f_lat = sum([d['buy']-d['sell'] for d in chips if d['date']==dates[0] and d['name']=='Foreign_Investor']) // 1000
-        f_sum5 = sum([d['buy']-d['sell'] for d in chips if d['date'] in recent_5 and d['name']=='Foreign_Investor']) // 1000
-        t_lat = sum([d['buy']-d['sell'] for d in chips if d['date']==dates[0] and d['name']=='Investment_Trust']) // 1000
-        t_sum5 = sum([d['buy']-d['sell'] for d in chips if d['date'] in recent_5 and d['name']=='Investment_Trust']) // 1000
-        
-        # D. EPS
+        if dates:
+            f_lat = sum([d['buy']-d['sell'] for d in chips if d['date']==dates[0] and d['name']=='Foreign_Investor']) // 1000
+            f_sum5 = sum([d['buy']-d['sell'] for d in chips if d['date'] in dates[:5] and d['name']=='Foreign_Investor']) // 1000
+            t_lat = sum([d['buy']-d['sell'] for d in chips if d['date']==dates[0] and d['name']=='Investment_Trust']) // 1000
+            t_sum5 = sum([d['buy']-d['sell'] for d in chips if d['date'] in dates[:5] and d['name']=='Investment_Trust']) // 1000
+        else:
+            f_lat = f_sum5 = t_lat = t_sum5 = 0
+            
+        # E. EPS
         e_res = requests.get(fin_url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": stock_id, "start_date": "2024-01-01", "token": token}, timeout=5).json()
         eps_data = [d for d in e_res.get('data', []) if d['type']=='EPS']
         eps_val = eps_data[-1]['value'] if eps_data else "N/A"
 
-        # E. 訊號快篩
+        # F. 訊號快篩
         sigs = []
         if curr_p > ma20 and ma20 > ma60: sigs.append("📈**月線翻揚** (趨勢向上)")
         elif curr_p > ma20: sigs.append("📈**站上月線** (短線轉強)")
         elif curr_p < ma20: sigs.append("📉**跌破月線** (趨勢轉弱)")
-        
-        bias = ((curr_p - ma20) / ma20) * 100
-        if bias > 5: sigs.append("🔥**乖離過大** (防回檔)")
-        
         if f_sum5 > 0 and t_sum5 > 0: sigs.append("💰**籌碼集中** (波段偏多)")
 
         result = {
@@ -168,23 +159,25 @@ def handle_message(event):
     msg = event.message.text.strip().upper()
     cost_m = re.match(r'^([A-Z0-9\u4e00-\u9fa5]+)\s*成本\s*(\d+(?:\.\d+)?)$', msg)
     
-    # 找 ID
-    raw_n = cost_m.group(1) if cost_m else msg
-    sid = next((k for k, v in STOCK_MAP.items() if v == raw_n or k == raw_n), None)
-    if not sid: sid = raw_n if raw_n.isdigit() and len(raw_n)==4 else STOCK_MAP.get(raw_n)
+    # 🔥 重大修復：正確轉換 名稱 -> 代號
+    raw_query = cost_m.group(1) if cost_m else msg
+    sid = None
+    if raw_query.isdigit() and len(raw_query) == 4:
+        sid = raw_query
+    else:
+        sid = STOCK_MAP.get(raw_query) # 從清單抓代號
     
-    if not sid: return
+    if not sid: return # 沒對應到的直接不回覆
 
     data = fetch_all_data(sid)
     if not data:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="❌ 查無數據"))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"❌ 查無代碼 {sid} 之數據"))
         return
     
     name = CODE_TO_NAME.get(sid, sid)
 
     if cost_m:
-        # === 🌟 診斷模式 (復刻 v10.4) ===
-        cost = float(cost_match.group(2)) if 'cost_match' in locals() else float(cost_m.group(2))
+        cost = float(cost_m.group(2))
         p_pct = round(((data['close']-cost)/cost)*100, 2)
         status = "獲利" if p_pct>0 else "虧損"
         icon = "🔴" if p_pct>0 else "🟢"
@@ -199,7 +192,6 @@ def handle_message(event):
             f"------------------\n(系統: {BOT_VERSION})"
         )
     else:
-        # === 🌟 一般模式 (復刻 v10.4) ===
         prompt = f"標的{name}({sid}),現價{data['close']},均線{data['ma5']}/{data['ma20']}/{data['ma60']},籌碼外資{data['f_lat']},投信{data['t_lat']}。分析趨勢。"
         ai = call_gemini_v14(prompt, mode="NORMAL")
         sigs = "\n".join([f"  {s}" for s in data['sigs']]) if data['sigs'] else "  (無顯著訊號)"
