@@ -6,26 +6,25 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v11.0 (Lab Test)
-BOT_VERSION = "v11.0 (Lab Test)"
+# 🟢 [版本號] v11.1 (JSON Fix)
+BOT_VERSION = "v11.1 (JSON Fix)"
 
-# --- 1. 載入自動更新的股票清單 (優先讀取 json) ---
+# --- 1. 載入自動更新的股票清單 ---
 STOCK_MAP = {}
 try:
     if os.path.exists('stock_list.json'):
         with open('stock_list.json', 'r', encoding='utf-8') as f:
             STOCK_MAP = json.load(f)
-        print(f"✅ [v11.0] 成功載入 stock_list.json: {len(STOCK_MAP)} 檔")
+        print(f"✅ 成功載入清單: {len(STOCK_MAP)} 檔")
 except Exception as e:
     print(f"⚠️ 讀取清單失敗: {e}")
 
-# 備援名單 (防止完全讀不到檔案時掛掉)
 if not STOCK_MAP:
-    STOCK_MAP = {"台積電": "2330", "鴻海": "2317", "聯發科": "2454", "廣達": "2382", "緯創": "3231"}
+    STOCK_MAP = {"台積電": "2330", "鴻海": "2317", "聯發科": "2454"}
 
 CODE_TO_NAME = {v: k for k, v in STOCK_MAP.items()}
 
-# --- 2. 記憶體快取 (Simple Cache) ---
+# --- 2. 記憶體快取 ---
 DATA_CACHE = {}
 CACHE_LOCK = threading.Lock()
 
@@ -47,22 +46,18 @@ secret = os.environ.get('LINE_CHANNEL_SECRET')
 line_bot_api = LineBotApi(token if token else 'UNKNOWN')
 handler = WebhookHandler(secret if secret else 'UNKNOWN')
 
-# --- 4. Gemini 核心 (v10.5 多 Key 輪詢 + 強制 JSON) ---
+# --- 4. Gemini 核心 (加入 Regex 手術刀) ---
 def call_gemini_v11(prompt):
-    # 讀取環境變數中的 Key (支援多組)
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
-    # 如果沒有多組 Key，嘗試讀取單一 Key
     if not keys and os.environ.get('GEMINI_API_KEY'):
         keys = [os.environ.get('GEMINI_API_KEY')]
     
     if not keys: return {"error": "No Keys Found"}
     random.shuffle(keys)
 
-    # 沿用 v10.5 驗證過可用的模型清單 (避開 1.5)
     target_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"]
     
-    # 強制 JSON 格式提示詞 (Prompt Engineering)
-    final_prompt = prompt + "\n\n🔴 IMPORTANT: Reply ONLY in valid JSON format (no markdown code blocks). Keys: trend, reason, support, pressure, action."
+    final_prompt = prompt + "\n\n🔴 Reply ONLY in valid JSON format. Keys: trend, reason, support, pressure, action."
 
     for model in target_models:
         for key in keys:
@@ -71,7 +66,6 @@ def call_gemini_v11(prompt):
                 headers = {'Content-Type': 'application/json'}
                 params = {'key': key}
                 
-                # 不使用 responseMimeType，避免舊模型報錯，改用 Prompt 強制
                 payload = {
                     "contents": [{"parts": [{"text": final_prompt}]}],
                     "generationConfig": {
@@ -83,18 +77,23 @@ def call_gemini_v11(prompt):
                 res = requests.post(url, headers=headers, params=params, json=payload, timeout=25)
                 if res.status_code == 200:
                     text = res.json().get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                    # 清理 Markdown 符號
-                    clean_text = text.replace("```json", "").replace("```", "").strip()
+                    
+                    # 🔥 [關鍵修改] 使用 Regex 尋找第一個 { 和最後一個 }
                     try:
-                        return json.loads(clean_text)
+                        match = re.search(r'\{.*\}', text, re.DOTALL)
+                        if match:
+                            json_str = match.group(0)
+                            return json.loads(json_str)
+                        else:
+                            # 找不到括號，才當作格式錯誤
+                            return {"trend": "格式錯誤", "reason": text[:100], "action": "🟡無法解析"}
                     except:
-                        # 萬一 AI 沒給 JSON，回傳原始文字做備援
-                        return {"trend": "格式異常", "reason": clean_text[:50], "action": "🟡人工判讀"}
+                        return {"trend": "解析失敗", "reason": text[:100], "action": "🟡例外錯誤"}
             except: continue
             
-    return {"error": "AI 忙碌中 (All Fail)"}
+    return {"error": "AI 忙碌中"}
 
-# --- 5. 數據抓取 (FinMind + Cache) ---
+# --- 5. 數據抓取 ---
 def fetch_data(stock_id):
     cached = get_cache(stock_id)
     if cached: return cached
@@ -125,7 +124,7 @@ def fetch_data(stock_id):
         return result
     except: return None
 
-# --- 6. 主程式邏輯 ---
+# --- 6. 主程式 ---
 def get_stock_id_v11(text):
     text = text.strip().upper()
     if text.isdigit() and len(text) == 4: return text
@@ -147,9 +146,8 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip().upper()
     
-    # 📌 1. Debug 指令
     if msg == "DEBUG":
-        reply = f"🛠️ **{BOT_VERSION} 診斷**\n清單: {len(STOCK_MAP)} 檔\n快取: {len(DATA_CACHE)}"
+        reply = f"🛠️ **{BOT_VERSION}**\n清單: {len(STOCK_MAP)} 檔\n快取: {len(DATA_CACHE)}"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
@@ -157,28 +155,25 @@ def handle_message(event):
     
     if stock_id:
         data = fetch_data(stock_id)
-        # 📌 2. 查無資料
         if not data:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"❌ 查無數據 ({stock_id}) | {BOT_VERSION}"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"❌ 查無數據 ({stock_id})"))
             return
             
         name = CODE_TO_NAME.get(stock_id, stock_id)
         
-        # 使用精簡 Prompt，要求 JSON
         prompt = (
             f"標的: {name}({stock_id})\n現價: {data['close']}\n"
             f"均線: MA5={data['ma5']}, MA20={data['ma20']}, MA60={data['ma60']}\n"
             f"籌碼: 外資5日{data['acc_f']}張, 投信5日{data['acc_t']}張\n"
-            f"判斷多空，並給出操作建議。"
+            f"判斷多空，並給出操作建議(JSON)。"
         )
         
         ai_json = call_gemini_v11(prompt)
         
-        # 📌 3. AI 異常
         if "error" in ai_json:
-             reply = f"⚠️ AI 分析異常\n({ai_json['error']})\n系統: {BOT_VERSION}"
+             reply = f"⚠️ AI 分析異常\n({ai_json['error']})"
         else:
-            # 📌 4. 成功回覆
+            # 確保內容有抓到，若無則給預設值
             reply = (
                 f"🔥 **{name} ({stock_id})**\n"
                 f"💰 現價: {data['close']}\n"
@@ -194,10 +189,6 @@ def handle_message(event):
             )
         
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-    
-    # 📌 5. 非股票指令 (可選)
-    else:
-       line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"收到: {msg} | {BOT_VERSION}"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
