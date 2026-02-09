@@ -8,8 +8,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v10.8 (Clean Interface)
-BOT_VERSION = "v10.8"
+# 🟢 [版本號] v10.9 (Model Fix: Gemini 2.5)
+BOT_VERSION = "v10.9"
 
 # --- 1. 菁英股票池 ---
 STOCK_CACHE = {
@@ -58,7 +58,9 @@ def call_gemini_fast(prompt, system_instruction=None):
     
     if not keys: return None, "NoKeys"
     random.shuffle(keys)
-    target_models = ["gemini-1.5-flash", "gemini-1.5-pro"] 
+    
+    # 🔥 v10.9 修正：嚴格使用您指定的 2.5 系列 (Flash 最快)
+    target_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] 
 
     for model in target_models:
         for key in keys:
@@ -78,6 +80,7 @@ def call_gemini_fast(prompt, system_instruction=None):
                         "temperature": 0.2
                     }
                 }
+                # 2.5 Flash 速度很快，30秒絕對夠
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
                 if response.status_code == 200:
                     data = response.json()
@@ -270,7 +273,7 @@ def handle_message(event):
     if msg.lower() == "debug":
         token_chk = os.environ.get('FINMIND_TOKEN', '')
         ai_res, ai_stat = call_gemini_fast("Hi")
-        reply = f"🛠️ **v10.8 診斷**\nToken: {'✅' if token_chk else '❌'}\nAI: {ai_stat}"
+        reply = f"🛠️ **v10.9 診斷**\nToken: {'✅' if token_chk else '❌'}\nAI: {ai_stat}"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
         return
 
