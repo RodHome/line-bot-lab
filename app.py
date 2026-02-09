@@ -313,7 +313,7 @@ def handle_message(event):
             reason = reasons_map.get(stock['name'], "技術面強勢，籌碼集中。")
             bubble = {
                 "type": "bubble",
-                "size": "giga", 
+                "size": "mega", 
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
