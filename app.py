@@ -8,8 +8,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v11.1 (Analyst Mode + Giga UI)
-BOT_VERSION = "v11.1"
+# 🟢 [版本號] v11.3 (Actionable Advice: Enter/Wait/Avoid)
+BOT_VERSION = "v11.3"
 
 # --- 1. 菁英股票池 ---
 STOCK_CACHE = {
@@ -59,7 +59,7 @@ def call_gemini_fast(prompt, system_instruction=None):
     if not keys: return None, "NoKeys"
     random.shuffle(keys)
     
-    target_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] 
+    target_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3-flash-preview"] 
 
     for model in target_models:
         for key in keys:
@@ -76,17 +76,17 @@ def call_gemini_fast(prompt, system_instruction=None):
                     "contents": contents,
                     "generationConfig": {
                         "maxOutputTokens": 3000, 
-                        "temperature": 0.4
+                        "temperature": 0.2
                     }
                 }
-                response = requests.post(url, headers=headers, params=params, json=payload, timeout=35)
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=40)
                 if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     if text: return text.strip(), "Active"
                 continue
             except: continue
-    return "AI 連線逾時", "Timeout"
+    return "AI 忙碌中", "Timeout"
 
 def fetch_data_light(stock_id):
     token = os.environ.get('FINMIND_TOKEN', '')
@@ -100,8 +100,6 @@ def fetch_data_light(stock_id):
         
         latest = data[-1]
         closes = [d['close'] for d in data]
-        highs = [d['max'] for d in data]
-        
         ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
         ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
         ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
@@ -112,23 +110,11 @@ def fetch_data_light(stock_id):
             if prev_ma20 > 0:
                 slope_ma20 = round((ma20 - prev_ma20) / prev_ma20 * 100, 2)
 
-        high_60 = max(highs[-60:]) if len(highs) >= 60 else max(highs)
-        bias_60 = 0
-        if ma60 > 0: bias_60 = round((latest['close'] - ma60) / ma60 * 100, 1)
-
-        is_squeeze = False
-        if ma5 > 0 and ma20 > 0 and ma60 > 0:
-            mas = [ma5, ma20, ma60]
-            if (max(mas) - min(mas)) / min(mas) < 0.03: is_squeeze = True
-
+        high_60 = max([d['max'] for d in data[-60:]]) if len(data) >= 60 else max([d['max'] for d in data])
         return {
-            "code": stock_id, 
-            "close": latest['close'], 
+            "code": stock_id, "close": latest['close'], 
             "ma5": ma5, "ma20": ma20, "ma60": ma60,
-            "slope_ma20": slope_ma20,
-            "high_60": high_60,
-            "bias_60": bias_60,
-            "is_squeeze": is_squeeze
+            "slope_ma20": slope_ma20, "high_60": high_60
         }
     except: return None
 
@@ -186,7 +172,6 @@ def get_stock_id(text):
     clean_text = re.sub(r'(成本|cost).*', '', text, flags=re.IGNORECASE).strip()
     if clean_text in STOCK_CACHE: return STOCK_CACHE[clean_text]
     if clean_text.isdigit() and len(clean_text) >= 4: return clean_text
-    if len(clean_text) > 6: return None
     return None
 
 def check_stock_worker_turbo(code):
@@ -197,12 +182,7 @@ def check_stock_worker_turbo(code):
             tf, tt, af, at = fetch_chips_accumulate(code)
             if (af + at) > 50:
                 name = CODE_TO_NAME.get(code, code)
-                return {
-                    "code": code, "name": name, 
-                    "close": data['close'], 
-                    "chips": f"{af+at}張",
-                    "tag": "外資大買" if af > at else "投信認養"
-                }
+                return {"code": code, "name": name, "close": data['close'], "chips": f"{af+at}張", "tag": "外資大買" if af > at else "投信認養"}
     except: return None
     return None
 
@@ -228,145 +208,89 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # 🔥 [推薦選股] - Flex Message (設定為 Giga 寬版)
+    # 🔥 [推薦選股]
     if msg in ["推薦", "選股"]:
         good_stocks = scan_recommendations_turbo()
         if not good_stocks:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 今日市場偏弱，掃描後無符合「強勢多頭+籌碼集中」之標的，建議觀望。"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場目前無符合「強勢多頭+籌碼集中」之標的。"))
             return
+            
+        stocks_info = "\n".join([f"{s['name']}({s['code']})" for s in good_stocks])
+        # v11.3: 推薦卡片也加入簡易操作建議
+        sys_prompt = "你是無情的操盤手。請針對下列股票給出推薦原因與操作建議。格式：[股票名]：【建議】(進場/拉回佈局) [原因]"
+        ai_ans, _ = call_gemini_fast(f"請分析這幾檔強勢股：\n{stocks_info}", system_instruction=sys_prompt)
+        
+        reasons = {}
+        if ai_ans:
+            for line in ai_ans.split("\n"):
+                if "：" in line:
+                    k, v = line.split("：", 1)
+                    reasons[k.strip()] = v.strip()
 
         bubbles = []
         for stock in good_stocks:
+            reason = reasons.get(stock['name'], reasons.get(f"{stock['name']}({stock['code']})", "趨勢多頭，籌碼高度集中。"))
             bubble = {
                 "type": "bubble",
-                "size": "giga",  # 🔥 這裡加入了 Giga 寬度設定
-                "header": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": stock['name'], "weight": "bold", "size": "xl", "color": "#ffffff"},
-                        {"type": "text", "text": stock['code'], "size": "xs", "color": "#eeeeee"}
-                    ],
-                    "backgroundColor": "#D32F2F"
-                },
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": str(stock['close']), "weight": "bold", "size": "3xl", "color": "#D32F2F", "align": "center"},
-                        {"type": "text", "text": f"💰{stock['tag']} | 🏦籌碼:{stock['chips']}", "size": "xs", "color": "#555555", "align": "center", "margin": "md"},
-                        {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": stock['code']}, "style": "link", "margin": "md"}
-                    ]
-                }
+                "size": "mega", 
+                "header": {"type": "box", "layout": "vertical", "contents": [
+                    {"type": "text", "text": stock['name'], "weight": "bold", "size": "xl", "color": "#ffffff"},
+                    {"type": "text", "text": stock['code'], "size": "xs", "color": "#eeeeee"}
+                ], "backgroundColor": "#D32F2F"},
+                "body": {"type": "box", "layout": "vertical", "contents": [
+                    {"type": "text", "text": str(stock['close']), "weight": "bold", "size": "3xl", "color": "#D32F2F", "align": "center"},
+                    {"type": "text", "text": f"💰{stock['tag']} | 🏦籌碼:{stock['chips']}", "size": "xs", "color": "#555555", "align": "center", "margin": "md"},
+                    {"type": "separator", "margin": "md"},
+                    {"type": "text", "text": reason, "size": "sm", "color": "#333333", "wrap": True, "margin": "md"},
+                    {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": stock['code']}, "style": "link", "margin": "md"}
+                ]}
             }
             bubbles.append(bubble)
-        
-        flex_msg = FlexSendMessage(
-            alt_text="AI 精選強勢股",
-            contents={"type": "carousel", "contents": bubbles}
-        )
-        line_bot_api.reply_message(event.reply_token, flex_msg)
+            
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選強勢股", contents={"type": "carousel", "contents": bubbles}))
         return
 
-    # [Debug]
-    if msg.lower() == "debug":
-        token_chk = os.environ.get('FINMIND_TOKEN', '')
-        ai_res, ai_stat = call_gemini_fast("Hi")
-        reply = f"🛠️ **v11.1 診斷**\nToken: {'✅' if token_chk else '❌'}\nAI: {ai_stat}"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-        return
-
-    # 1. 解析成本
     user_cost = None
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
     if cost_match:
         try: user_cost = float(cost_match.group(2))
         except: pass
 
-    # 2. 取得股票代碼
     stock_id = get_stock_id(msg)
     if not stock_id: return
-
-    # 3. 抓完整資料
     name = CODE_TO_NAME.get(stock_id, stock_id)
     data = fetch_full_data(stock_id)
-    if not data:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"❌ 無法讀取 {stock_id} 數據"))
-        return
+    if not data: return
 
-    # 4. 回覆邏輯 (雙軌制)
     if user_cost:
-        # 持股診斷 (Analyst Mode)
         profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
         profit_status = "獲利" if profit_pct > 0 else "虧損"
         profit_icon = "💰" if profit_pct > 0 else "💸"
-        
-        sys_prompt = (
-            "你是果斷的操盤手。請根據成本與現價，結合籌碼技術面，給出具體且有邏輯的操作建議。"
-            "字數限制：150字以內。"
-            "回答格式：\n"
-            "【診斷】(🟢續抱/🟡減碼/🔴停損) 理由說明\n"
-            "【策略】(具體的停利點與防守點數值)"
-        )
-        user_prompt = (
-            f"標的：{stock_id} {name}\n"
-            f"現價：{data['close']} (成本：{user_cost}，{profit_status} {profit_pct}%)\n"
-            f"MA20={data['ma20']}, 籌碼5日={data['acc_foreign']+data['acc_trust']}張\n"
-            f"任務：分析目前是該跑還是該抱？理由是什麼？"
-        )
-        ai_ans, status = call_gemini_fast(user_prompt, system_instruction=sys_prompt)
-        
-        reply = (
-            f"🩺 **{name} 診斷**\n"
-            f"{profit_icon} 帳面：{profit_status} {profit_pct}%\n"
-            f"------------------\n"
-            f"{ai_ans}\n"
-            f"------------------\n"
-            f"系統版本：{BOT_VERSION}"
-        )
+        sys_prompt = "你是專業分析師。請針對持股給出具體的操作建議（停利/停損）。字數100字內。"
+        user_prompt = f"標的：{stock_id} {name}\n現價：{data['close']} (成本：{user_cost}，{profit_status} {profit_pct}%)\nMA20={data['ma20']}, 籌碼5日={data['acc_foreign']+data['acc_trust']}張"
+        ai_ans, _ = call_gemini_fast(user_prompt, system_instruction=sys_prompt)
+        reply = f"🩺 **{name} 診斷**\n{profit_icon} 帳面：{profit_status} {profit_pct}%\n------------------\n{ai_ans}\n------------------\n系統版本：{BOT_VERSION}"
     else:
-        # [個股健檢] - 恢復分析師靈魂 + 數據儀表板
         eps = fetch_eps(stock_id)
+        data_dashboard = f"💰 現價：{data['close']}\n📊 週: {data['ma5']} | 月: {data['ma20']} | 季: {data['ma60']}\n🏦 外資: {data['foreign']} (5日: {data['acc_foreign']})\n🏦 投信: {data['trust']} (5日: {data['acc_trust']})\n💎 EPS: {eps}"
         
-        data_dashboard = (
-            f"💰 現價：{data['close']}\n"
-            f"📊 週: {data['ma5']} | 月: {data['ma20']} | 季: {data['ma60']}\n"
-            f"🏦 外資: {data['foreign']} (5日: {data['acc_foreign']})\n"
-            f"🏦 投信: {data['trust']} (5日: {data['acc_trust']})\n"
-            f"💎 EPS: {eps}"
-        )
-
+        # 🔥 v11.3 關鍵修正：個股健檢強制給予進出建議
         sys_prompt = (
-            "你是專業且犀利的股市分析師。請針對提供的數據進行深度解讀，而非單純覆述數據。"
-            "分析重點：外資與投信的動向對股價的影響、目前股價在均線的位置意義。"
-            "字數限制：150字以內。"
-            "回答格式：\n"
-            "【分析】(解析技術面與籌碼面的多空力道)\n"
-            "【建議】(給出具體的觀察重點或操作區間)"
+            "你是果斷的股市判官。請根據數據給出明確操作建議。"
+            "字數限制：100字以內。"
+            "嚴格格式：\n"
+            "【建議】 (🔴進場 / 🟡觀望 / ⚫不可入場)\n"
+            "【分析】 (簡述多空理由)"
         )
-        user_prompt = (
-            f"標的：{stock_id} {name}\n"
-            f"數據：現價{data['close']} (MA20={data['ma20']})\n"
-            f"籌碼：外資{data['acc_foreign']}張, 投信{data['acc_trust']}張\n"
-        )
-        ai_ans, status = call_gemini_fast(user_prompt, system_instruction=sys_prompt)
-
+        user_prompt = f"標的：{stock_id} {name}\n現價：{data['close']} (MA20={data['ma20']})\n外資{data['acc_foreign']}張, 投信{data['acc_trust']}張"
+        ai_ans, _ = call_gemini_fast(user_prompt, system_instruction=sys_prompt)
+        
         signals = []
         if data['close'] > data['ma5'] > data['ma20'] > data['ma60']: signals.append("🟢三線多頭")
         if data['acc_foreign'] + data['acc_trust'] > 50: signals.append("💰法人進場")
         elif data['acc_foreign'] + data['acc_trust'] < -50: signals.append("💸法人提款")
         signal_str = " | ".join(signals) if signals else "🟡觀望"
-
-        reply = (
-            f"📈 **{name}({stock_id})**\n"
-            f"{data_dashboard}\n"
-            f"------------------\n"
-            f"🚩 {signal_str}\n"
-            f"------------------\n"
-            f"{ai_ans}\n"
-            f"------------------\n"
-            f"系統版本：{BOT_VERSION}"
-        )
+        reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 {signal_str}\n------------------\n{ai_ans}\n------------------\n系統版本：{BOT_VERSION}"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
