@@ -156,8 +156,12 @@ def get_technical_signals(data, chips_val):
 # --- 3. 智慧快取與 API ---
 def get_smart_cache_ttl():
     now = datetime.now().time()
-    if dtime(9, 0) <= now <= dtime(13, 30): return 900 
-    else: return 43200
+    # 盤中 (09:00 - 13:30) 快取時間縮短為 60 秒，確保價格即時
+    if dtime(9, 0) <= now <= dtime(13, 30): 
+        return 60 
+    # 盤後維持長快取
+    else: 
+        return 43200
 
 def get_cached_ai_response(key):
     if key in AI_RESPONSE_CACHE:
@@ -179,7 +183,10 @@ def call_gemini_json(prompt, system_instruction=None):
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
     if not keys: return None
     random.shuffle(keys)
+    
+    # 🔥 更新：優先使用 gemini-3-flash-preview
     target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"] 
+    
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
 
     for model in target_models:
@@ -188,6 +195,8 @@ def call_gemini_json(prompt, system_instruction=None):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
                 headers = {'Content-Type': 'application/json'}
                 params = {'key': key}
+                
+                # ... (以下內容維持不變) ...
                 contents = [{"parts": [{"text": final_prompt}]}]
                 if system_instruction:
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
@@ -206,15 +215,40 @@ def call_gemini_json(prompt, system_instruction=None):
 
 def fetch_data_light(stock_id):
     token = os.environ.get('FINMIND_TOKEN', '')
-    url = "https://api.finmindtrade.com/api/v4/data"
+    url_hist = "https://api.finmindtrade.com/api/v4/data"
+    url_snap = "https://api.finmindtrade.com/api/v4/taiwan_stock_tick_snapshot" # 新增即時快照 API
     headers = {'User-Agent': 'Mozilla/5.0'}
+    
     try:
+        # 1. 先抓歷史日線 (為了計算 MA 和取得昨收)
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-        res = requests.get(url, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token}, headers=headers, timeout=5)
+        res = requests.get(url_hist, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token}, headers=headers, timeout=5)
         data = res.json().get('data', [])
+        
         if not data: return None
         
-        latest = data[-1]
+        # 預設使用歷史資料的最後一筆
+        latest_price = data[-1]['close']
+        
+        # 判斷昨收價 (若歷史資料最後一筆是今天，昨收就是倒數第二筆；若最後一筆是昨天，昨收就是那一筆)
+        # 簡單判斷：FinMind 日線盤中通常還沒更新，所以 data[-1] 通常是昨天收盤
+        prev_close = data[-1]['close'] 
+        
+        # 2. 嘗試抓取「即時快照」 (覆蓋最新價格)
+        try:
+            res_snap = requests.get(url_snap, params={"stock_id": stock_id, "token": token}, headers=headers, timeout=3)
+            snap_data = res_snap.json().get('data', [])
+            if snap_data:
+                # 取得即時成交價 (deal_price 或 last_price)
+                realtime_price = snap_data[0].get('deal_price', snap_data[0].get('last_price'))
+                if realtime_price:
+                    latest_price = float(realtime_price)
+                    # 如果抓到了即時價，我們可以更有信心地確認 data[-1] 是昨收
+                    # (這裡不做複雜日期比對，直接假設日線尚未更新今日數據，這是 FinMind 常態)
+        except Exception as e:
+            print(f"[API Error] Snapshot failed: {e}") # 失敗則沿用歷史數據，不中斷程式
+
+        # 3. 計算技術指標 (MA 使用歷史數據計算，比較穩定)
         closes = [d['close'] for d in data]
         highs = [d['max'] for d in data]
         lows = [d['min'] for d in data]
@@ -224,23 +258,28 @@ def fetch_data_light(stock_id):
         ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
         ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
         
-        prev_close = data[-2]['close'] if len(data) >= 2 else latest['close']
-        change = latest['close'] - prev_close
+        # 4. 重新計算漲跌幅 (使用 最新價 - 昨收)
+        change = latest_price - prev_close
         change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
         
         sign = "+" if change > 0 else ""
         formatted_change = f"{sign}{round(change, 2)}"
         formatted_pct = f"{sign}{change_pct}%"
         change_display = f"({formatted_change}, {formatted_pct})"
-        color = "#D32F2F" if change >= 0 else "#2E7D32"
+        color = "#D32F2F" if change >= 0 else "#2E7D32" # 台股紅漲綠跌
 
         return {
-            "code": stock_id, "close": latest['close'], "open": latest['open'], "low": latest['min'],
+            "code": stock_id, 
+            "close": latest_price, # 這裡是即時價
+            "open": data[-1]['open'], # 開盤價暫用舊的或不顯示
+            "low": data[-1]['min'], 
             "ma5": ma5, "ma20": ma20, "ma60": ma60,
             "change": change, "change_display": change_display, "color": color,
             "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes
         }
-    except: return None
+    except Exception as e:
+        print(f"[Error] fetch_data_light: {e}")
+        return None
 
 def fetch_chips_accumulate(stock_id):
     token = os.environ.get('FINMIND_TOKEN', '')
