@@ -572,16 +572,15 @@ def handle_message(event):
 
         # 3. 修改儀表板圖示 (✈️ / 🤝)
         data_dashboard = (
-            f"💰 現價：{data['close']} {data['change_display']}\n"
-            f"🕒 時間：{data['update_time']}\n"
-            f"📊 週: {data['ma5']} | 月: {data['ma20']}\n"
+            f"💰 現價:{data['close']} {data['change_display']} 🕒{data['update_time']}\n"
+            f"📊 均線: 週:{data['ma5']} | 月:{data['ma20']} | 季:{data['ma60']}\n" 
             f"✈️ 外資: {f_str}\n"
             f"🤝 投信: {t_str}\n"
             f"{indicator_line}"
         )
         
-        cta = f"💡 輸入『{name}成本xxx』AI 幫你算！"
-        reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 **指標快篩** :\n{signal_str}\n------------------\n{ai_reply_text}\n------------------\n{cta}\n(系統: {BOT_VERSION})"
+        cta = f"💡 你持有{name}嗎？輸入『{name}成本xxx』AI 幫你算！"
+        reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 **指標快篩** :\n{signal_str}\n------------------\n{ai_reply_text}\n------------------\n{cta}\n(Sys:{BOT_VERSION})"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 if __name__ == "__main__":
