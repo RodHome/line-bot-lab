@@ -4,22 +4,22 @@ import time
 import math
 import concurrent.futures
 import twstock
-# ⚠️ 注意：移除了這裡的 yfinance 和 pandas，改為函式內引用，解決啟動崩潰問題
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, time as dtime
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.10 (Performance Fix: Lazy Import)
-BOT_VERSION = "v15.10"
+# 🟢 [版本號] v15.6 (Timestamp + CDP Algo)
+BOT_VERSION = "v15.6"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
 
 # 🔥 ETF 屬性資料庫
 ETF_META = {
+    # --- 高股息家族 ---
     "00878": {"name": "國泰永續高股息", "type": "高股息", "focus": "ESG/殖利率/填息"},
     "0056":  {"name": "元大高股息", "type": "高股息", "focus": "預測殖利率/填息"},
     "00919": {"name": "群益台灣精選高息", "type": "高股息", "focus": "殖利率/航運半導體週期"},
@@ -27,14 +27,20 @@ ETF_META = {
     "00713": {"name": "元大台灣高息低波", "type": "高股息", "focus": "低波動/防禦性"},
     "00940": {"name": "元大台灣價值高息", "type": "高股息", "focus": "月配息/價值投資"},
     "00939": {"name": "統一台灣高息動能", "type": "高股息", "focus": "動能指標/月底領息"},
+    
+    # --- 市值型家族 ---
     "0050":  {"name": "元大台灣50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
     "006208":{"name": "富邦台50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
+    
+    # --- 產業/主題型 ---
     "00881": {"name": "國泰台灣5G+", "type": "科技型", "focus": "半導體/通訊供應鏈/台積電"},
     "00891": {"name": "中信關鍵半導體", "type": "科技型", "focus": "半導體庫存循環"},
     "00892": {"name": "富邦台灣半導體", "type": "科技型", "focus": "半導體設備與製造"},
     "00882": {"name": "中信中國高股息", "type": "海外型", "focus": "港股/金融地產/中國政策"},
     "00662": {"name": "富邦NASDAQ", "type": "海外型", "focus": "美股科技/利率政策"},
     "00646": {"name": "元大S&P500", "type": "海外型", "focus": "美股大盤/總經數據"},
+    
+    # --- 債券型 ---
     "00679B":{"name": "元大美債20年", "type": "債券型", "focus": "美債殖利率/降息預期"},
     "00687B":{"name": "國泰20年美債", "type": "債券型", "focus": "美債殖利率/降息預期"},
     "00937B":{"name": "群益ESG投等債20+", "type": "債券型", "focus": "投資等級債/利差"}
@@ -90,6 +96,7 @@ def health_check():
 # --- 2. 核心：數據與指標引擎 ---
 
 def get_taiwan_time_str():
+    # 強制轉換為 UTC+8
     utc_now = datetime.now(timezone.utc)
     tw_time = utc_now + timedelta(hours=8)
     return tw_time.strftime('%H:%M:%S')
@@ -122,9 +129,14 @@ def calculate_kd(highs, lows, closes, period=9):
     return round(k, 1), round(d, 1)
 
 def calculate_cdp(high, low, close):
+    # CDP 逆勢操作指標 (當沖常用)
+    # 用來計算今日的壓力與支撐
     cdp = (high + low + (close * 2)) / 4
-    nh = (cdp * 2) - low
-    nl = (cdp * 2) - high
+    ah = cdp + (high - low) # 最高值 (壓力)
+    nh = (cdp * 2) - low    # 近高值 (壓力)
+    nl = (cdp * 2) - high   # 近低值 (支撐)
+    al = cdp - (high - low) # 最低值 (支撐)
+    # 這裡回傳「近壓力」與「近支撐」作為參考
     return int(nh), int(nl)
 
 def get_technical_signals(data, chips_val):
@@ -160,9 +172,8 @@ def get_technical_signals(data, chips_val):
 
 # --- 3. 智慧快取與 API ---
 def get_smart_cache_ttl():
-    utc_now = datetime.now(timezone.utc)
-    tw_now = utc_now + timedelta(hours=8)
-    if dtime(9, 0) <= tw_now.time() <= dtime(13, 30): return 60 
+    now = datetime.now().time()
+    if dtime(9, 0) <= now <= dtime(13, 30): return 60 
     else: return 43200
 
 def get_cached_ai_response(key):
@@ -187,6 +198,7 @@ def call_gemini_json(prompt, system_instruction=None):
     random.shuffle(keys)
     
     target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"] 
+    
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
 
     for model in target_models:
@@ -195,6 +207,7 @@ def call_gemini_json(prompt, system_instruction=None):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
                 headers = {'Content-Type': 'application/json'}
                 params = {'key': key}
+                
                 contents = [{"parts": [{"text": final_prompt}]}]
                 if system_instruction:
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
@@ -212,103 +225,55 @@ def call_gemini_json(prompt, system_instruction=None):
     return None
 
 def fetch_data_light(stock_id):
+    # --- [設定區] ---
     token = os.environ.get('FINMIND_TOKEN', '')
     url_hist = "https://api.finmindtrade.com/api/v4/data"
     headers = {'User-Agent': 'Mozilla/5.0'}
     
-    hist_data = []
-    
-    # 1. 嘗試 FinMind 歷史日線
+    # 1. 抓歷史 (FinMind)
     try:
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
         res = requests.get(url_hist, params={
-            "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
+            "dataset": "TaiwanStockPrice", 
+            "data_id": stock_id, 
+            "start_date": start, 
+            "token": token
         }, headers=headers, timeout=5)
         hist_data = res.json().get('data', [])
-    except: pass
-
-    # 2. Yahoo History 救援 (Lazy Loading)
-    if not hist_data:
-        try:
-            # 🔥 關鍵修改：在此處才載入 heavy libraries
-            import yfinance as yf
-            
-            print(f"[System] FinMind 無資料，啟動 Yahoo History 救援: {stock_id}")
-            suffix = ".TWO" if len(stock_id) == 4 and int(stock_id) > 3000 and int(stock_id) < 9900 and not stock_id.startswith("00") else ".TW" 
-            if stock_id.startswith("00"): suffix = ".TW"
-            
-            yf_stock = yf.Ticker(f"{stock_id}{suffix}")
-            df = yf_stock.history(period="6mo")
-            
-            if not df.empty:
-                for index, row in df.iterrows():
-                    hist_data.append({
-                        "date": index.strftime('%Y-%m-%d'),
-                        "close": row['Close'],
-                        "open": row['Open'],
-                        "max": row['High'],
-                        "min": row['Low'],
-                        "Trading_Volume": int(row['Volume'])
-                    })
-                hist_data = hist_data[-120:]
-        except Exception as e:
-            print(f"[Error] Yahoo History Failed: {e}")
+    except: hist_data = []
 
     if not hist_data: return None
 
-    # 基礎數據
+    # 2. 準備基礎數據
     latest_price = hist_data[-1]['close']
     prev_close = hist_data[-1]['close']
     
+    # 昨收判斷：若 FinMind 最後一筆日期是今天，昨收往前推；否則最後一筆就是昨收
     if len(hist_data) > 1:
         today_str = datetime.now().strftime('%Y-%m-%d')
-        last_date_str = hist_data[-1].get('date', '')
-        if last_date_str == today_str:
+        if hist_data[-1].get('date') == today_str:
             prev_close = hist_data[-2]['close']
 
-    # 3. 即時股價雙重備援 (twstock -> Yahoo)
-    realtime_success = False
-    source_name = "歷史"
+    # 3. 抓即時 (twstock)
     update_time = get_taiwan_time_str()
-
-    # --- twstock ---
     try:
         stock_rt = twstock.realtime.get(stock_id)
         if stock_rt['success']:
             real_price = stock_rt['realtime']['latest_trade_price']
+            # 嘗試抓取官方更新時間 (格式通常是 HH:MM:SS)
+            rt_time = stock_rt['realtime'].get('latest_trade_time', '')
+            if rt_time: update_time = rt_time 
+            
             if real_price and real_price != "-":
                 latest_price = float(real_price)
-                realtime_success = True
-                source_name = "TWSE"
             else:
+                # 剛開盤或冷門股無成交，用最佳買賣平均價
                 bid = stock_rt['realtime']['best_bid_price'][0]
                 ask = stock_rt['realtime']['best_ask_price'][0]
                 if bid and ask and bid != "-" and ask != "-":
                     latest_price = round((float(bid) + float(ask)) / 2, 2)
-                    realtime_success = True
-                    source_name = "TWSE(試)"
     except Exception as e:
-        print(f"[Warn] twstock 抓取異常: {e}")
-
-    # --- Yahoo Realtime 救援 (Lazy Loading) ---
-    if not realtime_success:
-        try:
-            # 🔥 關鍵修改：在此處才載入 yfinance
-            import yfinance as yf
-            
-            suffix = ".TWO" if len(stock_id) == 4 and int(stock_id) > 3000 and int(stock_id) < 9900 and not stock_id.startswith("00") else ".TW" 
-            if stock_id.startswith("00"): suffix = ".TW"
-            
-            yf_stock = yf.Ticker(f"{stock_id}{suffix}")
-            data_yf = yf_stock.history(period="1d", interval="1m")
-            
-            if not data_yf.empty:
-                latest_price = float(data_yf.iloc[-1]['Close'])
-                source_name = "Yahoo"
-                realtime_success = True
-                print(f"[System] Yahoo Realtime 救援成功: {stock_id} -> {latest_price}")
-        except Exception as e:
-            print(f"[Error] Yahoo Realtime 也失敗: {e}")
+        print(f"[Error] twstock: {e}")
 
     # 4. 計算漲跌
     change = latest_price - prev_close
@@ -317,7 +282,8 @@ def fetch_data_light(stock_id):
     change_display = f"{sign}{round(change, 2)} ({sign}{change_pct}%)"
     color = "#D32F2F" if change >= 0 else "#2E7D32" 
 
-    # 5. 計算 CDP
+    # 5. 計算 CDP 支撐壓力 (使用昨日的 High/Low/Close 來預測今日)
+    # 抓取「完整結束的昨天」數據
     last_day = hist_data[-1]
     if len(hist_data) > 1 and hist_data[-1].get('date') == datetime.now().strftime('%Y-%m-%d'):
         last_day = hist_data[-2]
@@ -332,9 +298,11 @@ def fetch_data_light(stock_id):
     return {
         "code": stock_id, 
         "close": latest_price, 
-        "update_time": f"{update_time} ({source_name})",
-        "resistance": res_price,
-        "support": sup_price,
+        "update_time": f"{update_time} ({source_name})"
+        "resistance": res_price,    # 回傳計算出的壓力
+        "support": sup_price,       # 回傳計算出的支撐
+        "open": hist_data[-1]['open'], 
+        "low": hist_data[-1]['min'],
         "ma5": ma5, "ma20": ma20, "ma60": ma60,
         "change": change, "change_display": change_display, "color": color,
         "raw_closes": closes, 
@@ -420,7 +388,6 @@ def check_stock_worker_turbo(code):
         if data['ma5'] > data['ma20']:
             f_str, t_str, af_val, at_val = fetch_chips_accumulate(code) 
             threshold = 50 if data['close'] > 100 else 200
-            
             if (af_val + at_val) > threshold:
                 name = CODE_TO_NAME.get(code, code)
                 sector = "熱門股"
@@ -429,21 +396,11 @@ def check_stock_worker_turbo(code):
                 signals = get_technical_signals(data, af_val + at_val)
                 signal_str = " | ".join(signals)
                 
-                net_chips = af_val + at_val
-                tag = "👀法人觀望"
-                if net_chips > 2000: tag = "🚀主力點火"
-                elif net_chips < -2000: tag = "🌪️棄守逃命"
-                elif af_val > 500: tag = "✈️外資進駐"
-                elif at_val > 500: tag = "🤝投信作帳"
-                elif net_chips < -500: tag = "💸法人提款"
-                elif net_chips > 0: tag = "📈法人小買"
-                else: tag = "📉法人小賣"
-                
                 return {
                     "code": code, "name": name, "sector": sector,
                     "close": data['close'], "change_display": data['change_display'], "color": data['color'],
                     "chips": f"{af_val + at_val}張", "signal_str": signal_str,
-                    "tag": tag
+                    "tag": "外資大買" if af_val > at_val else "投信認養"
                 }
     except: return None
     return None
@@ -530,13 +487,12 @@ def handle_message(event):
     if cost_match: user_cost = float(cost_match.group(2))
 
     if stock_id:
+        # 優先使用 ETF_META 內的名稱
         name = CODE_TO_NAME.get(stock_id, stock_id)
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
 
         data = fetch_data_light(stock_id) 
-        if not data: 
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 無法取得【{name}】數據，請確認代號或稍後再試。"))
-            return
+        if not data: return
         
         is_etf = stock_id.startswith("00")
         etf_type = "一般"
@@ -546,6 +502,7 @@ def handle_message(event):
             etf_type = meta.get("type", "ETF")
             etf_focus = meta.get("focus", "基本面")
 
+        # 持股診斷 (Cost Mode)
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             profit_status = "獲利" if profit_pct > 0 else "虧損"
@@ -579,6 +536,7 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
 
+        # 一般查詢 (Query Mode)
         f_str, t_str, af_val, at_val = fetch_chips_accumulate(stock_id) 
         eps = fetch_eps(stock_id)
         yield_rate = fetch_dividend_yield(stock_id, data['close'])
@@ -597,11 +555,13 @@ def handle_message(event):
                     f"target_price (目標價/殖利率目標), stop_loss (長期存股請填『無』)。"
                 )
             else:
+                # 🔥 這裡拿掉了 AI 預測壓力和支撐的要求，因為我們已經算好了
                 sys_prompt = (
                     "你是股市判官。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), "
                     "target_price (停利), stop_loss (停損)。"
                 )
             
+            # 🔥 將計算出來的壓力與支撐餵給 AI，讓它參考
             user_prompt = f"標的:{name}, 現價:{data['close']}, 壓力:{data['resistance']}, 支撐:{data['support']}, 訊號:{signal_str}, 外資:{f_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
@@ -616,6 +576,7 @@ def handle_message(event):
                         formatted_target = raw_target
                     advice_str += f"\n🎯目標：{formatted_target} | 🛑防守：{res.get('stop_loss','N/A')}"
                 else:
+                    # 🔥 這裡顯示數學算出來的 CDP 壓力支撐
                     advice_str += f"\n🧱壓力：{data['resistance']} | 🛏️支撐：{data['support']}"
                     
                 ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
@@ -626,11 +587,11 @@ def handle_message(event):
         else: indicator_line = f"💎 EPS: {eps}"
 
         data_dashboard = (
-            f"💰 現價：{data['close']} {data['change_display']}\n"
+             f"💰 現價：{data['close']} {data['change_display']}\n"
             f"🕒 時間：{data['update_time']}\n"
             f"📊 週: {data['ma5']} | 月: {data['ma20']}\n"
-            f"🏦 外資: {f_str}\n"
-            f"🏦 投信: {t_str}\n"
+            f"✈️ 外資: {f_str}\n"
+            f"🤝 投信: {t_str}\n"
             f"{indicator_line}"
         )
         
