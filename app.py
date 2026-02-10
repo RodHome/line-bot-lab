@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v16.1 (Model Fix + Prompt Upgrade)
-BOT_VERSION = "v16.1 (修復版)"
+# 🟢 [版本號] v16.1.1 (Model Fix + Prompt Upgrade)
+BOT_VERSION = "v16.1.1 (極速版)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -433,6 +433,30 @@ def check_stock_worker_turbo(code):
     except: return None
     return None
 
+# 🔥 [新增] 並行抓取函數 (加速個股查詢)------------------------add 2/10
+def fetch_all_data_concurrently(stock_id):
+    # 開啟 4 個執行緒同時工作
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        # 1. 同時發出 3 個請求
+        future_data = executor.submit(fetch_data_light, stock_id)      # 抓股價 (最重要)
+        future_chips = executor.submit(fetch_chips_accumulate, stock_id) # 抓籌碼
+        future_eps = executor.submit(fetch_eps, stock_id)                # 抓 EPS
+        
+        # 2. 等待股價資料回來 (因為算殖利率需要現價)
+        data = future_data.result()
+        if not data: return None, None, None, None
+        
+        # 3. 拿到現價後，馬上發出殖利率請求
+        future_yield = executor.submit(fetch_dividend_yield, stock_id, data['close'])
+        
+        # 4. 收集其他已經(或即將)完成的結果
+        f_str, t_str, af_val, at_val = future_chips.result()
+        eps = future_eps.result()
+        yield_rate = future_yield.result()
+        
+        return data, (f_str, t_str, af_val, at_val), eps, yield_rate
+#-------------------------------------------------------------add 2/10
+
 def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
     
@@ -534,15 +558,25 @@ def handle_message(event):
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
     if cost_match: user_cost = float(cost_match.group(2))
 
+    # ... (前略：取得 stock_id 與 user_cost) ...
+
     if stock_id:
         name = CODE_TO_NAME.get(stock_id, stock_id)
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
 
-        data = fetch_data_light(stock_id) 
-        if not data: return
+        # 🔥 [修改點 1] 改用並行函數一次抓完所有資料 (原本是分開抓)
+        # 舊寫法: data = fetch_data_light(stock_id) 
+        # 舊寫法: if not data: return
+        data, chips_data, eps, yield_rate = fetch_all_data_concurrently(stock_id)
+        
+        if not data: return # 如果連股價都抓不到，就結束
+        
+        # 解包籌碼數據
+        f_str, t_str, af_val, at_val = chips_data
         
         is_etf = stock_id.startswith("00")
         
+        # --- 持股診斷 (Cost Mode) ---
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             sys_prompt = "你是操盤手。回傳JSON: analysis(30字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
@@ -555,9 +589,10 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
 
-        f_str, t_str, af_val, at_val = fetch_chips_accumulate(stock_id) 
-        eps = fetch_eps(stock_id)
-        yield_rate = fetch_dividend_yield(stock_id, data['close'])
+        # --- 一般查詢 (Query Mode) ---
+        
+        # 🔥 [修改點 2] 這裡原本的 fetch_chips、fetch_eps 等呼叫都已經刪除，因為上面一次抓完了
+        
         signals = get_technical_signals(data, af_val + at_val)
         signal_str = " | ".join(signals)
         
@@ -569,6 +604,7 @@ def handle_message(event):
                 "你是資深操盤手。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫避開), target_price, stop_loss。"
                 "規則：1. 若現價站上 MA5 與 MA20，視為強勢。2. 若外資大賣且破線，請示警。"
             )
+            # 這裡的 user_prompt 使用已經抓到的 data 和 f_str
             user_prompt = f"標的:{name}, 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
