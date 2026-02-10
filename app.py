@@ -4,7 +4,7 @@ import time
 import math
 import concurrent.futures
 import twstock
-import yfinance as yf # 👈 新增救援王
+import yfinance as yf # 👈 引入救援套件
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -12,7 +12,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.7 (Timezone Fix + Yahoo Fallback)
+# 🟢 [版本號] v15.7 (Cloud Fix: Timezone + Yahoo Fallback)
 BOT_VERSION = "v15.7"
 
 # --- 1. 全域快取與設定 ---
@@ -20,7 +20,6 @@ AI_RESPONSE_CACHE = {}
 
 # 🔥 ETF 屬性資料庫
 ETF_META = {
-    # --- 高股息家族 ---
     "00878": {"name": "國泰永續高股息", "type": "高股息", "focus": "ESG/殖利率/填息"},
     "0056":  {"name": "元大高股息", "type": "高股息", "focus": "預測殖利率/填息"},
     "00919": {"name": "群益台灣精選高息", "type": "高股息", "focus": "殖利率/航運半導體週期"},
@@ -28,20 +27,14 @@ ETF_META = {
     "00713": {"name": "元大台灣高息低波", "type": "高股息", "focus": "低波動/防禦性"},
     "00940": {"name": "元大台灣價值高息", "type": "高股息", "focus": "月配息/價值投資"},
     "00939": {"name": "統一台灣高息動能", "type": "高股息", "focus": "動能指標/月底領息"},
-    
-    # --- 市值型家族 ---
     "0050":  {"name": "元大台灣50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
     "006208":{"name": "富邦台50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
-    
-    # --- 產業/主題型 ---
     "00881": {"name": "國泰台灣5G+", "type": "科技型", "focus": "半導體/通訊供應鏈/台積電"},
     "00891": {"name": "中信關鍵半導體", "type": "科技型", "focus": "半導體庫存循環"},
     "00892": {"name": "富邦台灣半導體", "type": "科技型", "focus": "半導體設備與製造"},
     "00882": {"name": "中信中國高股息", "type": "海外型", "focus": "港股/金融地產/中國政策"},
     "00662": {"name": "富邦NASDAQ", "type": "海外型", "focus": "美股科技/利率政策"},
     "00646": {"name": "元大S&P500", "type": "海外型", "focus": "美股大盤/總經數據"},
-    
-    # --- 債券型 ---
     "00679B":{"name": "元大美債20年", "type": "債券型", "focus": "美債殖利率/降息預期"},
     "00687B":{"name": "國泰20年美債", "type": "債券型", "focus": "美債殖利率/降息預期"},
     "00937B":{"name": "群益ESG投等債20+", "type": "債券型", "focus": "投資等級債/利差"}
@@ -97,7 +90,7 @@ def health_check():
 # --- 2. 核心：數據與指標引擎 ---
 
 def get_taiwan_time_str():
-    # 強制轉換為 UTC+8
+    # 🔥 強制轉換為 UTC+8 (解決 Zeabur 02:45 問題)
     utc_now = datetime.now(timezone.utc)
     tw_time = utc_now + timedelta(hours=8)
     return tw_time.strftime('%H:%M:%S')
@@ -130,6 +123,7 @@ def calculate_kd(highs, lows, closes, period=9):
     return round(k, 1), round(d, 1)
 
 def calculate_cdp(high, low, close):
+    # CDP 逆勢操作指標
     cdp = (high + low + (close * 2)) / 4
     nh = (cdp * 2) - low    # 近高值 (壓力)
     nl = (cdp * 2) - high   # 近低值 (支撐)
@@ -168,9 +162,10 @@ def get_technical_signals(data, chips_val):
 
 # --- 3. 智慧快取與 API ---
 def get_smart_cache_ttl():
-    now = datetime.now(timezone.utc) + timedelta(hours=8) # 校正時區
-    # 盤中 (09:00 - 13:30) 快取 60 秒
-    if dtime(9, 0) <= now.time() <= dtime(13, 30): return 60 
+    # 這裡也要用 UTC+8 判斷
+    utc_now = datetime.now(timezone.utc)
+    tw_now = utc_now + timedelta(hours=8)
+    if dtime(9, 0) <= tw_now.time() <= dtime(13, 30): return 60 
     else: return 43200
 
 def get_cached_ai_response(key):
@@ -239,7 +234,6 @@ def fetch_data_light(stock_id):
     latest_price = hist_data[-1]['close']
     prev_close = hist_data[-1]['close']
     
-    # 昨收判斷
     if len(hist_data) > 1:
         today_str = datetime.now().strftime('%Y-%m-%d')
         if hist_data[-1].get('date') == today_str:
@@ -248,22 +242,18 @@ def fetch_data_light(stock_id):
     # 2. [核心] 即時股價雙重備援 (twstock -> Yahoo)
     realtime_success = False
     source_name = "歷史"
-    update_time = get_taiwan_time_str() # 預設當下時間
+    update_time = get_taiwan_time_str() # 使用 UTC+8 時間
 
-    # 優先嘗試 twstock (證交所)
+    # --- 優先嘗試 twstock ---
     try:
         stock_rt = twstock.realtime.get(stock_id)
         if stock_rt['success']:
             real_price = stock_rt['realtime']['latest_trade_price']
-            
-            # 若有官方更新時間，使用官方的 (需注意 twstock 有時回傳 epoch 或 string)
-            # 這裡簡單處理：若成功，直接標示為 TWSE，並使用系統校正後的時間
             if real_price and real_price != "-":
                 latest_price = float(real_price)
                 realtime_success = True
                 source_name = "TWSE"
             else:
-                # 試撮合價格
                 bid = stock_rt['realtime']['best_bid_price'][0]
                 ask = stock_rt['realtime']['best_ask_price'][0]
                 if bid and ask and bid != "-" and ask != "-":
@@ -271,25 +261,28 @@ def fetch_data_light(stock_id):
                     realtime_success = True
                     source_name = "TWSE(試)"
     except Exception as e:
-        print(f"[Error] twstock: {e}")
+        # 這裡會捕捉 'tlong' 錯誤，並默默跳過，進入下方的 Yahoo 救援
+        print(f"[Warn] twstock 抓取異常 (可能 IP 被擋): {e}")
 
-    # 若 twstock 失敗，啟動 Yahoo 救援
+    # --- Yahoo 救援機制 (當 twstock 失敗時啟動) ---
     if not realtime_success:
         try:
-            # 判斷上市(.TW) 或 上櫃(.TWO) - 簡易邏輯
+            # 判斷上市(.TW) 或 上櫃(.TWO)
             suffix = ".TWO" if len(stock_id) == 4 and int(stock_id) > 3000 and int(stock_id) < 9900 and not stock_id.startswith("00") else ".TW" 
             if stock_id.startswith("00"): suffix = ".TW"
             
+            # 使用 yfinance 抓取即時
             yf_stock = yf.Ticker(f"{stock_id}{suffix}")
-            # 抓取 1 分鐘級別資料
+            # period="1d", interval="1m" 代表抓取今天每一分鐘的資料
             data_yf = yf_stock.history(period="1d", interval="1m")
+            
             if not data_yf.empty:
                 latest_price = float(data_yf.iloc[-1]['Close'])
                 source_name = "Yahoo"
-                # Yahoo 的時間通常是 datetime object，直接用我們校正過的 update_time 即可
                 realtime_success = True
+                print(f"[System] Yahoo 救援成功: {stock_id} -> {latest_price}")
         except Exception as e:
-            print(f"[Error] Yahoo: {e}")
+            print(f"[Error] Yahoo 也失敗: {e}")
 
     # 4. 計算漲跌
     change = latest_price - prev_close
@@ -300,7 +293,6 @@ def fetch_data_light(stock_id):
 
     # 5. 計算 CDP
     last_day = hist_data[-1]
-    # 如果歷史資料最後一筆是今天(代表FinMind已更新)，我們CDP要用昨天的
     if len(hist_data) > 1 and hist_data[-1].get('date') == datetime.now().strftime('%Y-%m-%d'):
         last_day = hist_data[-2]
     
@@ -314,7 +306,7 @@ def fetch_data_light(stock_id):
     return {
         "code": stock_id, 
         "close": latest_price, 
-        "update_time": f"{update_time} ({source_name})", # 加上來源標示
+        "update_time": f"{update_time} ({source_name})", # 加上來源
         "resistance": res_price,
         "support": sup_price,
         "ma5": ma5, "ma20": ma20, "ma60": ma60,
