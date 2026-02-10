@@ -4,7 +4,7 @@ import time
 import math
 import concurrent.futures
 import twstock
-import yfinance as yf # 👈 引入救援套件
+import yfinance as yf
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -12,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.7 (Cloud Fix: Timezone + Yahoo Fallback)
-BOT_VERSION = "v15.7"
+# 🟢 [版本號] v15.8 (Chip Icons Option B + Yahoo Fallback)
+BOT_VERSION = "v15.8"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -90,7 +90,7 @@ def health_check():
 # --- 2. 核心：數據與指標引擎 ---
 
 def get_taiwan_time_str():
-    # 🔥 強制轉換為 UTC+8 (解決 Zeabur 02:45 問題)
+    # 強制轉換為 UTC+8
     utc_now = datetime.now(timezone.utc)
     tw_time = utc_now + timedelta(hours=8)
     return tw_time.strftime('%H:%M:%S')
@@ -123,10 +123,9 @@ def calculate_kd(highs, lows, closes, period=9):
     return round(k, 1), round(d, 1)
 
 def calculate_cdp(high, low, close):
-    # CDP 逆勢操作指標
     cdp = (high + low + (close * 2)) / 4
-    nh = (cdp * 2) - low    # 近高值 (壓力)
-    nl = (cdp * 2) - high   # 近低值 (支撐)
+    nh = (cdp * 2) - low
+    nl = (cdp * 2) - high
     return int(nh), int(nl)
 
 def get_technical_signals(data, chips_val):
@@ -162,7 +161,6 @@ def get_technical_signals(data, chips_val):
 
 # --- 3. 智慧快取與 API ---
 def get_smart_cache_ttl():
-    # 這裡也要用 UTC+8 判斷
     utc_now = datetime.now(timezone.utc)
     tw_now = utc_now + timedelta(hours=8)
     if dtime(9, 0) <= tw_now.time() <= dtime(13, 30): return 60 
@@ -219,7 +217,6 @@ def fetch_data_light(stock_id):
     url_hist = "https://api.finmindtrade.com/api/v4/data"
     headers = {'User-Agent': 'Mozilla/5.0'}
     
-    # 1. 抓歷史 (FinMind) - 用於計算均線和 CDP
     try:
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
         res = requests.get(url_hist, params={
@@ -230,7 +227,6 @@ def fetch_data_light(stock_id):
 
     if not hist_data: return None
 
-    # 基礎數據 (預設為歷史)
     latest_price = hist_data[-1]['close']
     prev_close = hist_data[-1]['close']
     
@@ -239,12 +235,10 @@ def fetch_data_light(stock_id):
         if hist_data[-1].get('date') == today_str:
             prev_close = hist_data[-2]['close']
 
-    # 2. [核心] 即時股價雙重備援 (twstock -> Yahoo)
     realtime_success = False
     source_name = "歷史"
-    update_time = get_taiwan_time_str() # 使用 UTC+8 時間
+    update_time = get_taiwan_time_str()
 
-    # --- 優先嘗試 twstock ---
     try:
         stock_rt = twstock.realtime.get(stock_id)
         if stock_rt['success']:
@@ -261,19 +255,14 @@ def fetch_data_light(stock_id):
                     realtime_success = True
                     source_name = "TWSE(試)"
     except Exception as e:
-        # 這裡會捕捉 'tlong' 錯誤，並默默跳過，進入下方的 Yahoo 救援
         print(f"[Warn] twstock 抓取異常 (可能 IP 被擋): {e}")
 
-    # --- Yahoo 救援機制 (當 twstock 失敗時啟動) ---
     if not realtime_success:
         try:
-            # 判斷上市(.TW) 或 上櫃(.TWO)
             suffix = ".TWO" if len(stock_id) == 4 and int(stock_id) > 3000 and int(stock_id) < 9900 and not stock_id.startswith("00") else ".TW" 
             if stock_id.startswith("00"): suffix = ".TW"
             
-            # 使用 yfinance 抓取即時
             yf_stock = yf.Ticker(f"{stock_id}{suffix}")
-            # period="1d", interval="1m" 代表抓取今天每一分鐘的資料
             data_yf = yf_stock.history(period="1d", interval="1m")
             
             if not data_yf.empty:
@@ -284,14 +273,12 @@ def fetch_data_light(stock_id):
         except Exception as e:
             print(f"[Error] Yahoo 也失敗: {e}")
 
-    # 4. 計算漲跌
     change = latest_price - prev_close
     change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
     sign = "+" if change > 0 else ""
     change_display = f"{sign}{round(change, 2)} ({sign}{change_pct}%)"
     color = "#D32F2F" if change >= 0 else "#2E7D32" 
 
-    # 5. 計算 CDP
     last_day = hist_data[-1]
     if len(hist_data) > 1 and hist_data[-1].get('date') == datetime.now().strftime('%Y-%m-%d'):
         last_day = hist_data[-2]
@@ -306,7 +293,7 @@ def fetch_data_light(stock_id):
     return {
         "code": stock_id, 
         "close": latest_price, 
-        "update_time": f"{update_time} ({source_name})", # 加上來源
+        "update_time": f"{update_time} ({source_name})",
         "resistance": res_price,
         "support": sup_price,
         "ma5": ma5, "ma20": ma20, "ma60": ma60,
@@ -394,6 +381,8 @@ def check_stock_worker_turbo(code):
         if data['ma5'] > data['ma20']:
             f_str, t_str, af_val, at_val = fetch_chips_accumulate(code) 
             threshold = 50 if data['close'] > 100 else 200
+            
+            # 判斷是否符合推薦門檻 (淨買超 > 門檻)
             if (af_val + at_val) > threshold:
                 name = CODE_TO_NAME.get(code, code)
                 sector = "熱門股"
@@ -402,11 +391,22 @@ def check_stock_worker_turbo(code):
                 signals = get_technical_signals(data, af_val + at_val)
                 signal_str = " | ".join(signals)
                 
+                # 🔥 [方案 B] 籌碼圖示邏輯區
+                net_chips = af_val + at_val
+                tag = "👀法人觀望"
+                if net_chips > 2000: tag = "🚀主力點火" # 超大買超
+                elif net_chips < -2000: tag = "🌪️棄守逃命" # 超大賣超
+                elif af_val > 500: tag = "✈️外資進駐"
+                elif at_val > 500: tag = "🤝投信作帳"
+                elif net_chips < -500: tag = "💸法人提款"
+                elif net_chips > 0: tag = "📈法人小買"
+                else: tag = "📉法人小賣"
+                
                 return {
                     "code": code, "name": name, "sector": sector,
                     "close": data['close'], "change_display": data['change_display'], "color": data['color'],
                     "chips": f"{af_val + at_val}張", "signal_str": signal_str,
-                    "tag": "外資大買" if af_val > at_val else "投信認養"
+                    "tag": tag # 這裡回傳新的圖示
                 }
     except: return None
     return None
@@ -592,8 +592,8 @@ def handle_message(event):
             f"💰 現價：{data['close']} {data['change_display']}\n"
             f"🕒 時間：{data['update_time']}\n"
             f"📊 週: {data['ma5']} | 月: {data['ma20']}\n"
-            f"🏦 外資: {f_str}\n"
-            f"🏦 投信: {t_str}\n"
+            f"✈️ 外資: {f_str}\n"
+            f"🤝 投信: {t_str}\n"
             f"{indicator_line}"
         )
         
