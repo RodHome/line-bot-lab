@@ -4,4 +4,5 @@ requests
 pandas
 lxml
 twstock
+yfinance
 html5lib
