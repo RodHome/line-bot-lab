@@ -179,7 +179,7 @@ def call_gemini_json(prompt, system_instruction=None):
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
     if not keys: return None
     random.shuffle(keys)
-    target_models = ["gemini-2.5-flash", "gemini-1.5-flash"] 
+    target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"] 
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
 
     for model in target_models:
@@ -390,7 +390,7 @@ def handle_message(event):
         for stock in good_stocks:
             reason = reasons_map.get(stock['name'], f"受惠{stock['sector']}需求，籌碼集中。")
             bubble = {
-                "type": "bubble", "size": "kilo",
+                "type": "bubble", "size": "kilo", # Line卡片大小 大到小依序為 giga->maga->kilo->hecto->deca->micro->nano
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
