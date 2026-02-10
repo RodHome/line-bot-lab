@@ -4,8 +4,7 @@ import time
 import math
 import concurrent.futures
 import twstock
-import yfinance as yf
-import pandas as pd # 👈 新增 pandas 用於處理 Yahoo 歷史數據
+# ⚠️ 注意：移除了這裡的 yfinance 和 pandas，改為函式內引用，解決啟動崩潰問題
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -13,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.9 (Full Yahoo Fallback + Error Reply)
-BOT_VERSION = "v15.9"
+# 🟢 [版本號] v15.10 (Performance Fix: Lazy Import)
+BOT_VERSION = "v15.10"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -228,19 +227,20 @@ def fetch_data_light(stock_id):
         hist_data = res.json().get('data', [])
     except: pass
 
-    # 2. 如果 FinMind 失敗，啟動 Yahoo History 救援 (防止個股查詢無反應)
+    # 2. Yahoo History 救援 (Lazy Loading)
     if not hist_data:
         try:
-            print(f"[System] FinMind 無資料，切換 Yahoo History: {stock_id}")
+            # 🔥 關鍵修改：在此處才載入 heavy libraries
+            import yfinance as yf
+            
+            print(f"[System] FinMind 無資料，啟動 Yahoo History 救援: {stock_id}")
             suffix = ".TWO" if len(stock_id) == 4 and int(stock_id) > 3000 and int(stock_id) < 9900 and not stock_id.startswith("00") else ".TW" 
             if stock_id.startswith("00"): suffix = ".TW"
             
             yf_stock = yf.Ticker(f"{stock_id}{suffix}")
-            # 抓取半年資料，確保足夠計算 MA60
             df = yf_stock.history(period="6mo")
             
             if not df.empty:
-                # 轉換格式以符合 FinMind 結構
                 for index, row in df.iterrows():
                     hist_data.append({
                         "date": index.strftime('%Y-%m-%d'),
@@ -250,7 +250,6 @@ def fetch_data_light(stock_id):
                         "min": row['Low'],
                         "Trading_Volume": int(row['Volume'])
                     })
-                # 取最後 120 筆
                 hist_data = hist_data[-120:]
         except Exception as e:
             print(f"[Error] Yahoo History Failed: {e}")
@@ -262,19 +261,17 @@ def fetch_data_light(stock_id):
     prev_close = hist_data[-1]['close']
     
     if len(hist_data) > 1:
-        # 如果最後一筆是今天，昨收為倒數第二筆；否則最後一筆為昨收
         today_str = datetime.now().strftime('%Y-%m-%d')
-        # Yahoo 的日期通常是 Date Object, FinMind 是 String，這裡做個簡單防呆
         last_date_str = hist_data[-1].get('date', '')
         if last_date_str == today_str:
             prev_close = hist_data[-2]['close']
 
-    # 3. [核心] 即時股價雙重備援 (twstock -> Yahoo)
+    # 3. 即時股價雙重備援 (twstock -> Yahoo)
     realtime_success = False
     source_name = "歷史"
     update_time = get_taiwan_time_str()
 
-    # --- 優先嘗試 twstock ---
+    # --- twstock ---
     try:
         stock_rt = twstock.realtime.get(stock_id)
         if stock_rt['success']:
@@ -293,9 +290,12 @@ def fetch_data_light(stock_id):
     except Exception as e:
         print(f"[Warn] twstock 抓取異常: {e}")
 
-    # --- Yahoo Realtime 救援 ---
+    # --- Yahoo Realtime 救援 (Lazy Loading) ---
     if not realtime_success:
         try:
+            # 🔥 關鍵修改：在此處才載入 yfinance
+            import yfinance as yf
+            
             suffix = ".TWO" if len(stock_id) == 4 and int(stock_id) > 3000 and int(stock_id) < 9900 and not stock_id.startswith("00") else ".TW" 
             if stock_id.startswith("00"): suffix = ".TW"
             
@@ -319,7 +319,6 @@ def fetch_data_light(stock_id):
 
     # 5. 計算 CDP
     last_day = hist_data[-1]
-    # 簡易判斷：若資料來源是 Yahoo Realtime 且歷史最後一筆也是今天，那昨收資料應取倒數第二筆
     if len(hist_data) > 1 and hist_data[-1].get('date') == datetime.now().strftime('%Y-%m-%d'):
         last_day = hist_data[-2]
     
@@ -535,7 +534,6 @@ def handle_message(event):
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
 
         data = fetch_data_light(stock_id) 
-        # 🔥 新增：如果抓不到資料，明確回覆給使用者
         if not data: 
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 無法取得【{name}】數據，請確認代號或稍後再試。"))
             return
@@ -548,7 +546,6 @@ def handle_message(event):
             etf_type = meta.get("type", "ETF")
             etf_focus = meta.get("focus", "基本面")
 
-        # 持股診斷 (Cost Mode)
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             profit_status = "獲利" if profit_pct > 0 else "虧損"
@@ -582,7 +579,6 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
 
-        # 一般查詢 (Query Mode)
         f_str, t_str, af_val, at_val = fetch_chips_accumulate(stock_id) 
         eps = fetch_eps(stock_id)
         yield_rate = fetch_dividend_yield(stock_id, data['close'])
