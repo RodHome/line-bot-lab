@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.6 (Timestamp + CDP Algo)
-BOT_VERSION = "v15.6"
+# 🟢 [版本號] v15.6.1 (Format Fix + Logic Upgrade)
+BOT_VERSION = "v15.6.1"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -124,8 +124,10 @@ def calculate_kd(highs, lows, closes, period=9):
 def calculate_cdp(high, low, close):
     # CDP 逆勢操作指標
     cdp = (high + low + (close * 2)) / 4
+    ah = cdp + (high - low)
     nh = (cdp * 2) - low
     nl = (cdp * 2) - high
+    al = cdp - (high - low)
     return int(nh), int(nl)
 
 def get_technical_signals(data, chips_val):
@@ -161,7 +163,6 @@ def get_technical_signals(data, chips_val):
 
 # --- 3. 智慧快取與 API ---
 def get_smart_cache_ttl():
-    # 這裡記得也要校正時區，不然 UTC 時間會讓快取邏輯錯亂
     utc_now = datetime.now(timezone.utc)
     tw_now = utc_now + timedelta(hours=8)
     if dtime(9, 0) <= tw_now.time() <= dtime(13, 30): return 60 
@@ -218,7 +219,6 @@ def fetch_data_light(stock_id):
     url_hist = "https://api.finmindtrade.com/api/v4/data"
     headers = {'User-Agent': 'Mozilla/5.0'}
     
-    # 1. 抓歷史 (FinMind)
     try:
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
         res = requests.get(url_hist, params={
@@ -232,24 +232,21 @@ def fetch_data_light(stock_id):
 
     if not hist_data: return None
 
-    # 2. 準備基礎數據
     latest_price = hist_data[-1]['close']
     prev_close = hist_data[-1]['close']
     
-    # 昨收判斷
     if len(hist_data) > 1:
         today_str = datetime.now().strftime('%Y-%m-%d')
         if hist_data[-1].get('date') == today_str:
             prev_close = hist_data[-2]['close']
 
-    # 3. 抓即時 (twstock)
     source_name = "歷史"
-    update_time = get_taiwan_time_str() # 時間戳記
+    update_time = get_taiwan_time_str() 
+    
     try:
         stock_rt = twstock.realtime.get(stock_id)
         if stock_rt['success']:
             real_price = stock_rt['realtime']['latest_trade_price']
-            # 抓官方更新時間
             rt_time = stock_rt['realtime'].get('latest_trade_time', '')
             if rt_time: update_time = rt_time 
             
@@ -265,14 +262,13 @@ def fetch_data_light(stock_id):
     except Exception as e:
         print(f"[Error] twstock: {e}")
 
-    # 4. 計算漲跌
+    # 1. 修正漲跌幅括號格式
     change = latest_price - prev_close
     change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
     sign = "+" if change > 0 else ""
-    change_display = f"{sign}{round(change, 2)} ({sign}{change_pct}%)"
+    change_display = f"({sign}{round(change, 2)}, {sign}{change_pct}%)" # 修正為 (±XX, ±%)
     color = "#D32F2F" if change >= 0 else "#2E7D32" 
 
-    # 5. 計算 CDP
     last_day = hist_data[-1]
     if len(hist_data) > 1 and hist_data[-1].get('date') == datetime.now().strftime('%Y-%m-%d'):
         last_day = hist_data[-2]
@@ -543,9 +539,11 @@ def handle_message(event):
                     f"target_price (目標價/殖利率目標), stop_loss (長期存股請填『無』)。"
                 )
             else:
+                # 2. 修改 System Prompt，教導 AI 突破邏輯與籌碼背離
                 sys_prompt = (
-                    "你是股市判官。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), "
-                    "target_price (停利), stop_loss (停損)。"
+                    "你是資深操盤手。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), target_price (停利), stop_loss (停損)。"
+                    "重點規則：1. 若現價高於壓力(Resistance)，視為『強勢突破』，壓力轉為短線支撐，勿單純看空。"
+                    "2. 若出現『價漲量增但外資賣』(背離)，請分析是否為內資(投信/主力)接手，而非直接看壞。"
                 )
             
             user_prompt = f"標的:{name}, 現價:{data['close']}, 壓力:{data['resistance']}, 支撐:{data['support']}, 訊號:{signal_str}, 外資:{f_str}"
@@ -562,7 +560,8 @@ def handle_message(event):
                         formatted_target = raw_target
                     advice_str += f"\n🎯目標：{formatted_target} | 🛑防守：{res.get('stop_loss','N/A')}"
                 else:
-                    advice_str += f"\n🧱壓力：{data['resistance']} | 🛏️支撐：{data['support']}"
+                    # 3. 修改壓力支撐圖示 (🚧 / 🛡️)
+                    advice_str += f"\n🚧壓力：{data['resistance']} | 🛡️支撐：{data['support']}"
                     
                 ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
             except: ai_reply_text = "AI 數據解析失敗。"
@@ -571,12 +570,13 @@ def handle_message(event):
         if is_etf: indicator_line = f"💎 預估殖利率: {yield_rate}"
         else: indicator_line = f"💎 EPS: {eps}"
 
+        # 3. 修改儀表板圖示 (✈️ / 🤝)
         data_dashboard = (
             f"💰 現價：{data['close']} {data['change_display']}\n"
             f"🕒 時間：{data['update_time']}\n"
             f"📊 週: {data['ma5']} | 月: {data['ma20']}\n"
-            f"🏦 外資: {f_str}\n"
-            f"🏦 投信: {t_str}\n"
+            f"✈️ 外資: {f_str}\n"
+            f"🤝 投信: {t_str}\n"
             f"{indicator_line}"
         )
         
