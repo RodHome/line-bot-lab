@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v16.1.1 (Model Fix + Prompt Upgrade)
-BOT_VERSION = "v16.1.1 (極速版)"
+# 🟢 [版本號] v16.2 (OOM Fix + Stability)
+BOT_VERSION = "v16.2 (穩定版)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -87,7 +87,9 @@ def fetch_twse_candidates():
     url = f"https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&type=ALLBUT0999&date={target_date}"
     
     try:
-        res = requests.get(url, timeout=6)
+        # 增加 headers 偽裝，減少被擋機率
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        res = requests.get(url, headers=headers, timeout=8) # 延長 timeout
         data = res.json()
         if data.get('stat') != 'OK': return []
 
@@ -129,7 +131,7 @@ def fetch_twse_candidates():
                 sign = row[idx_sign]
                 is_up = ('+' in sign) or ('red' in sign)
                 
-                if is_up and vol > 2000000: # 策略：紅盤且量大
+                if is_up and vol > 2000000:
                     candidates.append({"code": code, "vol": vol})
             except: continue
         
@@ -234,16 +236,13 @@ def clean_json_string(text):
     text = re.sub(r'```\s*', '', text)
     return text.strip()
 
-# 🔥 [修正] 恢復您指定的模型清單，確保 AI 正常運作
 def call_gemini_json(prompt, system_instruction=None):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
     if not keys: return None
     random.shuffle(keys)
     
-    # 您的指定模型清單 (Gemini 2.0 Flash Exp 被移除)
     target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
-    
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
     
     for model in target_models:
@@ -433,29 +432,8 @@ def check_stock_worker_turbo(code):
     except: return None
     return None
 
-# 🔥 [新增] 並行抓取函數 (加速個股查詢)------------------------add 2/10
-def fetch_all_data_concurrently(stock_id):
-    # 開啟 4 個執行緒同時工作
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        # 1. 同時發出 3 個請求
-        future_data = executor.submit(fetch_data_light, stock_id)      # 抓股價 (最重要)
-        future_chips = executor.submit(fetch_chips_accumulate, stock_id) # 抓籌碼
-        future_eps = executor.submit(fetch_eps, stock_id)                # 抓 EPS
-        
-        # 2. 等待股價資料回來 (因為算殖利率需要現價)
-        data = future_data.result()
-        if not data: return None, None, None, None
-        
-        # 3. 拿到現價後，馬上發出殖利率請求
-        future_yield = executor.submit(fetch_dividend_yield, stock_id, data['close'])
-        
-        # 4. 收集其他已經(或即將)完成的結果
-        f_str, t_str, af_val, at_val = future_chips.result()
-        eps = future_eps.result()
-        yield_rate = future_yield.result()
-        
-        return data, (f_str, t_str, af_val, at_val), eps, yield_rate
-#-------------------------------------------------------------add 2/10
+# 🔥 [修復] 已移除 fetch_all_data_concurrently 以避免 OOM 記憶體溢出
+# 單一股票查詢改回序列執行，雖然慢 1 秒但絕對穩定
 
 def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
@@ -466,13 +444,15 @@ def scan_recommendations_turbo(target_sector=None):
     else:
         twse_list = fetch_twse_candidates()
         if twse_list:
-            candidates_pool = twse_list[:20]
+            # 🔥 [優化] 隨機性增加：從前 50 名中隨機取 20 名，讓推薦更豐富
+            candidates_pool = random.sample(twse_list, 20) if len(twse_list) > 20 else twse_list
         else:
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
             candidates_pool = random.sample(elite_codes, 20) if len(elite_codes) > 20 else elite_codes
     
     candidates = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    # 🔥 [降載] max_workers 從 10 降為 3，防止掃描時記憶體爆掉
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         results = executor.map(check_stock_worker_turbo, candidates_pool)
     
     for res in results:
@@ -494,7 +474,7 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # [功能 1] 推薦選股 (修正：AI 推薦理由)
+    # [功能 1] 推薦選股
     if msg.startswith("推薦") or msg.startswith("選股"):
         parts = msg.split()
         target_sector = parts[1] if len(parts) > 1 else None
@@ -505,7 +485,6 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場震盪，暫無符合強勢條件的標的。"))
             return
             
-        # 🔥 [修正] AI 潤飾理由 Prompt，確保 JSON key 匹配
         stocks_payload = [{"code": s['code'], "name": s['name'], "signal": s['signal_str'], "sector": s['sector']} for s in good_stocks]
         
         sys_prompt = (
@@ -521,13 +500,11 @@ def handle_message(event):
             ai_data = json.loads(ai_json_str)
             items = ai_data if isinstance(ai_data, list) else ai_data.get('stocks', [])
             for item in items: 
-                # 確保用 code 對應，避免名稱不一致
                 reasons_map[item.get('code')] = item.get('reason', '動能強勁。')
         except: pass
 
         bubbles = []
         for stock in good_stocks:
-            # 🔥 [修正] 若 AI 失敗，備案改為更豐富的技術描述
             default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
             reason = reasons_map.get(stock['code'], default_reason)
             
@@ -552,31 +529,22 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
         return
 
-    # [功能 2] 個股/ETF 診斷 (AI 正常化)
+    # [功能 2] 個股/ETF 診斷
     stock_id = get_stock_id(msg)
     user_cost = None
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
     if cost_match: user_cost = float(cost_match.group(2))
 
-    # ... (前略：取得 stock_id 與 user_cost) ...
-
     if stock_id:
         name = CODE_TO_NAME.get(stock_id, stock_id)
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
 
-        # 🔥 [修改點 1] 改用並行函數一次抓完所有資料 (原本是分開抓)
-        # 舊寫法: data = fetch_data_light(stock_id) 
-        # 舊寫法: if not data: return
-        data, chips_data, eps, yield_rate = fetch_all_data_concurrently(stock_id)
-        
-        if not data: return # 如果連股價都抓不到，就結束
-        
-        # 解包籌碼數據
-        f_str, t_str, af_val, at_val = chips_data
+        # 🔥 [修復] 改回序列化執行，避免記憶體溢出
+        data = fetch_data_light(stock_id) 
+        if not data: return
         
         is_etf = stock_id.startswith("00")
         
-        # --- 持股診斷 (Cost Mode) ---
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             sys_prompt = "你是操盤手。回傳JSON: analysis(30字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
@@ -589,9 +557,10 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
 
-        # --- 一般查詢 (Query Mode) ---
-        
-        # 🔥 [修改點 2] 這裡原本的 fetch_chips、fetch_eps 等呼叫都已經刪除，因為上面一次抓完了
+        # 這裡恢復為序列式執行
+        f_str, t_str, af_val, at_val = fetch_chips_accumulate(stock_id) 
+        eps = fetch_eps(stock_id)
+        yield_rate = fetch_dividend_yield(stock_id, data['close'])
         
         signals = get_technical_signals(data, af_val + at_val)
         signal_str = " | ".join(signals)
@@ -604,7 +573,6 @@ def handle_message(event):
                 "你是資深操盤手。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫避開), target_price, stop_loss。"
                 "規則：1. 若現價站上 MA5 與 MA20，視為強勢。2. 若外資大賣且破線，請示警。"
             )
-            # 這裡的 user_prompt 使用已經抓到的 data 和 f_str
             user_prompt = f"標的:{name}, 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
