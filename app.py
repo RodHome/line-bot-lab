@@ -3,6 +3,7 @@ import json
 import time
 import math
 import concurrent.futures
+import twstock
 from datetime import datetime, timedelta, time as dtime
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -10,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.4 (ETF Identify Fix + Expanded Meta)
-BOT_VERSION = "v15.4"
+# 🟢 [版本號] v15.5 (ETF Identify Fix + Expanded Meta)
+BOT_VERSION = "v15.5"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -213,73 +214,101 @@ def call_gemini_json(prompt, system_instruction=None):
             except: continue
     return None
 
+
+
 def fetch_data_light(stock_id):
+    # --- [設定區] ---
     token = os.environ.get('FINMIND_TOKEN', '')
     url_hist = "https://api.finmindtrade.com/api/v4/data"
-    url_snap = "https://api.finmindtrade.com/api/v4/taiwan_stock_tick_snapshot" # 新增即時快照 API
     headers = {'User-Agent': 'Mozilla/5.0'}
     
+    # --- 1. 先抓 FinMind 歷史日線 (用途：計算 MA 均線) ---
+    # 因為 twstock 抓歷史資料比較慢，我們維持用 FinMind 處理技術指標
     try:
-        # 1. 先抓歷史日線 (為了計算 MA 和取得昨收)
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-        res = requests.get(url_hist, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token}, headers=headers, timeout=5)
-        data = res.json().get('data', [])
-        
-        if not data: return None
-        
-        # 預設使用歷史資料的最後一筆
-        latest_price = data[-1]['close']
-        
-        # 判斷昨收價 (若歷史資料最後一筆是今天，昨收就是倒數第二筆；若最後一筆是昨天，昨收就是那一筆)
-        # 簡單判斷：FinMind 日線盤中通常還沒更新，所以 data[-1] 通常是昨天收盤
-        prev_close = data[-1]['close'] 
-        
-        # 2. 嘗試抓取「即時快照」 (覆蓋最新價格)
-        try:
-            res_snap = requests.get(url_snap, params={"stock_id": stock_id, "token": token}, headers=headers, timeout=3)
-            snap_data = res_snap.json().get('data', [])
-            if snap_data:
-                # 取得即時成交價 (deal_price 或 last_price)
-                realtime_price = snap_data[0].get('deal_price', snap_data[0].get('last_price'))
-                if realtime_price:
-                    latest_price = float(realtime_price)
-                    # 如果抓到了即時價，我們可以更有信心地確認 data[-1] 是昨收
-                    # (這裡不做複雜日期比對，直接假設日線尚未更新今日數據，這是 FinMind 常態)
-        except Exception as e:
-            print(f"[API Error] Snapshot failed: {e}") # 失敗則沿用歷史數據，不中斷程式
+        res = requests.get(url_hist, params={
+            "dataset": "TaiwanStockPrice", 
+            "data_id": stock_id, 
+            "start_date": start, 
+            "token": token
+        }, headers=headers, timeout=5)
+        hist_data = res.json().get('data', [])
+    except:
+        hist_data = []
 
-        # 3. 計算技術指標 (MA 使用歷史數據計算，比較穩定)
-        closes = [d['close'] for d in data]
-        highs = [d['max'] for d in data]
-        lows = [d['min'] for d in data]
-        volumes = [d['Trading_Volume'] for d in data]
-        
-        ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
-        ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
-        ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
-        
-        # 4. 重新計算漲跌幅 (使用 最新價 - 昨收)
-        change = latest_price - prev_close
-        change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
-        
-        sign = "+" if change > 0 else ""
-        formatted_change = f"{sign}{round(change, 2)}"
-        formatted_pct = f"{sign}{change_pct}%"
-        change_display = f"({formatted_change}, {formatted_pct})"
-        color = "#D32F2F" if change >= 0 else "#2E7D32" # 台股紅漲綠跌
+    if not hist_data: return None
 
-        return {
-            "code": stock_id, 
-            "close": latest_price, # 這裡是即時價
-            "open": data[-1]['open'], # 開盤價暫用舊的或不顯示
-            "low": data[-1]['min'], 
-            "ma5": ma5, "ma20": ma20, "ma60": ma60,
-            "change": change, "change_display": change_display, "color": color,
-            "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes
-        }
+    # --- 2. 準備基礎數據 ---
+    # 預設使用歷史收盤價，萬一 twstock 失敗時才有備案
+    latest_price = hist_data[-1]['close'] 
+    
+    # 昨收價邏輯：用來計算漲跌幅
+    # 如果 FinMind 資料最後一筆是「今天」，昨收就是「倒數第二筆」
+    # 如果 FinMind 資料最後一筆是「昨天」，那它就是昨收
+    prev_close = hist_data[-1]['close']
+    if len(hist_data) > 1:
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        if hist_data[-1].get('date') == today_str:
+            prev_close = hist_data[-2]['close']
+
+    # --- 3. [核心] 使用 twstock 抓取「即時股價」 ---
+    try:
+        # twstock 會自動判斷上市或上櫃，直接抓即時行情
+        stock_rt = twstock.realtime.get(stock_id)
+        
+        if stock_rt['success']:
+            # 取得即時成交價 (API 回傳的是字串，需轉 float)
+            real_price = stock_rt['realtime']['latest_trade_price']
+            
+            # 狀況 A: 盤中正常交易，有成交價
+            if real_price and real_price != "-":
+                latest_price = float(real_price)
+            
+            # 狀況 B: 剛開盤或冷門股尚未成交，改抓「最佳買賣價」平均
+            else:
+                bid = stock_rt['realtime']['best_bid_price'][0]
+                ask = stock_rt['realtime']['best_ask_price'][0]
+                if bid and ask and bid != "-" and ask != "-":
+                    latest_price = round((float(bid) + float(ask)) / 2, 2)
+            
+            print(f"[System] {stock_id} twstock 即時價: {latest_price}")
+        else:
+            print(f"[System] twstock 抓取失敗: {stock_rt.get('rtmessage')}")
+
     except Exception as e:
-        print(f"[Error] fetch_data_light: {e}")
-        return None
+        print(f"[Error] twstock 連線異常: {e}")
+
+    # --- 4. 計算漲跌與技術指標 ---
+    # 漲跌幅 = (現價 - 昨收) / 昨收
+    change = latest_price - prev_close
+    change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
+    
+    sign = "+" if change > 0 else ""
+    change_display = f"({sign}{round(change, 2)}, {sign}{change_pct}%)"
+    
+    # 顏色：台股紅漲綠跌
+    color = "#D32F2F" if change >= 0 else "#2E7D32" 
+
+    # 計算均線 (使用 FinMind 歷史數據)
+    closes = [d['close'] for d in hist_data]
+    ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
+    ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
+    ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
+
+    return {
+        "code": stock_id, 
+        "close": latest_price, # 這是 twstock 抓到的最新價
+        "open": hist_data[-1]['open'], 
+        "low": hist_data[-1]['min'],
+        "ma5": ma5, "ma20": ma20, "ma60": ma60,
+        "change": change, 
+        "change_display": change_display, 
+        "color": color,
+        "raw_closes": closes, 
+        "raw_highs": [d['max'] for d in hist_data], 
+        "raw_lows": [d['min'] for d in hist_data], 
+        "raw_volumes": [d['Trading_Volume'] for d in hist_data]
+    }
 
 def fetch_chips_accumulate(stock_id):
     token = os.environ.get('FINMIND_TOKEN', '')
