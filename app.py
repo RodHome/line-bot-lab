@@ -11,14 +11,13 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v15.5 (ETF Identify Fix + Expanded Meta)
-BOT_VERSION = "v15.5"
+# 🟢 [版本號] v15.6 (Timestamp + CDP Algo)
+BOT_VERSION = "v15.6"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
 
-# 🔥 ETF 屬性資料庫 (擴充熱門清單，防止 AI 認錯人)
-# 這裡定義了 ETF 的「正名」與「分析重點」，AI 會嚴格遵守
+# 🔥 ETF 屬性資料庫
 ETF_META = {
     # --- 高股息家族 ---
     "00878": {"name": "國泰永續高股息", "type": "高股息", "focus": "ESG/殖利率/填息"},
@@ -33,11 +32,11 @@ ETF_META = {
     "0050":  {"name": "元大台灣50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
     "006208":{"name": "富邦台50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
     
-    # --- 產業/主題型 (🔥 這裡修正了 00881) ---
+    # --- 產業/主題型 ---
     "00881": {"name": "國泰台灣5G+", "type": "科技型", "focus": "半導體/通訊供應鏈/台積電"},
     "00891": {"name": "中信關鍵半導體", "type": "科技型", "focus": "半導體庫存循環"},
     "00892": {"name": "富邦台灣半導體", "type": "科技型", "focus": "半導體設備與製造"},
-    "00882": {"name": "中信中國高股息", "type": "海外型", "focus": "港股/金融地產/中國政策"}, # 這才是中國股
+    "00882": {"name": "中信中國高股息", "type": "海外型", "focus": "港股/金融地產/中國政策"},
     "00662": {"name": "富邦NASDAQ", "type": "海外型", "focus": "美股科技/利率政策"},
     "00646": {"name": "元大S&P500", "type": "海外型", "focus": "美股大盤/總經數據"},
     
@@ -123,6 +122,17 @@ def calculate_kd(highs, lows, closes, period=9):
     except: pass
     return round(k, 1), round(d, 1)
 
+def calculate_cdp(high, low, close):
+    # CDP 逆勢操作指標 (當沖常用)
+    # 用來計算今日的壓力與支撐
+    cdp = (high + low + (close * 2)) / 4
+    ah = cdp + (high - low) # 最高值 (壓力)
+    nh = (cdp * 2) - low    # 近高值 (壓力)
+    nl = (cdp * 2) - high   # 近低值 (支撐)
+    al = cdp - (high - low) # 最低值 (支撐)
+    # 這裡回傳「近壓力」與「近支撐」作為參考
+    return int(nh), int(nl)
+
 def get_technical_signals(data, chips_val):
     signals = []
     closes = data['raw_closes']; highs = data['raw_highs']; lows = data['raw_lows']; volumes = data['raw_volumes']
@@ -157,12 +167,8 @@ def get_technical_signals(data, chips_val):
 # --- 3. 智慧快取與 API ---
 def get_smart_cache_ttl():
     now = datetime.now().time()
-    # 盤中 (09:00 - 13:30) 快取時間縮短為 60 秒，確保價格即時
-    if dtime(9, 0) <= now <= dtime(13, 30): 
-        return 60 
-    # 盤後維持長快取
-    else: 
-        return 43200
+    if dtime(9, 0) <= now <= dtime(13, 30): return 60 
+    else: return 43200
 
 def get_cached_ai_response(key):
     if key in AI_RESPONSE_CACHE:
@@ -185,7 +191,6 @@ def call_gemini_json(prompt, system_instruction=None):
     if not keys: return None
     random.shuffle(keys)
     
-    # 🔥 更新：優先使用 gemini-3-flash-preview
     target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"] 
     
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
@@ -197,7 +202,6 @@ def call_gemini_json(prompt, system_instruction=None):
                 headers = {'Content-Type': 'application/json'}
                 params = {'key': key}
                 
-                # ... (以下內容維持不變) ...
                 contents = [{"parts": [{"text": final_prompt}]}]
                 if system_instruction:
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
@@ -214,16 +218,13 @@ def call_gemini_json(prompt, system_instruction=None):
             except: continue
     return None
 
-
-
 def fetch_data_light(stock_id):
     # --- [設定區] ---
     token = os.environ.get('FINMIND_TOKEN', '')
     url_hist = "https://api.finmindtrade.com/api/v4/data"
     headers = {'User-Agent': 'Mozilla/5.0'}
     
-    # --- 1. 先抓 FinMind 歷史日線 (用途：計算 MA 均線) ---
-    # 因為 twstock 抓歷史資料比較慢，我們維持用 FinMind 處理技術指標
+    # 1. 抓歷史 (FinMind)
     try:
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
         res = requests.get(url_hist, params={
@@ -233,63 +234,56 @@ def fetch_data_light(stock_id):
             "token": token
         }, headers=headers, timeout=5)
         hist_data = res.json().get('data', [])
-    except:
-        hist_data = []
+    except: hist_data = []
 
     if not hist_data: return None
 
-    # --- 2. 準備基礎數據 ---
-    # 預設使用歷史收盤價，萬一 twstock 失敗時才有備案
-    latest_price = hist_data[-1]['close'] 
-    
-    # 昨收價邏輯：用來計算漲跌幅
-    # 如果 FinMind 資料最後一筆是「今天」，昨收就是「倒數第二筆」
-    # 如果 FinMind 資料最後一筆是「昨天」，那它就是昨收
+    # 2. 準備基礎數據
+    latest_price = hist_data[-1]['close']
     prev_close = hist_data[-1]['close']
+    
+    # 昨收判斷：若 FinMind 最後一筆日期是今天，昨收往前推；否則最後一筆就是昨收
     if len(hist_data) > 1:
         today_str = datetime.now().strftime('%Y-%m-%d')
         if hist_data[-1].get('date') == today_str:
             prev_close = hist_data[-2]['close']
 
-    # --- 3. [核心] 使用 twstock 抓取「即時股價」 ---
+    # 3. 抓即時 (twstock)
+    update_time = datetime.now().strftime('%H:%M:%S') # 預設當下時間
     try:
-        # twstock 會自動判斷上市或上櫃，直接抓即時行情
         stock_rt = twstock.realtime.get(stock_id)
-        
         if stock_rt['success']:
-            # 取得即時成交價 (API 回傳的是字串，需轉 float)
             real_price = stock_rt['realtime']['latest_trade_price']
+            # 嘗試抓取官方更新時間 (格式通常是 HH:MM:SS)
+            rt_time = stock_rt['realtime'].get('latest_trade_time', '')
+            if rt_time: update_time = rt_time 
             
-            # 狀況 A: 盤中正常交易，有成交價
             if real_price and real_price != "-":
                 latest_price = float(real_price)
-            
-            # 狀況 B: 剛開盤或冷門股尚未成交，改抓「最佳買賣價」平均
             else:
+                # 剛開盤或冷門股無成交，用最佳買賣平均價
                 bid = stock_rt['realtime']['best_bid_price'][0]
                 ask = stock_rt['realtime']['best_ask_price'][0]
                 if bid and ask and bid != "-" and ask != "-":
                     latest_price = round((float(bid) + float(ask)) / 2, 2)
-            
-            print(f"[System] {stock_id} twstock 即時價: {latest_price}")
-        else:
-            print(f"[System] twstock 抓取失敗: {stock_rt.get('rtmessage')}")
-
     except Exception as e:
-        print(f"[Error] twstock 連線異常: {e}")
+        print(f"[Error] twstock: {e}")
 
-    # --- 4. 計算漲跌與技術指標 ---
-    # 漲跌幅 = (現價 - 昨收) / 昨收
+    # 4. 計算漲跌
     change = latest_price - prev_close
     change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
-    
     sign = "+" if change > 0 else ""
-    change_display = f"({sign}{round(change, 2)}, {sign}{change_pct}%)"
-    
-    # 顏色：台股紅漲綠跌
+    change_display = f"{sign}{round(change, 2)} ({sign}{change_pct}%)"
     color = "#D32F2F" if change >= 0 else "#2E7D32" 
 
-    # 計算均線 (使用 FinMind 歷史數據)
+    # 5. 計算 CDP 支撐壓力 (使用昨日的 High/Low/Close 來預測今日)
+    # 抓取「完整結束的昨天」數據
+    last_day = hist_data[-1]
+    if len(hist_data) > 1 and hist_data[-1].get('date') == datetime.now().strftime('%Y-%m-%d'):
+        last_day = hist_data[-2]
+    
+    res_price, sup_price = calculate_cdp(last_day['max'], last_day['min'], last_day['close'])
+
     closes = [d['close'] for d in hist_data]
     ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
     ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
@@ -297,13 +291,14 @@ def fetch_data_light(stock_id):
 
     return {
         "code": stock_id, 
-        "close": latest_price, # 這是 twstock 抓到的最新價
+        "close": latest_price, 
+        "update_time": update_time, # 回傳時間
+        "resistance": res_price,    # 回傳計算出的壓力
+        "support": sup_price,       # 回傳計算出的支撐
         "open": hist_data[-1]['open'], 
         "low": hist_data[-1]['min'],
         "ma5": ma5, "ma20": ma20, "ma60": ma60,
-        "change": change, 
-        "change_display": change_display, 
-        "color": color,
+        "change": change, "change_display": change_display, "color": color,
         "raw_closes": closes, 
         "raw_highs": [d['max'] for d in hist_data], 
         "raw_lows": [d['min'] for d in hist_data], 
@@ -458,7 +453,7 @@ def handle_message(event):
         for stock in good_stocks:
             reason = reasons_map.get(stock['name'], f"受惠{stock['sector']}需求，籌碼集中。")
             bubble = {
-                "type": "bubble", "size": "kilo", # Line卡片大小 大到小依序為 giga->maga->kilo->hecto->deca->micro->nano
+                "type": "bubble", "size": "kilo",
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
@@ -486,7 +481,7 @@ def handle_message(event):
     if cost_match: user_cost = float(cost_match.group(2))
 
     if stock_id:
-        # 🔥 修正：優先使用 ETF_META 內的名稱 (如果有的話)
+        # 優先使用 ETF_META 內的名稱
         name = CODE_TO_NAME.get(stock_id, stock_id)
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
 
@@ -497,7 +492,6 @@ def handle_message(event):
         etf_type = "一般"
         etf_focus = "技術面"
         if is_etf:
-            # 確保 00881 等已定義的 ETF 能抓到正確屬性
             meta = ETF_META.get(stock_id, {"type": "ETF", "focus": "折溢價/成分股"})
             etf_type = meta.get("type", "ETF")
             etf_focus = meta.get("focus", "基本面")
@@ -552,24 +546,32 @@ def handle_message(event):
                     f"你是ETF分析師。標的:{name}({etf_type})。關注:{etf_focus}。\n"
                     f"殖利率: {yield_rate}。\n"
                     f"請回傳 JSON: analysis (100字內, 結合殖利率/成分股/折溢價解析), advice (🔴進場 / 🟡觀望 / ⚫不可進場), "
-                    f"target_price (目標價/殖利率目標), stop_loss (長期存股請填『無』), "
-                    f"support (支撐位), resistance (壓力位)。"
+                    f"target_price (目標價/殖利率目標), stop_loss (長期存股請填『無』)。"
                 )
             else:
+                # 🔥 這裡拿掉了 AI 預測壓力和支撐的要求，因為我們已經算好了
                 sys_prompt = (
                     "你是股市判官。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫不可進場), "
-                    "target_price (停利), stop_loss (停損), support (支撐), resistance (壓力)。"
+                    "target_price (停利), stop_loss (停損)。"
                 )
             
-            user_prompt = f"標的:{name}, 現價:{data['close']}, 訊號:{signal_str}, 外資:{f_str}"
+            # 🔥 將計算出來的壓力與支撐餵給 AI，讓它參考
+            user_prompt = f"標的:{name}, 現價:{data['close']}, 壓力:{data['resistance']}, 支撐:{data['support']}, 訊號:{signal_str}, 外資:{f_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
                 advice_str = f"【建議】{res['advice']}"
                 if "進場" in res['advice']:
-                    advice_str += f"\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
+                    raw_target = res.get('target_price', 'N/A')
+                    if is_etf and "/" in str(raw_target):
+                        parts = str(raw_target).split('/')
+                        formatted_target = f"目標價 {parts[0].strip()} / 殖利率 {parts[1].strip()}"
+                    else:
+                        formatted_target = raw_target
+                    advice_str += f"\n🎯目標：{formatted_target} | 🛑防守：{res.get('stop_loss','N/A')}"
                 else:
-                    advice_str += f"\n🧱壓力：{res.get('resistance','N/A')} | 🛏️支撐：{res.get('support','N/A')}"
+                    # 🔥 這裡顯示數學算出來的 CDP 壓力支撐
+                    advice_str += f"\n🧱壓力：{data['resistance']} | 🛏️支撐：{data['support']}"
                     
                 ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
             except: ai_reply_text = "AI 數據解析失敗。"
@@ -580,6 +582,7 @@ def handle_message(event):
 
         data_dashboard = (
             f"💰 現價：{data['close']} {data['change_display']}\n"
+            f"🕒 時間：{data['update_time']}\n"
             f"📊 週: {data['ma5']} | 月: {data['ma20']}\n"
             f"🏦 外資: {f_str}\n"
             f"🏦 投信: {t_str}\n"
