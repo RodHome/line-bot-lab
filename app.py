@@ -71,80 +71,65 @@ def get_taiwan_time_str():
     tw_time = utc_now + timedelta(hours=8)
     return tw_time.strftime('%H:%M:%S')
 
-# TWSE 全市場掃描 (量能趨勢版)
-def fetch_twse_candidates():
-    global TWSE_CACHE
-    tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
-    if tw_now.hour < 14: 
-        target_date = (tw_now - timedelta(days=1)).strftime('%Y%m%d')
-    else:
-        target_date = tw_now.strftime('%Y%m%d')
-
-    if TWSE_CACHE['date'] == target_date and TWSE_CACHE['data']:
-        return TWSE_CACHE['data']
-
-    print(f"[System] 啟動 TWSE 掃描，目標: {target_date}")
-    url = f"https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&type=ALLBUT0999&date={target_date}"
-    
+# 🔥 [新增] TPEX 上櫃全市場掃描
+def fetch_tpex_candidates():
+    # 上櫃資料的 API 比較慢，且格式不同，需要獨立處理
     try:
-        res = requests.get(url, timeout=6)
-        data = res.json()
-        if data.get('stat') != 'OK': return []
-
-        target_table = None
-        if 'tables' in data:
-            for table in data['tables']:
-                if '每日收盤行情' in table.get('title', '') or '證券代號' in table.get('fields', []):
-                    target_table = table
-                    break
-        elif 'data9' in data:
-            target_table = {'data': data['data9'], 'fields': data.get('fields9', [])}
-
-        if not target_table: return []
-
-        raw_data = target_table['data']
-        fields = target_table['fields']
+        tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+        # TPEX 的日期格式通常是 YYYY/MM/DD (西元)
+        if tw_now.hour < 14: 
+            target_date = (tw_now - timedelta(days=1)).strftime('%Y/%m/%d')
+        else:
+            target_date = tw_now.strftime('%Y/%m/%d')
+            
+        print(f"[System] 啟動 TPEX (上櫃) 掃描，目標: {target_date}")
         
-        try:
-            idx_code = fields.index("證券代號")
-            idx_vol = fields.index("成交股數")
-            idx_price = fields.index("收盤價")
-            idx_sign = fields.index("漲跌(+/-)")
-        except:
-            idx_code, idx_vol, idx_price, idx_sign = 0, 2, 8, 9
+        # TPEX 網址結構
+        url = f"https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d={target_date}&o=json"
+        
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers=headers, timeout=8)
+        data = res.json()
+        
+        # TPEX 回傳的資料結構通常在 aaData
+        raw_data = data.get('aaData', [])
+        if not raw_data: return []
 
         candidates = []
+        # TPEX 欄位索引通常固定：0=代號, 1=名稱, 2=收盤, 3=漲跌, 8=成交量(股)
+        # 但為了保險，我們還是用 try-except
+        idx_code, idx_name, idx_price, idx_vol = 0, 1, 2, 8
+        
         for row in raw_data:
             try:
                 code = row[idx_code]
-                if code.startswith('00') or code.startswith('91'): continue
+                # 排除權證與債券 (長度超過 4 碼通常是權證，或開頭 7)
+                if len(code) > 4 or code.startswith('7'): continue
                 
-                vol = float(row[idx_vol].replace(',', ''))
+                vol_str = row[idx_vol].replace(',', '')
                 price_str = row[idx_price].replace(',', '')
-                if price_str == '--' or vol == 0: continue
                 
+                if price_str == '---' or vol_str == '': continue
+                
+                vol = float(vol_str)
                 price = float(price_str)
-                if price < 10: continue
                 
-                sign = row[idx_sign]
-                is_up = ('+' in sign) or ('red' in sign)
+                # 門檻：價 > 10, 量 > 1000 張 (上櫃量通常較少，門檻可稍降)
+                if price < 10 or vol < 1000000: continue
                 
-                if is_up and vol > 2000000: # 策略：紅盤且量大
-                    candidates.append({"code": code, "vol": vol})
+                # 漲跌判斷 (TPEX 的漲跌在 row[3]，紅色通常有 span class)
+                # 這裡簡化：只要是紅盤 (收盤 > 開盤 或 漲跌 > 0)
+                # TPEX 資料比較雜，我們用簡單邏輯：只要量大就收
+                candidates.append({"code": code, "vol": vol})
             except: continue
-        
+            
+        # 排序並取前 30 名 (上櫃只取精華)
         candidates.sort(key=lambda x: x['vol'], reverse=True)
-        final_list = [x['code'] for x in candidates[:50]]
-        
-        if final_list:
-            TWSE_CACHE = {"date": target_date, "data": final_list}
-            print(f"[System] 掃描完成，鎖定 {len(final_list)} 檔熱門股")
-            return final_list
+        return [x['code'] for x in candidates[:30]]
 
     except Exception as e:
-        print(f"[Error] TWSE Scan: {e}")
-    
-    return []
+        print(f"[Error] TPEX Scan: {e}")
+        return []
 
 # 技術指標
 def calculate_rsi(prices, period=14):
@@ -433,6 +418,7 @@ def check_stock_worker_turbo(code):
     except: return None
     return None
 
+# 🔥 [優化] 掃描邏輯：上市 + 上櫃 混合排名
 def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
     
@@ -440,21 +426,46 @@ def scan_recommendations_turbo(target_sector=None):
         pool = [v['code'] for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
         if pool: candidates_pool = pool
     else:
-        twse_list = fetch_twse_candidates()
-        if twse_list:
-            candidates_pool = twse_list[:20]
+        # 1. 平行抓取 上市 (TWSE) 與 上櫃 (TPEX)
+        # 為了速度，我們開兩個執行緒去分別抓
+        pool_twse = []
+        pool_tpex = []
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            f1 = executor.submit(fetch_twse_candidates)
+            f2 = executor.submit(fetch_tpex_candidates)
+            pool_twse = f1.result() or []
+            pool_tpex = f2.result() or []
+            
+        # 2. 合併名單 (上市前 30 + 上櫃前 30)
+        # 這樣你就有了「全台股最強 60 檔」的母體
+        merged_list = pool_twse[:30] + pool_tpex[:30]
+        
+        if merged_list:
+            # 3. 從這 60 檔中，隨機取 15 檔來檢查
+            # 這樣既能抓到大型股(上市)，也能抓到妖股(上櫃)
+            # 如果不隨機，可以改為 merged_list[:15] (但這樣可能上櫃股會被擠到後面)
+            candidates_pool = random.sample(merged_list, 15) if len(merged_list) > 15 else merged_list
         else:
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
-            candidates_pool = random.sample(elite_codes, 20) if len(elite_codes) > 20 else elite_codes
+            candidates_pool = random.sample(elite_codes, 15) if len(elite_codes) > 15 else elite_codes
     
     candidates = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        results = executor.map(check_stock_worker_turbo, candidates_pool)
-    
-    for res in results:
-        if res: candidates.append(res)
-        if len(candidates) >= 5: break
+    # 開 4 個執行緒檢查
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        future_to_code = {executor.submit(check_stock_worker_turbo, code): code for code in candidates_pool}
         
+        for future in concurrent.futures.as_completed(future_to_code):
+            try:
+                res = future.result()
+                if res: 
+                    candidates.append(res)
+                    # 找到 5 檔就收工
+                    if len(candidates) >= 5:
+                        executor.shutdown(wait=False)
+                        break
+            except: pass
+            
     return candidates
 
 # --- Line Bot Handlers ---
