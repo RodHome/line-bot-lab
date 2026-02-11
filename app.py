@@ -1,4 +1,3 @@
-import os, requests, random, re
 import json
 import time
 import math
@@ -11,13 +10,13 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v16.4 (TPEX Safe Mode)
-BOT_VERSION = "v16.4 (上市櫃雙刀流-安全版)"
+# 🟢 [版本號] v16.1
+BOT_VERSION = "ver16.1"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
-# TWSE/TPEX 全市場掃描快取
-MARKET_CACHE = {"date": "", "twse": [], "tpex": []}
+# TWSE 全市場掃描快取
+TWSE_CACHE = {"date": "", "data": []}
 
 # 🔥 ETF 屬性資料庫
 ETF_META = {
@@ -42,8 +41,7 @@ ELITE_STOCK_DATA = {
     "緯創": {"code": "3231", "sector": "AI伺服器"}, "技嘉": {"code": "2376", "sector": "板卡"},
     "長榮": {"code": "2603", "sector": "航運"}, "陽明": {"code": "2609", "sector": "航運"},
     "華城": {"code": "1519", "sector": "重電"}, "士電": {"code": "1503", "sector": "重電"},
-    "奇鋐": {"code": "3017", "sector": "散熱"}, "雙鴻": {"code": "3324", "sector": "散熱"},
-    "藥華藥": {"code": "6446", "sector": "生技"}, "元太": {"code": "8069", "sector": "電子紙"}
+    "奇鋐": {"code": "3017", "sector": "散熱"}, "雙鴻": {"code": "3324", "sector": "散熱"}
 }
 ELITE_STOCK_POOL = {k: v["code"] for k, v in ELITE_STOCK_DATA.items()}
 ALL_STOCK_MAP = ELITE_STOCK_POOL.copy()
@@ -72,21 +70,23 @@ def get_taiwan_time_str():
     tw_time = utc_now + timedelta(hours=8)
     return tw_time.strftime('%H:%M:%S')
 
-# TWSE 全市場掃描 (上市)
+# TWSE 全市場掃描 (量能趨勢版)
 def fetch_twse_candidates():
-    global MARKET_CACHE
+    global TWSE_CACHE
     tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
-    target_date = (tw_now - timedelta(days=1)).strftime('%Y%m%d') if tw_now.hour < 14 else tw_now.strftime('%Y%m%d')
+    if tw_now.hour < 14: 
+        target_date = (tw_now - timedelta(days=1)).strftime('%Y%m%d')
+    else:
+        target_date = tw_now.strftime('%Y%m%d')
 
-    if MARKET_CACHE['date'] == target_date and MARKET_CACHE['twse']:
-        return MARKET_CACHE['twse']
+    if TWSE_CACHE['date'] == target_date and TWSE_CACHE['data']:
+        return TWSE_CACHE['data']
 
-    print(f"[System] 啟動 TWSE (上市) 掃描: {target_date}")
+    print(f"[System] 啟動 TWSE 掃描，目標: {target_date}")
     url = f"https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&type=ALLBUT0999&date={target_date}"
     
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.get(url, headers=headers, timeout=5) # 5秒超時
+        res = requests.get(url, timeout=6)
         data = res.json()
         if data.get('stat') != 'OK': return []
 
@@ -102,9 +102,16 @@ def fetch_twse_candidates():
         if not target_table: return []
 
         raw_data = target_table['data']
-        # 簡單索引假設 (防呆)
-        idx_code, idx_vol, idx_price, idx_sign = 0, 2, 8, 9
+        fields = target_table['fields']
         
+        try:
+            idx_code = fields.index("證券代號")
+            idx_vol = fields.index("成交股數")
+            idx_price = fields.index("收盤價")
+            idx_sign = fields.index("漲跌(+/-)")
+        except:
+            idx_code, idx_vol, idx_price, idx_sign = 0, 2, 8, 9
+
         candidates = []
         for row in raw_data:
             try:
@@ -121,16 +128,16 @@ def fetch_twse_candidates():
                 sign = row[idx_sign]
                 is_up = ('+' in sign) or ('red' in sign)
                 
-                if is_up and vol > 2000000: # 2000張
+                if is_up and vol > 2000000: # 策略：紅盤且量大
                     candidates.append({"code": code, "vol": vol})
             except: continue
         
         candidates.sort(key=lambda x: x['vol'], reverse=True)
-        final_list = [x['code'] for x in candidates[:40]] # 取前40
+        final_list = [x['code'] for x in candidates[:50]]
         
         if final_list:
-            MARKET_CACHE['date'] = target_date
-            MARKET_CACHE['twse'] = final_list
+            TWSE_CACHE = {"date": target_date, "data": final_list}
+            print(f"[System] 掃描完成，鎖定 {len(final_list)} 檔熱門股")
             return final_list
 
     except Exception as e:
@@ -138,65 +145,7 @@ def fetch_twse_candidates():
     
     return []
 
-# 🔥 [優化] TPEX 全市場掃描 (上櫃) - 嚴格時限版
-def fetch_tpex_candidates():
-    global MARKET_CACHE
-    tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
-    # TPEX 需要西元格式 YYYY/MM/DD
-    target_date = (tw_now - timedelta(days=1)).strftime('%Y/%m/%d') if tw_now.hour < 14 else tw_now.strftime('%Y/%m/%d')
-    
-    if MARKET_CACHE['date'].replace('/','') == target_date.replace('/','') and MARKET_CACHE['tpex']:
-        return MARKET_CACHE['tpex']
-
-    print(f"[System] 啟動 TPEX (上櫃) 掃描: {target_date}")
-    # TPEX API
-    url = f"https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d={target_date}&o=json"
-    
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        # 🔥 關鍵：只給 4 秒，抓不到就拉倒，不要卡死 Line Bot
-        res = requests.get(url, headers=headers, timeout=4) 
-        data = res.json()
-        
-        raw_data = data.get('aaData', [])
-        if not raw_data: return []
-
-        candidates = []
-        # TPEX 索引: 0代號, 1名稱, 2收盤, 3漲跌, 8成交量(股)
-        idx_code, idx_price, idx_vol = 0, 2, 8
-        
-        for row in raw_data:
-            try:
-                code = row[idx_code]
-                if len(code) > 4 or code.startswith('7'): continue
-                
-                vol_str = row[idx_vol].replace(',', '')
-                price_str = row[idx_price].replace(',', '')
-                
-                if price_str == '---' or vol_str == '': continue
-                
-                vol = float(vol_str)
-                price = float(price_str)
-                
-                # 上櫃量通常較小，門檻設 1000 張 (1,000,000股)
-                if price < 10 or vol < 1000000: continue
-                
-                # 簡單判斷：只要有量且價格正常就納入，讓後續技術指標過濾
-                candidates.append({"code": code, "vol": vol})
-            except: continue
-        
-        candidates.sort(key=lambda x: x['vol'], reverse=True)
-        final_list = [x['code'] for x in candidates[:30]] # 取前30
-        
-        if final_list:
-            MARKET_CACHE['tpex'] = final_list
-            return final_list
-
-    except Exception as e:
-        print(f"[Error] TPEX Scan Timeout/Error: {e}") # 失敗就算了，不影響主流程
-        return []
-
-# 技術指標 (維持不變)
+# 技術指標
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1: return 50
     gains = []; losses = []
@@ -223,6 +172,12 @@ def calculate_kd(highs, lows, closes, period=9):
         d = (2/3) * 50 + (1/3) * k
     except: pass
     return round(k, 1), round(d, 1)
+
+def calculate_cdp(high, low, close):
+    cdp = (high + low + (close * 2)) / 4
+    nh = (cdp * 2) - low
+    nl = (cdp * 2) - high
+    return int(nh), int(nl)
 
 def get_technical_signals(data, chips_val):
     signals = []
@@ -256,7 +211,7 @@ def get_technical_signals(data, chips_val):
     if not unique_signals: unique_signals = ["🟡趨勢盤整"]
     return unique_signals[:3]
 
-# --- 3. 智慧快取與 API ---
+# --- 3. 智慧快取與 API (Gemini/FinMind) ---
 def get_smart_cache_ttl():
     utc_now = datetime.now(timezone.utc)
     tw_now = utc_now + timedelta(hours=8)
@@ -278,13 +233,16 @@ def clean_json_string(text):
     text = re.sub(r'```\s*', '', text)
     return text.strip()
 
+# 🔥 [修正] 恢復您指定的模型清單，確保 AI 正常運作
 def call_gemini_json(prompt, system_instruction=None):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
     if not keys: return None
     random.shuffle(keys)
     
+    # 您的指定模型清單 (Gemini 2.0 Flash Exp 被移除)
     target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+    
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
     
     for model in target_models:
@@ -293,14 +251,16 @@ def call_gemini_json(prompt, system_instruction=None):
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
                 headers = {'Content-Type': 'application/json'}
                 params = {'key': key}
+                
                 contents = [{"parts": [{"text": final_prompt}]}]
                 if system_instruction:
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
+                
                 payload = {
                     "contents": contents,
-                    "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.3, "responseMimeType": "application/json"}
+                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
                 }
-                response = requests.post(url, headers=headers, params=params, json=payload, timeout=25)
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
                 if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
@@ -308,12 +268,16 @@ def call_gemini_json(prompt, system_instruction=None):
             except: continue
     return None
 
+# 數據縫合 (Data Stitching)
 def fetch_data_light(stock_id):
     token = os.environ.get('FINMIND_TOKEN', '')
     url_hist = "https://api.finmindtrade.com/api/v4/data"
+    
     try:
         start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-        res = requests.get(url_hist, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
+        res = requests.get(url_hist, params={
+            "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
+        }, timeout=5)
         hist_data = res.json().get('data', [])
     except: hist_data = []
 
@@ -322,12 +286,14 @@ def fetch_data_light(stock_id):
     latest_price = 0
     source_name = "歷史"
     update_time = get_taiwan_time_str()
+    
     try:
         stock_rt = twstock.realtime.get(stock_id)
         if stock_rt['success']:
             real_price = stock_rt['realtime']['latest_trade_price']
             rt_time = stock_rt['realtime'].get('latest_trade_time', '')
             if rt_time: update_time = rt_time 
+            
             if real_price and real_price != "-":
                 latest_price = float(real_price)
                 source_name = "TWSE"
@@ -339,7 +305,8 @@ def fetch_data_light(stock_id):
                     source_name = "TWSE(試)"
     except: pass
 
-    if latest_price == 0: latest_price = hist_data[-1]['close']
+    if latest_price == 0:
+        latest_price = hist_data[-1]['close']
 
     closes = [d['close'] for d in hist_data]
     highs = [d['max'] for d in hist_data]
@@ -354,22 +321,30 @@ def fetch_data_light(stock_id):
         highs.append(latest_price)
         lows.append(latest_price)
         volumes.append(0)
-    else: closes[-1] = latest_price
+    else:
+        closes[-1] = latest_price
 
     ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
     ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
     ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
-    
+
     prev_close = closes[-2] if len(closes) > 1 else latest_price
     change = latest_price - prev_close
     change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
     sign = "+" if change > 0 else ""
     color = "#D32F2F" if change >= 0 else "#2E7D32"
 
+    last_day = hist_data[-1]
+    res_price, sup_price = calculate_cdp(last_day['max'], last_day['min'], last_day['close'])
+
     return {
-        "code": stock_id, "close": latest_price, "update_time": f"{update_time} ({source_name})",
+        "code": stock_id, 
+        "close": latest_price, 
+        "update_time": f"{update_time} ({source_name})",
+        "resistance": res_price, "support": sup_price,
         "ma5": ma5, "ma20": ma20, "ma60": ma60,
-        "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", "color": color,
+        "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
+        "color": color,
         "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
         "open": hist_data[-1]['open']
     }
@@ -444,8 +419,10 @@ def check_stock_worker_turbo(code):
             if is_hot:
                 name = CODE_TO_NAME.get(code, code)
                 sector = ELITE_STOCK_DATA.get(name, {}).get('sector', '熱門股')
+                
                 signals = get_technical_signals(data, chips_sum)
                 signal_str = " | ".join(signals)
+                
                 return {
                     "code": code, "name": name, "sector": sector,
                     "close": data['close'], "change_display": data['change_display'], "color": data['color'],
@@ -455,19 +432,6 @@ def check_stock_worker_turbo(code):
     except: return None
     return None
 
-def fetch_data_concurrently_safe(stock_id):
-    data = fetch_data_light(stock_id)
-    if not data: return None, None, None, None
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        f_chips = executor.submit(fetch_chips_accumulate, stock_id)
-        f_eps = executor.submit(fetch_eps, stock_id)
-        f_yield = executor.submit(fetch_dividend_yield, stock_id, data['close'])
-        f_str, t_str, af_val, at_val = f_chips.result()
-        eps = f_eps.result()
-        yield_rate = f_yield.result()
-    return data, (f_str, t_str, af_val, at_val), eps, yield_rate
-
-# 🔥 [優化] 掃描邏輯：混合上市櫃 + Early Exit + 嚴格超時保護
 def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
     
@@ -475,47 +439,21 @@ def scan_recommendations_turbo(target_sector=None):
         pool = [v['code'] for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
         if pool: candidates_pool = pool
     else:
-        # 1. 平行抓取上市櫃 (帶超時保護)
-        pool_twse = []
-        pool_tpex = []
-        
-        # 這裡用 wait 來確保不會因為 TPEX 卡住而死等
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            f1 = executor.submit(fetch_twse_candidates)
-            f2 = executor.submit(fetch_tpex_candidates)
-            try:
-                pool_twse = f1.result(timeout=6) or [] # 最多等6秒
-            except: pass
-            try:
-                pool_tpex = f2.result(timeout=5) or [] # 最多等5秒 (TPEX若太慢就放棄)
-            except: pass
-            
-        # 2. 合併名單 (上市前 20 + 上櫃前 15)
-        # 只取最前面的精華，避免母體過大導致後續檢查超時
-        merged_list = pool_twse[:20] + pool_tpex[:15]
-        
-        if merged_list:
-            # 取成交量最大的前 15 檔進行深度檢查 (不隨機，確保抓到龍頭)
-            # 這樣最穩，不會因為隨機而抓到爛股
-            candidates_pool = merged_list[:15]
+        twse_list = fetch_twse_candidates()
+        if twse_list:
+            candidates_pool = twse_list[:20]
         else:
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
-            candidates_pool = elite_codes[:12] # 備案也只查 12 檔
+            candidates_pool = random.sample(elite_codes, 20) if len(elite_codes) > 20 else elite_codes
     
     candidates = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        future_to_code = {executor.submit(check_stock_worker_turbo, code): code for code in candidates_pool}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        results = executor.map(check_stock_worker_turbo, candidates_pool)
+    
+    for res in results:
+        if res: candidates.append(res)
+        if len(candidates) >= 5: break
         
-        for future in concurrent.futures.as_completed(future_to_code):
-            try:
-                res = future.result()
-                if res: 
-                    candidates.append(res)
-                    if len(candidates) >= 5: # 找到 5 檔就收工
-                        executor.shutdown(wait=False)
-                        break
-            except: pass
-            
     return candidates
 
 # --- Line Bot Handlers ---
@@ -531,6 +469,7 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
+    # [功能 1] 推薦選股 (修正：AI 推薦理由)
     if msg.startswith("推薦") or msg.startswith("選股"):
         parts = msg.split()
         target_sector = parts[1] if len(parts) > 1 else None
@@ -538,24 +477,35 @@ def handle_message(event):
         good_stocks = scan_recommendations_turbo(target_sector)
         
         if not good_stocks:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場震盪或資料連線逾時，暫無結果。"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場震盪，暫無符合強勢條件的標的。"))
             return
             
+        # 🔥 [修正] AI 潤飾理由 Prompt，確保 JSON key 匹配
         stocks_payload = [{"code": s['code'], "name": s['name'], "signal": s['signal_str'], "sector": s['sector']} for s in good_stocks]
-        sys_prompt = "你是資深股市分析師。分析清單。回傳JSON [{'code': '股票代號', 'reason': '20字內短評'}]。結合產業與技術面。"
+        
+        sys_prompt = (
+            "你是資深股市分析師。請分析清單中的股票。"
+            "回傳 JSON 格式：[{'code': '股票代號', 'reason': '20字內短評'}]。"
+            "規則：必須結合『產業趨勢』或『技術突破』，語氣專業，不要只寫籌碼集中。"
+            "例如：AI伺服器需求爆發，量價齊揚突破前高。"
+        )
         ai_json_str = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
         
         reasons_map = {}
         try:
             ai_data = json.loads(ai_json_str)
             items = ai_data if isinstance(ai_data, list) else ai_data.get('stocks', [])
-            for item in items: reasons_map[item.get('code')] = item.get('reason', '動能強勁。')
+            for item in items: 
+                # 確保用 code 對應，避免名稱不一致
+                reasons_map[item.get('code')] = item.get('reason', '動能強勁。')
         except: pass
 
         bubbles = []
         for stock in good_stocks:
+            # 🔥 [修正] 若 AI 失敗，備案改為更豐富的技術描述
             default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
             reason = reasons_map.get(stock['code'], default_reason)
+            
             bubble = {
                 "type": "bubble", "size": "kilo",
                 "header": {
@@ -577,6 +527,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
         return
 
+    # [功能 2] 個股/ETF 診斷 (AI 正常化)
     stock_id = get_stock_id(msg)
     user_cost = None
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
@@ -585,10 +536,10 @@ def handle_message(event):
     if stock_id:
         name = CODE_TO_NAME.get(stock_id, stock_id)
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
-        
-        data, chips_data, eps, yield_rate = fetch_data_concurrently_safe(stock_id)
+
+        data = fetch_data_light(stock_id) 
         if not data: return
-        f_str, t_str, af_val, at_val = chips_data
+        
         is_etf = stock_id.startswith("00")
         
         if user_cost:
@@ -599,29 +550,55 @@ def handle_message(event):
             try:
                 res = json.loads(json_str)
                 reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}"
-            except: reply = "AI 數據解析失敗。"
+            except: reply = "AI 數據解析失敗 (請檢查 Key)。"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
 
+        f_str, t_str, af_val, at_val = fetch_chips_accumulate(stock_id) 
+        eps = fetch_eps(stock_id)
+        yield_rate = fetch_dividend_yield(stock_id, data['close'])
         signals = get_technical_signals(data, af_val + at_val)
         signal_str = " | ".join(signals)
+        
         cache_key = f"{stock_id}_query"
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            sys_prompt = "你是資深操盤手。回傳JSON: analysis(100字內), advice(🔴進場/🟡觀望/⚫避開), target_price, stop_loss。規則: 站上MA5/20視為強勢。"
+            sys_prompt = (
+                "你是資深操盤手。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫避開), target_price, stop_loss。"
+                "規則：1. 若現價站上 MA5 與 MA20，視為強勢。2. 若外資大賣且破線，請示警。"
+            )
             user_prompt = f"標的:{name}, 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
                 advice_str = f"【建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
                 ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
-            except: ai_reply_text = "AI 數據解析失敗。"
+            except: ai_reply_text = "AI 數據解析失敗 (連線異常)。"
             if "解析失敗" not in ai_reply_text: set_cached_ai_response(cache_key, ai_reply_text)
 
         indicator_line = f"💎 殖利率: {yield_rate}" if is_etf else f"💎 EPS: {eps}"
-        data_dashboard = f"💰 現價:{data['close']} {data['change_display']} 🕒{data['update_time']}\n📊 均線: 週:{data['ma5']} | 月:{data['ma20']} | 季:{data['ma60']}\n✈️ 外資: {f_str}\n🤝 投信: {t_str}\n{indicator_line}"
-        reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 **指標快篩** :\n{signal_str}\n------------------\n{ai_reply_text}\n------------------\n💡 輸入『推薦』查看今日熱門飆股！\n(系統: {BOT_VERSION})"
+        
+        data_dashboard = (
+            f"💰 現價:{data['close']} {data['change_display']} 🕒{data['update_time']}\n"
+            f"📊 均線: 週:{data['ma5']} | 月:{data['ma20']} | 季:{data['ma60']}\n" 
+            f"✈️ 外資: {f_str}\n"
+            f"🤝 投信: {t_str}\n"
+            f"{indicator_line}"
+        )
+        
+        reply = (
+            f"📈 **{name}({stock_id})**\n"
+            f"{data_dashboard}\n"
+            f"------------------\n"
+            f"🚩 **指標快篩** :\n{signal_str}\n"
+            f"------------------\n"
+            f"{ai_reply_text}\n"
+            f"------------------\n"
+            f"💡 你持有{name}嗎？輸入『{name}成本xxx』AI 幫你算！\n"
+            f"💡 輸入『推薦』查看今日熱門飆股！\n"
+            f"({BOT_VERSION})"
+        )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 if __name__ == "__main__":
