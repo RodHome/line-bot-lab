@@ -119,8 +119,7 @@ def generate_daily_recommendations():
                     try:
                         code = row[idx_code]
                         # 過濾權證、ETF(00開頭)、DR股(91開頭) -> 若你想保留 ETF，可移除 00 判斷
-                        if len(code) > 4 or code.startswith('91'): continue 
-                        
+                        if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
                         vol = float(row[idx_vol].replace(',', ''))
                         price_str = row[idx_price].replace(',', '')
                         
