@@ -543,161 +543,111 @@ def call_gemini_json(prompt, system_instruction=None):
 # 數據縫合 (Data Stitching)
 
 def fetch_data_light(stock_id):
+    # --- 定義內部子任務 (用於並行) ---
+    def get_history():
+        token = os.environ.get('FINMIND_TOKEN', '')
+        url_hist = "https://api.finmindtrade.com/api/v4/data"
+        try:
+            start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
+            # 設定 4秒 timeout，避免卡死
+            res = requests.get(url_hist, params={
+                "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
+            }, timeout=4)
+            return res.json().get('data', [])
+        except: return []
 
-    token = os.environ.get('FINMIND_TOKEN', '')
+    def get_realtime():
+        try:
+            # twstock 抓取即時報價
+            return twstock.realtime.get(stock_id)
+        except: return None
 
-    url_hist = "https://api.finmindtrade.com/api/v4/data"
-
+    # --- 啟動安全並行 (Safe Parallelism) ---
+    hist_data = []
+    stock_rt = None
     
-
     try:
-
-        start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-
-        res = requests.get(url_hist, params={
-
-            "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
-
-        }, timeout=5)
-
-        hist_data = res.json().get('data', [])
-
-    except: hist_data = []
-
-
+        # max_workers=2 是 Zeabur 免費版最穩定的設定
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_hist = executor.submit(get_history)
+            future_rt = executor.submit(get_realtime)
+            
+            # 等待結果，最多等 5 秒，超時則拋出異常 (避免伺服器卡住)
+            hist_data = future_hist.result(timeout=5)
+            stock_rt = future_rt.result(timeout=5)
+            
+    except Exception as e:
+        print(f"[Warn] 並行加速失敗，自動切換為一般模式: {e}")
+        # 如果並行出錯 (如記憶體不足)，自動降級為原本的「排隊執行」
+        hist_data = get_history()
+        stock_rt = get_realtime()
 
     if not hist_data: return None
 
-
-
+    # --- 以下維持你原本的數據處理邏輯 (完全不用動) ---
     latest_price = 0
-
     source_name = "歷史"
-
     update_time = get_taiwan_time_str()
-
     
-
     try:
-
-        stock_rt = twstock.realtime.get(stock_id)
-
-        if stock_rt['success']:
-
+        if stock_rt and stock_rt['success']:
             real_price = stock_rt['realtime']['latest_trade_price']
-
             rt_time = stock_rt['realtime'].get('latest_trade_time', '')
-
             if rt_time: update_time = rt_time 
-
             
-
             if real_price and real_price != "-":
-
                 latest_price = float(real_price)
-
                 source_name = "TWSE"
-
             else:
-
                 bid = stock_rt['realtime']['best_bid_price'][0]
-
                 ask = stock_rt['realtime']['best_ask_price'][0]
-
                 if bid and ask and bid != "-" and ask != "-":
-
                     latest_price = round((float(bid) + float(ask)) / 2, 2)
-
                     source_name = "TWSE(試)"
-
     except: pass
 
-
-
     if latest_price == 0:
-
         latest_price = hist_data[-1]['close']
 
-
-
     closes = [d['close'] for d in hist_data]
-
     highs = [d['max'] for d in hist_data]
-
     lows = [d['min'] for d in hist_data]
-
     volumes = [d['Trading_Volume'] for d in hist_data]
 
-
-
     today_str = datetime.now().strftime('%Y-%m-%d')
-
     hist_last_date = hist_data[-1]['date']
 
-
-
     if hist_last_date != today_str:
-
         closes.append(latest_price)
-
         highs.append(latest_price)
-
         lows.append(latest_price)
-
         volumes.append(0)
-
     else:
-
         closes[-1] = latest_price
 
-
-
     ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
-
     ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
-
     ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
 
-
-
     prev_close = closes[-2] if len(closes) > 1 else latest_price
-
     change = latest_price - prev_close
-
     change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
-
     sign = "+" if change > 0 else ""
-
     color = "#D32F2F" if change >= 0 else "#2E7D32"
 
-
-
     last_day = hist_data[-1]
-
     res_price, sup_price = calculate_cdp(last_day['max'], last_day['min'], last_day['close'])
 
-
-
     return {
-
         "code": stock_id, 
-
         "close": latest_price, 
-
         "update_time": f"{update_time} ({source_name})",
-
         "resistance": res_price, "support": sup_price,
-
         "ma5": ma5, "ma20": ma20, "ma60": ma60,
-
         "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
-
         "color": color,
-
         "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
-
         "open": hist_data[-1]['open']
-
     }
 
 
@@ -1141,47 +1091,93 @@ def handle_message(event):
             )
 
             user_prompt = f"標的:{name}, 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
+if stock_id:
+        name = CODE_TO_NAME.get(stock_id, stock_id)
+        if stock_id in ETF_META: name = ETF_META[stock_id]['name']
 
+        # --- 🔥 修改開始：並行抓取所有數據 (加速關鍵) ---
+        data = None
+        chips_res = ("0", "0", 0, 0) # 預設值
+        eps = "N/A"
+        yield_rate = "N/A"
+
+        try:
+            # 這裡 max_workers=3 是極限，不要調高，確保 Zeabur 不會掛
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+                # 1. 同時發出請求：抓股價、抓籌碼、抓EPS
+                future_data = executor.submit(fetch_data_light, stock_id)
+                future_chips = executor.submit(fetch_chips_accumulate, stock_id)
+                future_eps = executor.submit(fetch_eps, stock_id)
+
+                # 2. 必須先拿到股價 (data)，因為下面的殖利率計算需要現價
+                data = future_data.result(timeout=8)
+                
+                if data:
+                     # 3. 拿到現價後，順便去抓殖利率 (這時候籌碼還在背景抓，不浪費時間)
+                    future_yield = executor.submit(fetch_dividend_yield, stock_id, data['close'])
+                    yield_rate = future_yield.result(timeout=3)
+
+                # 4. 獲取剩下的結果
+                chips_res = future_chips.result(timeout=5)
+                eps = future_eps.result(timeout=5)
+
+        except Exception as e:
+            print(f"並行處理發生部分錯誤 (不影響主流程): {e}")
+            # 若並行失敗，嘗試用單執行緒補救 (至少讓 data 有值)
+            if not data: data = fetch_data_light(stock_id)
+            if not data: return # 真的沒救了才退出
+
+        # 解包籌碼數據
+        f_str, t_str, af_val, at_val = chips_res
+        # --- 🔥 修改結束 ---
+
+        is_etf = stock_id.startswith("00")
+        
+        if user_cost:
+            profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
+            sys_prompt = "你是操盤手。回傳JSON: analysis(30字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
+            user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
-
             try:
-
                 res = json.loads(json_str)
+                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}"
+            except: reply = "AI 數據解析失敗 (請檢查 Key)。"
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+            return
 
+        # 這裡繼續使用原本的邏輯
+        signals = get_technical_signals(data, af_val + at_val)
+        signal_str = " | ".join(signals)
+        
+        cache_key = f"{stock_id}_query"
+        ai_reply_text = get_cached_ai_response(cache_key)
+        
+        if not ai_reply_text:
+            sys_prompt = (
+                "你是資深操盤手。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫避開), target_price, stop_loss。"
+                "規則：1. 若現價站上 MA5 與 MA20，視為強勢。2. 若外資大賣且破線，請示警。"
+            )
+            user_prompt = f"標的:{name}, 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
+            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            try:
+                res = json.loads(json_str)
                 advice_str = f"【建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
-
                 ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
-
             except: ai_reply_text = "AI 數據解析失敗 (連線異常)。"
-
             if "解析失敗" not in ai_reply_text: set_cached_ai_response(cache_key, ai_reply_text)
 
-
-
         indicator_line = f"💎 殖利率: {yield_rate}" if is_etf else f"💎 EPS: {eps}"
-
         
-
         data_dashboard = (
-
             f"💰 現價:{data['close']} {data['change_display']} 🕒{data['update_time']}\n"
-
             f"📊 均線: 週:{data['ma5']} | 月:{data['ma20']} | 季:{data['ma60']}\n" 
-
             f"✈️ 外資: {f_str}\n"
-
             f"🤝 投信: {t_str}\n"
-
             f"{indicator_line}"
-
         )
-
         
-
         reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 **指標快篩** :\n{signal_str}\n------------------\n{ai_reply_text}\n------------------\n💡 輸入『推薦』查看今日熱門飆股！\n(系統: {BOT_VERSION})"
-
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-
 
 
 if __name__ == "__main__":
