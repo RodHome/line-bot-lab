@@ -70,77 +70,49 @@ def get_taiwan_time_str():
     tw_time = utc_now + timedelta(hours=8)
     return tw_time.strftime('%H:%M:%S')
 
-# TWSE 全市場掃描
+# TWSE 全市場掃描 [修改] 讓 Bot 直接讀取 GitHub 算好的資料
 def fetch_twse_candidates():
+    # 🔥 這是你的 GitHub Raw 連結 (根據你提供的截圖 RodHome/line-bot-lab)
+    # 如果你的檔案名稱不是 daily_recommendations.json，請修改這裡
+    GITHUB_RAW_URL = "https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json"
+    
+    # 加入簡單的快取機制 (避免短時間重複下載)
     global TWSE_CACHE
     tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
-    if tw_now.hour < 14: 
-        target_date = (tw_now - timedelta(days=1)).strftime('%Y%m%d')
-    else:
-        target_date = tw_now.strftime('%Y%m%d')
+    today_str = tw_now.strftime('%Y%m%d')
 
-    if TWSE_CACHE['date'] == target_date and TWSE_CACHE['data']:
+    # 1. 檢查記憶體快取 (如果 Zeabur 沒重啟，直接用記憶體裡的)
+    if TWSE_CACHE.get('date') == today_str and TWSE_CACHE.get('data'):
         return TWSE_CACHE['data']
 
-    print(f"[System] 啟動 TWSE 掃描，目標: {target_date}")
-    url = f"https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&type=ALLBUT0999&date={target_date}"
-    
+    print(f"[System] 從 GitHub 下載推薦名單...")
     try:
-        res = requests.get(url, timeout=6)
-        data = res.json()
-        if data.get('stat') != 'OK': return []
-
-        target_table = None
-        if 'tables' in data:
-            for table in data['tables']:
-                if '每日收盤行情' in table.get('title', '') or '證券代號' in table.get('fields', []):
-                    target_table = table
-                    break
-        elif 'data9' in data:
-            target_table = {'data': data['data9'], 'fields': data.get('fields9', [])}
-
-        if not target_table: return []
-
-        raw_data = target_table['data']
-        fields = target_table['fields']
+        # 2. 去 GitHub 下載 JSON
+        # 加入這行 header 避免被 GitHub 快取住舊資料
+        headers = {'Cache-Control': 'no-cache'}
+        res = requests.get(GITHUB_RAW_URL, headers=headers, timeout=5)
         
-        try:
-            idx_code = fields.index("證券代號")
-            idx_vol = fields.index("成交股數")
-            idx_price = fields.index("收盤價")
-            idx_sign = fields.index("漲跌(+/-)")
-        except:
-            idx_code, idx_vol, idx_price, idx_sign = 0, 2, 8, 9
-
-        candidates = []
-        for row in raw_data:
-            try:
-                code = row[idx_code]
-                if code.startswith('00') or code.startswith('91'): continue
-                vol = float(row[idx_vol].replace(',', ''))
-                price_str = row[idx_price].replace(',', '')
-                if price_str == '--' or vol == 0: continue
-                price = float(price_str)
-                if price < 10: continue
-                sign = row[idx_sign]
-                is_up = ('+' in sign) or ('red' in sign)
-                
-                if is_up and vol > 2000000: 
-                    candidates.append({"code": code, "vol": vol})
-            except: continue
-        
-        candidates.sort(key=lambda x: x['vol'], reverse=True)
-        final_list = [x['code'] for x in candidates[:50]]
-        
-        if final_list:
-            TWSE_CACHE = {"date": target_date, "data": final_list}
-            print(f"[System] 掃描完成，鎖定 {len(final_list)} 檔熱門股")
-            return final_list
-
+        if res.status_code == 200:
+            stock_list = res.json()
+            
+            # 簡單驗證一下資料格式
+            if isinstance(stock_list, list) and len(stock_list) > 0:
+                # 更新快取
+                TWSE_CACHE = {"date": today_str, "data": stock_list}
+                print(f"[System] 成功載入 {len(stock_list)} 檔推薦股")
+                return stock_list
+            else:
+                print("[Warn] GitHub 回傳的資料格式為空或錯誤")
+        else:
+            print(f"[Warn] 下載失敗，狀態碼: {res.status_code}")
+            
     except Exception as e:
-        print(f"[Error] TWSE Scan: {e}")
-    
-    return []
+        print(f"[Error] GitHub Download Error: {e}")
+
+    # 3. 如果 GitHub 掛了或還沒產出，回傳備用名單 (權值股) 防止 Bot 當機
+    print("[System] 使用備用名單")
+    fallback_list = ["2330", "2317", "2454", "2382", "2308"]
+    return fallback_list
 
 # 技術指標
 def calculate_rsi(prices, period=14):
