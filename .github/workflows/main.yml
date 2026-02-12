@@ -1,11 +1,12 @@
 name: Daily Stock List Update
 
 # 設定觸發條件：
-# 1. schedule: 每天國際標準時間 00:00 (台灣時間早上 08:00) 執行
-# 2. workflow_dispatch: 讓你可以手動按按鈕觸發 (方便測試)
+# 1. schedule: 改為 07:00 UTC (等於台灣時間下午 15:00)
+#    這樣可以直接抓到「當日」剛收盤的籌碼數據，不用等到隔天早上。
+# 2. workflow_dispatch: 手動觸發按鈕
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 7 * * *'
   workflow_dispatch:
 
 permissions:
@@ -31,10 +32,13 @@ jobs:
     - name: Run generator (執行爬蟲)
       run: python generator.py
 
-    - name: Commit and Push if changed (如果有更新就推送到 GitHub)
+    - name: Commit and Push if changed (更新資料庫)
       run: |
         git config --global user.name 'GitHub Action Bot'
         git config --global user.email 'action@github.com'
-        git add stock_list.json
-        # 只有當檔案真的有變動時才 commit，不然會報錯
-        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update stock list" && git push)
+        
+        # 🔥 關鍵修改：同時加入兩個 JSON 檔案
+        git add stock_list.json daily_recommendations.json
+        
+        # 檢查是否有變動，有才 commit，避免報錯
+        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update stock list & recommendations" && git push)
