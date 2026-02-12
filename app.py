@@ -427,16 +427,10 @@ def scan_recommendations_turbo(target_sector=None):
     else:
         twse_list = fetch_twse_candidates()
         if twse_list:
-            # 🔥 關鍵修改 1：洗牌 (Shuffle)
-            # 確保每次推薦的股票都不一樣，不會永遠只看到成交量第一名
-            random.shuffle(twse_list)
-            # 🔥 關鍵修改 2：瘦身 (Limit)
-            # 從 50 檔裡面只拿 20 檔出來算。
-            # 這會把 AI 和 爬蟲的工作量減少 70%，速度保證快！
             candidates_pool = twse_list[:20]
         else:
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
-            candidates_pool = random.sample(elite_codes, 10)
+            candidates_pool = random.sample(elite_codes, 20) if len(elite_codes) > 20 else elite_codes
     
     candidates = []
     # 使用 3 個 workers 避免記憶體溢出
