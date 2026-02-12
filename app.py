@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v16.2 (Turbo Fix + Safe Mode)
-BOT_VERSION = "v16.2 (極速安全版)"
+# 🟢 [版本號] v16.3 (Turbo Fix + Safe Mode)
+BOT_VERSION = "v16.3 (優化推薦名單擷取方式)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
