@@ -11,11 +11,10 @@ from datetime import datetime, timedelta, timezone
 # --- 設定區 ---
 FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '')
 
-# --- 技術指標計算函式 ---
+# --- 技術指標計算 (維持不變) ---
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1: return 50
-    gains = []
-    losses = []
+    gains = []; losses = []
     for i in range(1, len(prices)):
         change = prices[i] - prices[i-1]
         gains.append(max(0, change))
@@ -67,9 +66,9 @@ def update_stock_list_json():
         json.dump(stock_map, f, ensure_ascii=False, indent=2)
     print(f"✅ [Task 1] 完成，共 {len(stock_map)} 檔。")
 
-# --- 任務 2: 抓取詳細數據 (修正補完版) ---
+# --- 任務 2: 抓取詳細數據 (邏輯還原版) ---
 def fetch_stock_details(code, base_info):
-    time.sleep(0.3) # 稍微放慢一點點避免 Rate Limit
+    time.sleep(0.3)
     result = base_info.copy()
     
     # 預設值
@@ -85,7 +84,7 @@ def fetch_stock_details(code, base_info):
     url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
-        # 1. 歷史股價 & 技術指標
+        # 1. 歷史股價 & 技術指標 (這部分是新的，為了加速推薦功能)
         start = (datetime.now() - timedelta(days=150)).strftime('%Y-%m-%d')
         res = requests.get(url, params={"dataset": "TaiwanStockPrice", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=6)
         hist = res.json().get('data', [])
@@ -101,7 +100,7 @@ def fetch_stock_details(code, base_info):
                 "last_close_price": closes[-1]
             })
 
-        # 2. 三大法人
+        # 2. 三大法人 (維持不變)
         start_chip = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d')
         res_c = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start_chip, "token": FINMIND_TOKEN}, timeout=6)
         chips = res_c.json().get('data', [])
@@ -113,43 +112,51 @@ def fetch_stock_details(code, base_info):
             result['chips_f'] = int(f_buy)
             result['chips_t'] = int(t_buy)
 
-        # 3. [補回] EPS 抓取 (抓最近 450 天確保包含四季)
+        # 3. [完全還原] EPS 抓取邏輯 (來自原本 app.py)
+        # 邏輯：抓最新的一年，計算該年累計
         try:
-            start_eps = (datetime.now() - timedelta(days=450)).strftime('%Y-%m-%d')
+            start_eps = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
             res_eps = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start_eps, "token": FINMIND_TOKEN}, timeout=6)
-            eps_data = res_eps.json().get('data', [])
-            # 篩選 EPS 且值不為 0
-            eps_vals = [d for d in eps_data if d['type'] == 'EPS']
-            if eps_vals:
-                # 排序取最新的 4 季
-                eps_vals.sort(key=lambda x: x['date'])
-                last_4_q = eps_vals[-4:]
-                total_eps = sum([float(x['value']) for x in last_4_q])
-                result['eps'] = round(total_eps, 2)
-        except Exception as e:
-            # print(f"EPS Error: {e}") # Debug用
+            data_eps = res_eps.json().get('data', [])
+            
+            # 過濾出 EPS 項目
+            eps_data = [d for d in data_eps if d['type'] == 'EPS']
+            
+            if eps_data:
+                # 抓取最後一筆資料的年份 (原本 app.py 的寫法)
+                latest_year = eps_data[-1]['date'][:4]
+                # 加總該年份的所有數值
+                vals = [d['value'] for d in eps_data if d['date'].startswith(latest_year)]
+                # 格式：2024累計X.XX元 (維持不變)
+                result['eps'] = f"{latest_year}累計{round(sum(vals), 2)}元"
+                
+        except Exception:
             pass
 
-        # 4. [補回] 殖利率抓取
+        # 4. [完全還原] 殖利率抓取邏輯 (來自原本 app.py)
+        # 邏輯：抓過去 365 天配息總和 / 現價
         try:
             start_div = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
             res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start_div, "token": FINMIND_TOKEN}, timeout=6)
-            div_data = res_div.json().get('data', [])
-            total_div = sum([float(d.get('CashEarningsDistribution', 0)) for d in div_data])
-            if total_div > 0 and result['last_close_price'] > 0:
-                result['yield'] = f"{round((total_div / result['last_close_price']) * 100, 2)}%"
+            data_div = res_div.json().get('data', [])
+            
+            # 加總 CashEarningsDistribution
+            total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data_div])
+            
+            current_price = result['last_close_price']
+            if total_dividend > 0 and current_price > 0:
+                result['yield'] = f"{round((total_dividend / current_price) * 100, 2)}%"
+                
         except: pass
 
     except Exception as e:
-        print(f"⚠️ {code} 詳細數據擷取部分失敗: {e}")
+        print(f"⚠️ {code} 數據擷取異常: {e}")
     
     return result
 
 def generate_daily_recommendations():
     print("\n🚀 [Task 2] 篩選並計算每日熱門股...")
     utc_now = datetime.now(timezone.utc); tw_now = utc_now + timedelta(hours=8)
-    
-    # 下午 2:30 後抓今天，否則抓昨天 (週末往回推)
     if tw_now.hour < 14 or (tw_now.hour == 14 and tw_now.minute < 30): target = tw_now - timedelta(days=1)
     else: target = tw_now
     while target.weekday() > 4: target -= timedelta(days=1)
@@ -162,13 +169,12 @@ def generate_daily_recommendations():
     try:
         res = requests.get(url, timeout=10)
         data = res.json()
-        if data.get('stat') != 'OK': # 沒資料就抓最新的
+        if data.get('stat') != 'OK':
             res = requests.get("https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&type=ALLBUT0999", timeout=10)
             data = res.json()
         
         candidates = []
         if 'stat' in data and data['stat'] == 'OK':
-            # 尋找正確的表格
             table = next((t for t in data.get('tables', []) if '收盤價' in t.get('fields', [])), None)
             if not table and 'data9' in data: table = {'data': data['data9'], 'fields': data.get('fields9', [])}
             
@@ -186,18 +192,14 @@ def generate_daily_recommendations():
                         if len(code) > 4 or code.startswith('91') or price_str == '--' or vol < 2000000: continue
                         price = float(price_str)
                         if price < 10: continue
-                        
                         is_up = ('+' in row[idx_s]) or ('red' in row[idx_s])
-                        if is_up:
-                            candidates.append({"code": code, "name": row[idx_n], "vol": vol})
+                        if is_up: candidates.append({"code": code, "name": row[idx_n], "vol": vol})
                     except: continue
 
-                # 取成交量前 30 名
                 candidates.sort(key=lambda x: x['vol'], reverse=True)
                 candidates = candidates[:30]
-                print(f"✅ 初步篩選 {len(candidates)} 檔，開始並行計算詳細指標...")
+                print(f"✅ 篩選 {len(candidates)} 檔，開始並行計算詳細指標...")
 
-                # 並行抓取詳細資料
                 with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
                     futures = [executor.submit(fetch_stock_details, c['code'], c) for c in candidates]
                     for future in concurrent.futures.as_completed(futures):
@@ -209,7 +211,7 @@ def generate_daily_recommendations():
                 if final_list:
                     with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
                         json.dump(final_list, f, ensure_ascii=False, indent=2)
-                    print("💾 已儲存 daily_recommendations.json (含詳細指標)")
+                    print("💾 已儲存 daily_recommendations.json")
     except Exception as e:
         print(f"❌ 錯誤: {e}")
 
