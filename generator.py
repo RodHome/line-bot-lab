@@ -1,10 +1,11 @@
 import requests
+import pandas as pd
 import json
 import re
 import os
 import time
+import math
 import concurrent.futures
-import lxml.html  # 改用輕量的 lxml 取代 pandas
 from datetime import datetime, timedelta, timezone
 
 # --- 設定區 ---
@@ -38,42 +39,26 @@ def calculate_kd(highs, lows, closes, period=9):
     except: pass
     return round(k, 1), round(d, 1)
 
-# --- 任務 1: 更新股票代號 (輕量化版 - 移除 Pandas) ---
+# --- 任務 1: 更新股票代號 ---
 def update_stock_list_json():
-    print("🚀 [Task 1] 更新股票代號清單 (Light Mode)...")
-    urls = [
-        "https://isin.twse.com.tw/isin/C_public.jsp?strMode=2", # 上市
-        "https://isin.twse.com.tw/isin/C_public.jsp?strMode=4"  # 上櫃
-    ]
+    print("🚀 [Task 1] 更新股票代號清單...")
+    urls = ["https://isin.twse.com.tw/isin/C_public.jsp?strMode=2", "https://isin.twse.com.tw/isin/C_public.jsp?strMode=4"]
     stock_map = {}
-    
     for url in urls:
         try:
             res = requests.get(url, timeout=10)
-            # 使用 lxml 解析 HTML，不依賴 pandas
-            tree = lxml.html.fromstring(res.text)
-            
-            # 抓取所有表格列 <tr>
-            rows = tree.xpath('//tr')
-            
-            for row in rows:
-                cols = row.xpath('.//td')
-                if not cols: continue
-                
-                # 通常第一欄是 "有價證券代號及名稱"
-                # 內容格式如: "1101　台泥"
-                text_content = cols[0].text_content().strip()
-                
-                match = re.match(r'^(\d{4})\s+(.+)', text_content)
-                if match:
-                    code = match.group(1)
-                    name = match.group(2).strip()
-                    stock_map[name] = code
-                    
-        except Exception as e:
-            print(f"⚠️ [Task 1] 解析失敗 ({url}): {e}")
+            dfs = pd.read_html(res.text)
+            df = dfs[0]
+            df.columns = df.iloc[0]
+            df = df.iloc[1:]
+            col = [c for c in df.columns if "有價證券代號" in str(c)]
+            if col:
+                for item in df[col[0]]:
+                    item = str(item).strip()
+                    match = re.match(r'^(\d{4})\s+(.+)', item)
+                    if match: stock_map[match.group(2).strip()] = match.group(1)
+        except: pass
     
-    # 補上熱門 ETF
     etfs = ["0050", "0056", "00878", "00929", "00919", "00940", "006208", "00713", "00939", "00679B"]
     for code in etfs: stock_map[code] = code
 
@@ -81,7 +66,7 @@ def update_stock_list_json():
         json.dump(stock_map, f, ensure_ascii=False, indent=2)
     print(f"✅ [Task 1] 完成，共 {len(stock_map)} 檔。")
 
-# --- 任務 2: 抓取詳細數據 (邏輯維持不變) ---
+# --- 任務 2: 抓取詳細數據 (邏輯還原版) ---
 def fetch_stock_details(code, base_info):
     time.sleep(0.3)
     result = base_info.copy()
@@ -99,7 +84,7 @@ def fetch_stock_details(code, base_info):
     url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
-        # 1. 歷史股價 & 技術指標
+        # 1. 歷史股價 & 技術指標 (這部分是新的，為了加速推薦功能)
         start = (datetime.now() - timedelta(days=150)).strftime('%Y-%m-%d')
         res = requests.get(url, params={"dataset": "TaiwanStockPrice", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=6)
         hist = res.json().get('data', [])
@@ -115,7 +100,7 @@ def fetch_stock_details(code, base_info):
                 "last_close_price": closes[-1]
             })
 
-        # 2. 三大法人
+        # 2. 三大法人 (維持不變)
         start_chip = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d')
         res_c = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start_chip, "token": FINMIND_TOKEN}, timeout=6)
         chips = res_c.json().get('data', [])
@@ -127,34 +112,41 @@ def fetch_stock_details(code, base_info):
             result['chips_f'] = int(f_buy)
             result['chips_t'] = int(t_buy)
 
-        # 3. EPS
+        # 3. [完全還原] EPS 抓取邏輯 (來自原本 app.py)
+        # 邏輯：抓最新的一年，計算該年累計
         try:
             start_eps = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
             res_eps = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start_eps, "token": FINMIND_TOKEN}, timeout=6)
             data_eps = res_eps.json().get('data', [])
+            
+            # 過濾出 EPS 項目
             eps_data = [d for d in data_eps if d['type'] == 'EPS']
             
             if eps_data:
+                # 抓取最後一筆資料的年份 (原本 app.py 的寫法)
                 latest_year = eps_data[-1]['date'][:4]
+                # 加總該年份的所有數值
                 vals = [d['value'] for d in eps_data if d['date'].startswith(latest_year)]
+                # 格式：2024累計X.XX元 (維持不變)
                 result['eps'] = f"{latest_year}累計{round(sum(vals), 2)}元"
-        except: pass
+                
+        except Exception:
+            pass
 
-        # 4. 殖利率
+        # 4. [完全還原] 殖利率抓取邏輯 (來自原本 app.py)
+        # 邏輯：抓過去 365 天配息總和 / 現價
         try:
-            # 🔥 改回 550 天
-            start_div = (datetime.now() - timedelta(days=550)).strftime('%Y-%m-%d')
+            start_div = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
             res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start_div, "token": FINMIND_TOKEN}, timeout=6)
             data_div = res_div.json().get('data', [])
             
+            # 加總 CashEarningsDistribution
             total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data_div])
-            # 🔥 加入不同欄位名稱的容錯機制
-            if total_dividend == 0: 
-                total_dividend = sum([float(d.get('CashDividend', 0)) for d in data_div])
-                
+            
             current_price = result['last_close_price']
             if total_dividend > 0 and current_price > 0:
                 result['yield'] = f"{round((total_dividend / current_price) * 100, 2)}%"
+                
         except: pass
 
     except Exception as e:
