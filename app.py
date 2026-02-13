@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v16.3 (Turbo Fix + Safe Mode)
-BOT_VERSION = "v16.3 (優化推薦名單擷取方式)"
+# 🟢 [版本號] v16.4 
+BOT_VERSION = "v16.4 (強勢股推薦加入隨機功能)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -616,7 +616,18 @@ def handle_message(event):
             f"{indicator_line}"
         )
         
-        reply = f"📈 **{name}({stock_id})**\n{data_dashboard}\n------------------\n🚩 **指標快篩** :\n{signal_str}\n------------------\n{ai_reply_text}\n------------------\n💡 輸入『推薦』查看今日熱門飆股！\n(系統: {BOT_VERSION})"
+        reply = (
+        f"📈 **{name}({stock_id})**\n"
+        f"{data_dashboard}\n"
+        f"------------------\n"
+        f"🚩 **指標快篩** :\n"
+        f"{signal_str}\n"
+        f"------------------\n"
+        f"{ai_reply_text}\n"
+        ------------------\n"    
+        f"💡 輸入『推薦』查看今日熱門飆股！\n"
+        f"💡 輸入『(股票名稱/代號) 成本 $$$』可解鎖 AI 專屬診斷！\n"
+        f"(版本: {BOT_VERSION})" 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 if __name__ == "__main__":
