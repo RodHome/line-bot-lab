@@ -577,6 +577,7 @@ def handle_message(event):
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             sys_prompt = "你是操盤手。回傳JSON: analysis(30字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
+            "【規則】：請嚴格檢查數字邏輯。若給出防守價，『大於成本』才可稱為停利，『小於成本』必須稱為停損。"
             user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
