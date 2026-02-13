@@ -427,21 +427,43 @@ def scan_recommendations_turbo(target_sector=None):
     else:
         twse_list = fetch_twse_candidates()
         if twse_list:
-            candidates_pool = twse_list[:20]
+            # 🔥 優化核心 1：從大池子中隨機抽取最多 10 檔，確保多樣性並控制 API 請求量
+            candidates_pool = random.sample(twse_list, min(10, len(twse_list)))
         else:
+            # 備用防護機制：若抓不到資料，改由菁英池隨機抽樣
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
-            candidates_pool = random.sample(elite_codes, 20) if len(elite_codes) > 20 else elite_codes
+            candidates_pool = random.sample(elite_codes, min(10, len(elite_codes)))
     
-    candidates = []
-    # 使用 3 個 workers 避免記憶體溢出
+    # 若產業篩選出的名單超過 10 檔，一樣進行亂數取樣以保護系統效能
+    if len(candidates_pool) > 10:
+        candidates_pool = random.sample(candidates_pool, 10)
+    
+    valid_candidates = []
+    
+    # --- 2. 啟動並行驗證 ---
+    # 使用 3 個 workers 避免記憶體溢出，等待這 10 檔全部驗證完畢
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         results = executor.map(check_stock_worker_turbo, candidates_pool)
     
     for res in results:
-        if res: candidates.append(res)
-        if len(candidates) >= 5: break
+        # 只要符合均線與籌碼條件的標的，全部收錄
+        if res: valid_candidates.append(res)
+        # 🔥 移除原本的 break 提早結束機制，強制收集完所有合格標的
         
-    return candidates
+    # --- 3. 籌碼擇優排序 ---
+    if valid_candidates:
+        try:
+            # 將 res['chips'] 的字串格式 (例如 "1500張") 轉回整數，作為強度排序依據
+            valid_candidates.sort(
+                key=lambda x: int(x['chips'].replace('張', '').strip()), 
+                reverse=True
+            )
+        except Exception as e:
+            print(f"[Warn] 排序籌碼時發生錯誤: {e}")
+            
+    # --- 4. 截斷回傳 ---
+    # 回傳籌碼分數最高的前 5 檔 (若不足 5 檔則全數回傳)
+    return valid_candidates[:5]
 
 # --- Line Bot Handlers ---
 @app.route("/callback", methods=['POST'])
