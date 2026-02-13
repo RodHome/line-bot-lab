@@ -142,10 +142,16 @@ def fetch_stock_details(code, base_info):
 
         # 4. 殖利率
         try:
-            start_div = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+            # 🔥 改回 550 天
+            start_div = (datetime.now() - timedelta(days=550)).strftime('%Y-%m-%d')
             res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start_div, "token": FINMIND_TOKEN}, timeout=6)
             data_div = res_div.json().get('data', [])
+            
             total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data_div])
+            # 🔥 加入不同欄位名稱的容錯機制
+            if total_dividend == 0: 
+                total_dividend = sum([float(d.get('CashDividend', 0)) for d in data_div])
+                
             current_price = result['last_close_price']
             if total_dividend > 0 and current_price > 0:
                 result['yield'] = f"{round((total_dividend / current_price) * 100, 2)}%"
