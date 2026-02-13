@@ -624,10 +624,11 @@ def handle_message(event):
         f"{signal_str}\n"
         f"------------------\n"
         f"{ai_reply_text}\n"
-        ------------------\n"    
+        f"------------------\n"    
         f"💡 輸入『推薦』查看今日熱門飆股！\n"
         f"💡 輸入『(股票名稱/代號) 成本 $$$』可解鎖 AI 專屬診斷！\n"
-        f"(版本: {BOT_VERSION})" 
+        f"(版本: {BOT_VERSION})"
+        )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 if __name__ == "__main__":
