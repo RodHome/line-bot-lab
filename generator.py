@@ -67,18 +67,27 @@ def update_stock_list_json():
         json.dump(stock_map, f, ensure_ascii=False, indent=2)
     print(f"✅ [Task 1] 完成，共 {len(stock_map)} 檔。")
 
-# --- 任務 2: 抓取詳細數據 (含技術指標/籌碼) ---
+# --- 任務 2: 抓取詳細數據 (修正補完版) ---
 def fetch_stock_details(code, base_info):
-    time.sleep(0.2) # 避免太快被擋
+    time.sleep(0.3) # 稍微放慢一點點避免 Rate Limit
     result = base_info.copy()
+    
     # 預設值
-    result.update({"eps": "N/A", "yield": "N/A", "chips_f": 0, "chips_t": 0, "k": 50, "d": 50, "rsi": 50, "ma5": 0, "ma20": 0, "ma60": 0})
+    result.update({
+        "eps": "N/A", 
+        "yield": "N/A", 
+        "chips_f": 0, "chips_t": 0, 
+        "k": 50, "d": 50, "rsi": 50, 
+        "ma5": 0, "ma20": 0, "ma60": 0,
+        "last_close_price": 0
+    })
+    
+    url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
-        url = "https://api.finmindtrade.com/api/v4/data"
         # 1. 歷史股價 & 技術指標
         start = (datetime.now() - timedelta(days=150)).strftime('%Y-%m-%d')
-        res = requests.get(url, params={"dataset": "TaiwanStockPrice", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=5)
+        res = requests.get(url, params={"dataset": "TaiwanStockPrice", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=6)
         hist = res.json().get('data', [])
         
         if hist:
@@ -89,12 +98,12 @@ def fetch_stock_details(code, base_info):
                 "ma5": round(sum(closes[-5:])/5, 2) if len(closes)>=5 else 0,
                 "ma20": round(sum(closes[-20:])/20, 2) if len(closes)>=20 else 0,
                 "ma60": round(sum(closes[-60:])/60, 2) if len(closes)>=60 else 0,
-                "last_close_price": closes[-1] # 昨收
+                "last_close_price": closes[-1]
             })
 
         # 2. 三大法人
         start_chip = (datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d')
-        res_c = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start_chip, "token": FINMIND_TOKEN}, timeout=5)
+        res_c = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start_chip, "token": FINMIND_TOKEN}, timeout=6)
         chips = res_c.json().get('data', [])
         if chips:
             chips = sorted(chips, key=lambda x: x['date'], reverse=True)
@@ -104,8 +113,35 @@ def fetch_stock_details(code, base_info):
             result['chips_f'] = int(f_buy)
             result['chips_t'] = int(t_buy)
 
+        # 3. [補回] EPS 抓取 (抓最近 450 天確保包含四季)
+        try:
+            start_eps = (datetime.now() - timedelta(days=450)).strftime('%Y-%m-%d')
+            res_eps = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start_eps, "token": FINMIND_TOKEN}, timeout=6)
+            eps_data = res_eps.json().get('data', [])
+            # 篩選 EPS 且值不為 0
+            eps_vals = [d for d in eps_data if d['type'] == 'EPS']
+            if eps_vals:
+                # 排序取最新的 4 季
+                eps_vals.sort(key=lambda x: x['date'])
+                last_4_q = eps_vals[-4:]
+                total_eps = sum([float(x['value']) for x in last_4_q])
+                result['eps'] = round(total_eps, 2)
+        except Exception as e:
+            # print(f"EPS Error: {e}") # Debug用
+            pass
+
+        # 4. [補回] 殖利率抓取
+        try:
+            start_div = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+            res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start_div, "token": FINMIND_TOKEN}, timeout=6)
+            div_data = res_div.json().get('data', [])
+            total_div = sum([float(d.get('CashEarningsDistribution', 0)) for d in div_data])
+            if total_div > 0 and result['last_close_price'] > 0:
+                result['yield'] = f"{round((total_div / result['last_close_price']) * 100, 2)}%"
+        except: pass
+
     except Exception as e:
-        print(f"⚠️ {code} 詳細數據擷取失敗: {e}")
+        print(f"⚠️ {code} 詳細數據擷取部分失敗: {e}")
     
     return result
 
@@ -170,7 +206,6 @@ def generate_daily_recommendations():
                 
                 final_list.sort(key=lambda x: x['vol'], reverse=True)
                 
-                # 直接覆寫原本的 JSON，但這次裡面是詳細資料 (List of Dicts)
                 if final_list:
                     with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
                         json.dump(final_list, f, ensure_ascii=False, indent=2)
