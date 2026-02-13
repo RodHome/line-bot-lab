@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v17.0 (Turbo Speed + Rich Data)
-BOT_VERSION = "v17.0 (極速推薦版)"
+# 🟢 [版本號] v16.3 (Turbo Fix + Safe Mode)
+BOT_VERSION = "v16.3 (優化推薦名單擷取方式)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -70,47 +70,51 @@ def get_taiwan_time_str():
     tw_time = utc_now + timedelta(hours=8)
     return tw_time.strftime('%H:%M:%S')
 
-# [修改] 支援讀取詳細版 JSON
+# TWSE 全市場掃描 [修改] 讓 Bot 直接讀取 GitHub 算好的資料
 def fetch_twse_candidates():
+    # 🔥 這是你的 GitHub Raw 連結 (根據你提供的截圖 RodHome/line-bot-lab)
+    # 如果你的檔案名稱不是 daily_recommendations.json，請修改這裡
     GITHUB_RAW_URL = "https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json"
     
+    # 加入簡單的快取機制 (避免短時間重複下載)
     global TWSE_CACHE
     tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
     today_str = tw_now.strftime('%Y%m%d')
 
+    # 1. 檢查記憶體快取 (如果 Zeabur 沒重啟，直接用記憶體裡的)
     if TWSE_CACHE.get('date') == today_str and TWSE_CACHE.get('data'):
         return TWSE_CACHE['data']
 
     print(f"[System] 從 GitHub 下載推薦名單...")
     try:
+        # 2. 去 GitHub 下載 JSON
+        # 加入這行 header 避免被 GitHub 快取住舊資料
         headers = {'Cache-Control': 'no-cache'}
         res = requests.get(GITHUB_RAW_URL, headers=headers, timeout=5)
         
         if res.status_code == 200:
-            raw_data = res.json()
+            stock_list = res.json()
             
-            # [相容性處理]
-            # 如果讀到的是舊版 ["2330", "2317"] -> 轉成 [{"code": "2330"}, ...]
-            # 如果讀到的是新版 [{"code": "2330", "k": 80...}] -> 直接用
-            final_data = []
-            if isinstance(raw_data, list):
-                if len(raw_data) > 0 and isinstance(raw_data[0], str):
-                    final_data = [{"code": c, "name": CODE_TO_NAME.get(c, c)} for c in raw_data]
-                else:
-                    final_data = raw_data
-
-            if final_data:
-                TWSE_CACHE = {"date": today_str, "data": final_data}
-                print(f"[System] 成功載入 {len(final_data)} 檔推薦股")
-                return final_data
+            # 簡單驗證一下資料格式
+            if isinstance(stock_list, list) and len(stock_list) > 0:
+                # 更新快取
+                TWSE_CACHE = {"date": today_str, "data": stock_list}
+                print(f"[System] 成功載入 {len(stock_list)} 檔推薦股")
+                return stock_list
+            else:
+                print("[Warn] GitHub 回傳的資料格式為空或錯誤")
+        else:
+            print(f"[Warn] 下載失敗，狀態碼: {res.status_code}")
+            
     except Exception as e:
         print(f"[Error] GitHub Download Error: {e}")
 
-    # 備用名單
-    fallback_list = [{"code": "2330", "name": "台積電"}, {"code": "2317", "name": "鴻海"}, {"code": "2454", "name": "聯發科"}]
+    # 3. 如果 GitHub 掛了或還沒產出，回傳備用名單 (權值股) 防止 Bot 當機
+    print("[System] 使用備用名單")
+    fallback_list = ["2330", "2317", "2454", "2382", "2308"]
     return fallback_list
 
-# 技術指標 (保留給個股診斷用)
+# 技術指標
 def calculate_rsi(prices, period=14):
     if len(prices) < period + 1: return 50
     gains = []; losses = []
@@ -156,6 +160,9 @@ def get_technical_signals(data, chips_val):
     if rsi > 75: signals.append("🔥RSI過熱")
     elif rsi < 25: signals.append("💎RSI超賣")
     
+    bias_20 = (close - ma20) / ma20 * 100
+    if bias_20 > 15: signals.append("⚠️乖離過大")
+    
     if len(volumes) >= 6:
         avg_vol = sum(volumes[-6:-1]) / 5
         if avg_vol > 0 and volumes[-1] > avg_vol * 1.5 and close > data['open']: signals.append("🚀量增價漲")
@@ -167,12 +174,19 @@ def get_technical_signals(data, chips_val):
     elif chips_val < -1000: signals.append("💸外資大賣")
     
     if close > ma5 > ma20 > ma60: signals.append("🟢三線多頭")
+    elif close < ma5 < ma20 < ma60: signals.append("🔴三線空頭")
     
     unique_signals = list(set(signals))
     if not unique_signals: unique_signals = ["🟡趨勢盤整"]
     return unique_signals[:3]
 
-# --- 3. 智慧快取與 API ---
+# --- 3. 智慧快取與 API (Gemini/FinMind) ---
+def get_smart_cache_ttl():
+    utc_now = datetime.now(timezone.utc)
+    tw_now = utc_now + timedelta(hours=8)
+    if dtime(9, 0) <= tw_now.time() <= dtime(13, 30): return 60 
+    else: return 43200
+
 def get_cached_ai_response(key):
     if key in AI_RESPONSE_CACHE:
         record = AI_RESPONSE_CACHE[key]
@@ -181,7 +195,7 @@ def get_cached_ai_response(key):
     return None
 
 def set_cached_ai_response(key, data):
-    AI_RESPONSE_CACHE[key] = {'data': data, 'expires': time.time() + 21600} # 延長快取至 6 小時
+    AI_RESPONSE_CACHE[key] = {'data': data, 'expires': time.time() + get_smart_cache_ttl()}
 
 def clean_json_string(text):
     text = re.sub(r'```json\s*', '', text)
@@ -194,7 +208,7 @@ def call_gemini_json(prompt, system_instruction=None):
     if not keys: return None
     random.shuffle(keys)
     
-    target_models = [gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite] #語言模型絕對不可以改
+    target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
     
     for model in target_models:
@@ -210,9 +224,9 @@ def call_gemini_json(prompt, system_instruction=None):
                 
                 payload = {
                     "contents": contents,
-                    "generationConfig": {"maxOutputTokens": 1000, "temperature": 0.3, "responseMimeType": "application/json"}
+                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
                 }
-                response = requests.post(url, headers=headers, params=params, json=payload, timeout=8)
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
                 if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
@@ -220,138 +234,91 @@ def call_gemini_json(prompt, system_instruction=None):
             except: continue
     return None
 
-# --- [新] 快速訊號生成 (利用 Generator 算好的數據) ---
-def generate_fast_signal_str(info):
-    signals = []
-    # 讀取 JSON 裡的預算指標
-    k = info.get('k', 50)
-    rsi = info.get('rsi', 50)
-    chips_f = info.get('chips_f', 0)
-    chips_t = info.get('chips_t', 0)
-    chips_sum = chips_f + chips_t
-    
-    if rsi > 75: signals.append("🔥RSI過熱")
-    elif rsi < 25: signals.append("💎RSI超賣")
-    
-    if k > 80: signals.append("📈KD高檔")
-    elif k < 20: signals.append("📉KD低檔")
-    
-    if chips_sum > 1000: signals.append("💰法人大買")
-    elif chips_sum < -1000: signals.append("💸法人大賣")
-    elif chips_t > 500: signals.append("🏦投信認養")
-    
-    # 均線邏輯 (Generator 也有算)
-    last_close = info.get('last_close_price', 0)
-    ma5 = info.get('ma5', 0)
-    ma20 = info.get('ma20', 0)
-    ma60 = info.get('ma60', 0)
-    
-    if last_close > 0 and ma60 > 0:
-        if last_close > ma5 > ma20 > ma60: signals.append("🟢三線多頭")
-    
-    unique = list(set(signals))
-    if not unique: unique = ["🟡動能觀察"]
-    return " | ".join(unique[:3])
-
-# --- [新] 極速版 Worker：只查現在股價 ---
-def check_stock_fast(stock_info):
-    code = stock_info.get('code')
-    if not code: return None
-
-    # 1. 抓即時股價 (這是這函式唯一會對外連線的地方)
-    try:
-        real = twstock.realtime.get(code)
-    except: return None # 失敗就跳過
-    
-    price = 0
-    if real and real['success']:
-        p = real['realtime']['latest_trade_price']
-        # 若無成交，用買賣價平均
-        if not p or p == "-":
-            b = real['realtime']['best_bid_price'][0]
-            a = real['realtime']['best_ask_price'][0]
-            if b and a and b != "-" and a != "-":
-                price = (float(b) + float(a)) / 2
-        else:
-            price = float(p)
-    
-    if price == 0: return None
-
-    # 2. 計算漲跌 (跟 Generator 裡的昨收比)
-    last_close = stock_info.get('last_close_price', price)
-    if not last_close: last_close = price
-    
-    change = price - last_close
-    pct = (change / last_close * 100) if last_close else 0
-    sign = "+" if change > 0 else ""
-    color = "#D32F2F" if change >= 0 else "#2E7D32"
-
-    # 3. 產生訊號 (用 Generator 的數據)
-    signal_str = generate_fast_signal_str(stock_info)
-    
-    # 4. 判斷產業
-    name = stock_info.get('name', code)
-    sector = ELITE_STOCK_DATA.get(name, {}).get('sector', '熱門股')
-    
-    # 5. 判斷 Tag
-    chips_sum = stock_info.get('chips_f', 0) + stock_info.get('chips_t', 0)
-    tag = "法人大買" if chips_sum > 2000 else "主力控盤"
-    if stock_info.get('chips_t', 0) > 500: tag = "投信作帳"
-
-    return {
-        "code": code,
-        "name": name,
-        "sector": sector,
-        "close": price,
-        "change_display": f"({sign}{round(change, 2)}, {sign}{round(pct, 2)}%)",
-        "color": color,
-        "signal_str": signal_str,
-        "tag": tag,
-        # 將 generator 算好的 EPS/Yield 傳下去
-        "eps": stock_info.get('eps', 'N/A'),
-        "yield": stock_info.get('yield', 'N/A')
-    }
-
-# --- 舊版 Worker (保留給診斷功能用) ---
+# --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 def fetch_data_light(stock_id):
-    # 維持您原本的邏輯，用於精確診斷
+    # 定義內部子任務
     def get_history():
         token = os.environ.get('FINMIND_TOKEN', '')
         url_hist = "https://api.finmindtrade.com/api/v4/data"
         try:
             start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-            res = requests.get(url_hist, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token}, timeout=4)
+            res = requests.get(url_hist, params={
+                "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
+            }, timeout=4)
             return res.json().get('data', [])
         except: return []
 
     def get_realtime():
-        try: return twstock.realtime.get(stock_id)
+        try:
+            return twstock.realtime.get(stock_id)
         except: return None
 
-    hist_data = get_history() # 這裡不並行，診斷單支夠快
-    stock_rt = get_realtime()
+    # 並行執行
+    hist_data = []
+    stock_rt = None
+    try:
+        # max_workers=2 為 Zeabur 安全值
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_hist = executor.submit(get_history)
+            future_rt = executor.submit(get_realtime)
+            
+            hist_data = future_hist.result(timeout=5)
+            stock_rt = future_rt.result(timeout=5)
+    except Exception as e:
+        print(f"[Warn] 並行擷取失敗，改為序列執行: {e}")
+        hist_data = get_history()
+        stock_rt = get_realtime()
 
     if not hist_data: return None
 
-    latest_price = hist_data[-1]['close']
+    # 數據縫合
+    latest_price = 0
     source_name = "歷史"
     update_time = get_taiwan_time_str()
     
-    if stock_rt and stock_rt['success']:
-        rp = stock_rt['realtime']['latest_trade_price']
-        if rp and rp != "-":
-            latest_price = float(rp)
-            source_name = "TWSE"
-            update_time = stock_rt['realtime'].get('latest_trade_time', update_time)
-    
+    try:
+        if stock_rt and stock_rt['success']:
+            real_price = stock_rt['realtime']['latest_trade_price']
+            rt_time = stock_rt['realtime'].get('latest_trade_time', '')
+            if rt_time: update_time = rt_time 
+            
+            if real_price and real_price != "-":
+                latest_price = float(real_price)
+                source_name = "TWSE"
+            else:
+                bid = stock_rt['realtime']['best_bid_price'][0]
+                ask = stock_rt['realtime']['best_ask_price'][0]
+                if bid and ask and bid != "-" and ask != "-":
+                    latest_price = round((float(bid) + float(ask)) / 2, 2)
+                    source_name = "TWSE(試)"
+    except: pass
+
+    if latest_price == 0:
+        latest_price = hist_data[-1]['close']
+
     closes = [d['close'] for d in hist_data]
-    if hist_data[-1]['date'] != datetime.now().strftime('%Y-%m-%d'):
+    highs = [d['max'] for d in hist_data]
+    lows = [d['min'] for d in hist_data]
+    volumes = [d['Trading_Volume'] for d in hist_data]
+
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    hist_last_date = hist_data[-1]['date']
+
+    if hist_last_date != today_str:
         closes.append(latest_price)
+        highs.append(latest_price)
+        lows.append(latest_price)
+        volumes.append(0)
     else:
         closes[-1] = latest_price
 
-    prev = closes[-2] if len(closes) > 1 else latest_price
-    change = latest_price - prev
+    ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
+    ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
+    ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
+
+    prev_close = closes[-2] if len(closes) > 1 else latest_price
+    change = latest_price - prev_close
+    change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
     sign = "+" if change > 0 else ""
     color = "#D32F2F" if change >= 0 else "#2E7D32"
 
@@ -359,29 +326,31 @@ def fetch_data_light(stock_id):
     res_price, sup_price = calculate_cdp(last_day['max'], last_day['min'], last_day['close'])
 
     return {
-        "code": stock_id, "close": latest_price, "update_time": f"{update_time} ({source_name})",
+        "code": stock_id, 
+        "close": latest_price, 
+        "update_time": f"{update_time} ({source_name})",
         "resistance": res_price, "support": sup_price,
-        "ma5": round(sum(closes[-5:])/5, 2), "ma20": round(sum(closes[-20:])/20, 2), "ma60": round(sum(closes[-60:])/60, 2),
-        "change_display": f"({sign}{round(change, 2)}, {round(change/prev*100, 2)}%)", 
+        "ma5": ma5, "ma20": ma20, "ma60": ma60,
+        "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
         "color": color,
-        "raw_closes": closes, "raw_highs": [d['max'] for d in hist_data], "raw_lows": [d['min'] for d in hist_data], "raw_volumes": [d['Trading_Volume'] for d in hist_data],
+        "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
         "open": hist_data[-1]['open']
     }
 
 def fetch_chips_accumulate(stock_id):
-    # 維持不變，診斷時才呼叫
     token = os.environ.get('FINMIND_TOKEN', '')
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
         start = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
         res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
         data = res.json().get('data', [])
-        if not data: return "0", "0", 0, 0
+        if not data: return "0 (5日: 0)", "0 (5日: 0)", 0, 0
         unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
         latest_date = unique_dates[0] if unique_dates else ""
+        target_dates = unique_dates[:5]
         today_f = 0; acc_f = 0; today_t = 0; acc_t = 0
         for row in data:
-            if row['date'] in unique_dates[:5]:
+            if row['date'] in target_dates:
                 val = (row['buy'] - row['sell']) // 1000
                 if row['name'] == 'Foreign_Investor':
                     acc_f += val
@@ -395,12 +364,10 @@ def fetch_chips_accumulate(stock_id):
 def fetch_dividend_yield(stock_id, current_price):
     token = os.environ.get('FINMIND_TOKEN', '')
     try:
-        # [修改] 改為 550 天以配合 generator 的邏輯
-        start = (datetime.now() - timedelta(days=550)).strftime('%Y-%m-%d')
+        start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         res = requests.get("https://api.finmindtrade.com/api/v4/data", params={"dataset": "TaiwanStockDividend", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
         data = res.json().get('data', [])
         total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
-        if total_dividend == 0: total_dividend = sum([float(d.get('CashDividend', 0)) for d in data])
         if total_dividend > 0 and current_price > 0:
             return f"{round((total_dividend / current_price) * 100, 2)}%"
         else: return "N/A"
@@ -409,7 +376,7 @@ def fetch_dividend_yield(stock_id, current_price):
 def fetch_eps(stock_id):
     if stock_id.startswith("00"): return "ETF"
     token = os.environ.get('FINMIND_TOKEN', '')
-    start = (datetime.now() - timedelta(days=450)).strftime('%Y-%m-%d')
+    start = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
     try:
         res = requests.get("https://api.finmindtrade.com/api/v4/data", params={"dataset": "TaiwanStockFinancialStatements", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
         data = res.json().get('data', [])
@@ -427,37 +394,54 @@ def get_stock_id(text):
     if clean.isdigit() and len(clean) >= 4: return clean
     return None
 
-# --- 掃描與推薦邏輯 (Turbo升級版) ---
+def check_stock_worker_turbo(code):
+    try:
+        data = fetch_data_light(code)
+        if not data: return None
+        if data['close'] > data['ma20']:
+            f_str, t_str, af_val, at_val = fetch_chips_accumulate(code) 
+            chips_sum = af_val + at_val
+            is_hot = chips_sum > 50 or (data['close'] > data['ma5'] and data['close'] > data['ma60'])
+            
+            if is_hot:
+                name = CODE_TO_NAME.get(code, code)
+                sector = ELITE_STOCK_DATA.get(name, {}).get('sector', '熱門股')
+                signals = get_technical_signals(data, chips_sum)
+                signal_str = " | ".join(signals)
+                
+                return {
+                    "code": code, "name": name, "sector": sector,
+                    "close": data['close'], "change_display": data['change_display'], "color": data['color'],
+                    "chips": f"{chips_sum}張", "signal_str": signal_str,
+                    "tag": "外資大買" if af_val > at_val else "主力控盤"
+                }
+    except: return None
+    return None
+
 def scan_recommendations_turbo(target_sector=None):
-    # 1. 取得候選池 (現在包含豐富資料)
-    rich_candidates = fetch_twse_candidates()
-    
     candidates_pool = []
     
-    # 2. 篩選
     if target_sector:
-        for c in rich_candidates:
-            # 嘗試匹配產業
-            s_name = c.get('name', '')
-            s_sector = ELITE_STOCK_DATA.get(s_name, {}).get('sector', '')
-            if target_sector in s_sector:
-                candidates_pool.append(c)
+        pool = [v['code'] for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
+        if pool: candidates_pool = pool
     else:
-        # 若無指定，取前 15 檔 (因為現在很快，其實可以更多)
-        candidates_pool = rich_candidates[:15]
+        twse_list = fetch_twse_candidates()
+        if twse_list:
+            candidates_pool = twse_list[:20]
+        else:
+            elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
+            candidates_pool = random.sample(elite_codes, 20) if len(elite_codes) > 20 else elite_codes
     
-    final_results = []
-    
-    # 3. [極速] 並行只查即時股價 (不查歷史/籌碼)
-    # 使用 check_stock_fast 替代原本的 worker
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        results = executor.map(check_stock_fast, candidates_pool)
+    candidates = []
+    # 使用 3 個 workers 避免記憶體溢出
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        results = executor.map(check_stock_worker_turbo, candidates_pool)
     
     for res in results:
-        if res: final_results.append(res)
-        if len(final_results) >= 5: break
+        if res: candidates.append(res)
+        if len(candidates) >= 5: break
         
-    return final_results
+    return candidates
 
 # --- Line Bot Handlers ---
 @app.route("/callback", methods=['POST'])
@@ -472,7 +456,7 @@ def callback():
 def handle_message(event):
     msg = event.message.text.strip()
     
-    # [功能 1] 推薦選股 (UI 不動，邏輯加速)
+    # [功能 1] 推薦選股
     if msg.startswith("推薦") or msg.startswith("選股"):
         parts = msg.split()
         target_sector = parts[1] if len(parts) > 1 else None
@@ -480,7 +464,7 @@ def handle_message(event):
         good_stocks = scan_recommendations_turbo(target_sector)
         
         if not good_stocks:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場震盪，暫無符合條件的標的 (或資料更新中)。"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場震盪，暫無符合強勢條件的標的。"))
             return
             
         stocks_payload = [{"code": s['code'], "name": s['name'], "signal": s['signal_str'], "sector": s['sector']} for s in good_stocks]
@@ -488,7 +472,8 @@ def handle_message(event):
         sys_prompt = (
             "你是資深股市分析師。請分析清單中的股票。"
             "回傳 JSON 格式：[{'code': '股票代號', 'reason': '20字內短評'}]。"
-            "規則：必須結合『產業趨勢』或『技術突破』。"
+            "規則：必須結合『產業趨勢』或『技術突破』，語氣專業，不要只寫籌碼集中。"
+            "例如：AI伺服器需求爆發，量價齊揚突破前高。"
         )
         ai_json_str = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
         
@@ -502,10 +487,9 @@ def handle_message(event):
 
         bubbles = []
         for stock in good_stocks:
-            default_reason = f"籌碼集中，{stock['signal_str']}。"
+            default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
             reason = reasons_map.get(stock['code'], default_reason)
             
-            # [UI 完全保留]
             bubble = {
                 "type": "bubble", "size": "kilo",
                 "header": {
@@ -527,7 +511,7 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
         return
 
-    # [功能 2] 個股/ETF 診斷 (維持原本的精細查詢，不走快速通道)
+    # [功能 2] 個股/ETF 診斷 (優化版)
     stock_id = get_stock_id(msg)
     user_cost = None
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
@@ -537,18 +521,20 @@ def handle_message(event):
         name = CODE_TO_NAME.get(stock_id, stock_id)
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
 
-        # 維持原本的並行查詢，確保診斷時數據是最即時的
+        # 🔥 並行抓取開始
         data = None
         chips_res = ("0 (5日: 0)", "0 (5日: 0)", 0, 0)
         eps = "N/A"
         yield_rate = "N/A"
         
         try:
+            # Zeabur 安全設置 max_workers=3
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
                 future_data = executor.submit(fetch_data_light, stock_id)
                 future_chips = executor.submit(fetch_chips_accumulate, stock_id)
                 future_eps = executor.submit(fetch_eps, stock_id)
                 
+                # 必須先等到 data
                 data = future_data.result(timeout=8)
                 
                 if data:
@@ -559,6 +545,7 @@ def handle_message(event):
                 eps = future_eps.result(timeout=5)
 
         except Exception as e:
+            print(f"並行錯誤: {e}")
             if not data: data = fetch_data_light(stock_id) # 補救
             if not data: return
         
@@ -573,7 +560,7 @@ def handle_message(event):
             try:
                 res = json.loads(json_str)
                 reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}"
-            except: reply = "AI 數據解析失敗。"
+            except: reply = "AI 數據解析失敗 (請檢查 Key)。"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return
 
