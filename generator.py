@@ -6,6 +6,41 @@ import os
 import time
 from datetime import datetime, timedelta, timezone
 
+# ================= 新增：FinMind 查詢區域 =================
+FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '')
+
+def get_finmind_chips(code):
+    """查詢近 5 日法人買超張數 (抗長假 30 天版)"""
+    start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    url = "https://api.finmindtrade.com/api/v4/data"
+    try:
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
+        data = res.json().get('data', [])
+        if not data: return 0, 0
+        unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
+        target_dates = unique_dates[:5]
+        acc_f = 0; acc_t = 0
+        for row in data:
+            if row['date'] in target_dates:
+                val = (row['buy'] - row['sell']) // 1000
+                if row['name'] == 'Foreign_Investor': acc_f += val
+                elif row['name'] == 'Investment_Trust': acc_t += val
+        return acc_f, acc_t
+    except: return 0, 0
+
+def get_finmind_revenue_yoy(code):
+    """查詢最新一個月的營收 YoY (%)"""
+    start = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')
+    url = "https://api.finmindtrade.com/api/v4/data"
+    try:
+        res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
+        data = res.json().get('data', [])
+        if not data: return 0.0
+        data.sort(key=lambda x: x['revenue_month'], reverse=True)
+        return float(data[0].get('RevenueYearOnYearRate', 0))
+    except: return 0.0
+# ========================================================
+
 # --- 功能 1: 抓取所有股票代號 (建立通訊錄) ---
 def update_stock_list_json():
     print("🚀 [Task 1] 開始抓取所有股票代號對照表...")
@@ -137,16 +172,51 @@ def generate_daily_recommendations():
                         
                         # 🔥 動能濾網升級：收紅，且單日成交金額大於 3 億元 (300,000,000)
                         if is_up and turnover > 300000000: 
-                            # 改為儲存字典格式，為未來的擴充鋪路
-                            candidates.append({"code": code, "turnover": turnover})
+                            # ⚠️ 這裡一定要把 price 存進來，FinMind 才能算金額！
+                            candidates.append({"code": code, "turnover": turnover, "price": price})
                     except: continue
                 
-               # 🔥 排序升級：依「成交金額 (turnover)」排序，取前 50 檔
+               # 🔥 1. 依「成交金額 (turnover)」排序，取前 50 檔母體
                 candidates.sort(key=lambda x: x['turnover'], reverse=True)
-               # 路線 B：直接保留字典結構匯出，不再只留 code
-                final_list = candidates[:50]
+                top_50 = candidates[:50]
                 
-                print(f"✅ [Task 2] 篩選完成，共 {len(final_list)} 檔強勢資金股")
+                print(f"✅ [Task 2] 第一階段篩選完成，取得 50 檔強勢資金股。啟動 FinMind 深度掃描...")
+                final_list = []
+                
+                # 🔥 2. 針對 50 檔逐一調查基本面與籌碼
+                for item in top_50:
+                    code = item['code']
+                    turnover = item['turnover']
+                    price = item['price']
+                    
+                    acc_f, acc_t = get_finmind_chips(code)
+                    yoy = get_finmind_revenue_yoy(code)
+                    
+                    chips_sum = acc_f + acc_t
+                    buy_value = chips_sum * 1000 * price
+                    buy_value_y = round(buy_value / 100000000, 1)
+                    
+                    print(f"掃描 {code}: YoY={yoy}%, 法人買超={buy_value_y}億")
+                    time.sleep(0.5) # 避免被 API 封鎖
+                    
+                    # 🔥 3. 分析師終極濾網：營收 YoY > 10% 且 法人買超金額 > 3億
+                    if yoy > 10 and buy_value > 300000000:
+                        final_list.append({
+                            "code": code,
+                            "price": price,
+                            "turnover": turnover,
+                            "chips_display": f"{chips_sum}張 ({buy_value_y}億)",
+                            "buy_value": buy_value,
+                            "yoy": yoy,
+                            "tag": "外資大買" if acc_f > acc_t else "投信作帳"
+                        })
+                
+                # 🔥 4. 將過關的菁英，依照「買超金額」由大到小排序
+                final_list.sort(key=lambda x: x['buy_value'], reverse=True)
+                
+                # 為了避免 JSON 太大，我們只保留最強的前 15 檔給 app.py 抽樣
+                final_list = final_list[:15]
+                print(f"🎉 掃描結束！共 {len(final_list)} 檔符合【高潛力成長飆股】終極標準。")
             else:
                 print("⚠️ [Task 2] 找不到對應的資料表")
         else:
