@@ -398,21 +398,34 @@ def check_stock_worker_turbo(code):
     try:
         data = fetch_data_light(code)
         if not data: return None
+        # 核心防護：必須站上 20 日均線 (月線)    
         if data['close'] > data['ma20']:
             f_str, t_str, af_val, at_val = fetch_chips_accumulate(code) 
             chips_sum = af_val + at_val
-            is_hot = chips_sum > 50 or (data['close'] > data['ma5'] and data['close'] > data['ma60'])
+
+            # 🔥 升級 1：計算三大法人(外資+投信)近 5 日買超總金額 (台幣)
+            # chips_sum 單位是「張」(1000股)，所以：張數 * 1000 * 收盤價
+            buy_value = chips_sum * 1000 * data['close']
             
+            # 🔥 升級 2：條件改為「買超金額 > 3億」或「三線多頭 (維持原樣)」
+            is_hot = buy_value > 300000000 or (data['close'] > data['ma5'] and data['close'] > data['ma60'])
+                        
             if is_hot:
                 name = CODE_TO_NAME.get(code, code)
                 sector = ELITE_STOCK_DATA.get(name, {}).get('sector', '熱門股')
                 signals = get_technical_signals(data, chips_sum)
                 signal_str = " | ".join(signals)
+
+                # 將買超金額轉為「億」為單位，方便 Line 卡片顯示
+                buy_value_y = round(buy_value / 100000000, 1)
+                chips_display = f"{chips_sum}張 ({buy_value_y}億)"
                 
                 return {
                     "code": code, "name": name, "sector": sector,
                     "close": data['close'], "change_display": data['change_display'], "color": data['color'],
-                    "chips": f"{chips_sum}張", "signal_str": signal_str,
+                    "chips": chips_display, 
+                    "buy_value": buy_value, # 🔥 新增：純數字的買超金額，專供精準排序使用
+                    "signal_str": signal_str,
                     "tag": "外資大買" if af_val > at_val else "主力控盤"
                 }
     except: return None
@@ -455,11 +468,8 @@ def scan_recommendations_turbo(target_sector=None):
     # --- 3. 籌碼擇優排序 ---
     if valid_candidates:
         try:
-            # 將 res['chips'] 的字串格式 (例如 "1500張") 轉回整數，作為強度排序依據
-            valid_candidates.sort(
-                key=lambda x: int(x['chips'].replace('張', '').strip()), 
-                reverse=True
-            )
+            # 🔥 升級 3：直接使用剛剛算好的 buy_value (買超金額) 進行降冪排序
+            valid_candidates.sort(key=lambda x: x.get('buy_value', 0), reverse=True)
         except Exception as e:
             print(f"[Warn] 排序籌碼時發生錯誤: {e}")
             
