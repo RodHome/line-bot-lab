@@ -109,10 +109,11 @@ def generate_daily_recommendations():
                 try:
                     idx_code = fields.index("證券代號")
                     idx_vol = fields.index("成交股數")
+                    idx_turnover = fields.index("成交金額") # 🔥 新增成交金額
                     idx_price = fields.index("收盤價")
                     idx_sign = fields.index("漲跌(+/-)")
                 except:
-                    idx_code, idx_vol, idx_price, idx_sign = 0, 2, 8, 9 # 預設值
+                    idx_code, idx_vol, idx_turnover, idx_price, idx_sign = 0, 2, 4, 8, 9 # 預設值
 
                 candidates = []
                 for row in raw_data:
@@ -120,11 +121,13 @@ def generate_daily_recommendations():
                         code = row[idx_code]
                         # 過濾權證、ETF(00開頭)、DR股(91開頭) -> 若你想保留 ETF，可移除 00 判斷
                         if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
-                        vol = float(row[idx_vol].replace(',', ''))
+                        
                         price_str = row[idx_price].replace(',', '')
+                        turnover_str = row[idx_turnover].replace(',', '')
                         
                         if price_str == '--' or vol == 0: continue
                         price = float(price_str)
+                        turnover = float(turnover_str)
                         
                         # 🔥 選股邏輯：價格 > 10元，且 量大 (這裡設 2000 張 = 2,000,000 股)
                         if price < 10: continue
@@ -132,15 +135,18 @@ def generate_daily_recommendations():
                         sign = row[idx_sign]
                         is_up = ('+' in sign) or ('red' in sign) # 簡單判斷漲勢
                         
-                        if is_up and vol > 2000000: 
-                            candidates.append({"code": code, "vol": vol})
+                        # 🔥 動能濾網升級：收紅，且單日成交金額大於 3 億元 (300,000,000)
+                        if is_up and turnover > 300000000: 
+                            # 改為儲存字典格式，為未來的擴充鋪路
+                            candidates.append({"code": code, "turnover": turnover})
                     except: continue
                 
-                # 依成交量排序，取前 50 檔
-                candidates.sort(key=lambda x: x['vol'], reverse=True)
-                final_list = [x['code'] for x in candidates[:50]]
+               # 🔥 排序升級：依「成交金額 (turnover)」排序，取前 50 檔
+                candidates.sort(key=lambda x: x['turnover'], reverse=True)
+               # 路線 B：直接保留字典結構匯出，不再只留 code
+                final_list = candidates[:50]
                 
-                print(f"✅ [Task 2] 篩選完成，共 {len(final_list)} 檔熱門股")
+                print(f"✅ [Task 2] 篩選完成，共 {len(final_list)} 檔強勢資金股")
             else:
                 print("⚠️ [Task 2] 找不到對應的資料表")
         else:
