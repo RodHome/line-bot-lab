@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v16.4 
-BOT_VERSION = "v16.4 (強勢股推薦加入隨機功能)"
+# 🟢 [版本號] v16.5 
+BOT_VERSION = "v16.5 (推薦篩選改採買超金額)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
