@@ -37,7 +37,8 @@ def get_finmind_revenue_yoy(code):
         data = res.json().get('data', [])
         if not data: return 0.0
         data.sort(key=lambda x: x['revenue_month'], reverse=True)
-        return float(data[0].get('RevenueYearOnYearRate', 0))
+        # 🔥 修正點：FinMind 的欄位名稱是小寫的 revenue_year_on_year_rate
+        return float(data[0].get('revenue_year_on_year_rate', 0))
     except: return 0.0
 # ========================================================
 
