@@ -425,10 +425,12 @@ def scan_recommendations_turbo(target_sector=None):
         pool = [v['code'] for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
         if pool: candidates_pool = pool
     else:
+        # 若無指定產業，抓取 GitHub 上的全市場熱門名單 (約 50 檔)
         twse_list = fetch_twse_candidates()
         if twse_list:
-            # 🔥 優化核心 1：從大池子中隨機抽取最多 10 檔，確保多樣性並控制 API 請求量
-            candidates_pool = random.sample(twse_list, min(10, len(twse_list)))
+            # 🔥 無痛相容處理：判斷 JSON 內是新版 dict 還是舊版字串，統一萃取出 code
+            twse_codes = [item['code'] if isinstance(item, dict) else item for item in twse_list]
+            candidates_pool = random.sample(twse_codes, min(10, len(twse_codes)))
         else:
             # 備用防護機制：若抓不到資料，改由菁英池隨機抽樣
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
