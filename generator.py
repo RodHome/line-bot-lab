@@ -30,16 +30,43 @@ def get_finmind_chips(code):
 
 def get_finmind_revenue_yoy(code):
     """查詢最新一個月的營收 YoY (%)"""
-    start = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')
+    # 🔥 關鍵修改：往前推 400 天，確保絕對能抓到「去年同一個月」的營收
+    start = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
         res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
         data = res.json().get('data', [])
-        if not data: return 0.0
-        data.sort(key=lambda x: x['revenue_month'], reverse=True)
-        # 🔥 修正點：FinMind 的欄位名稱是小寫的 revenue_year_on_year_rate
-        return float(data[0].get('revenue_year_on_year_rate', 0))
-    except: return 0.0
+        
+        # 如果抓不到資料，或資料筆數不到一年(無法比對 YoY)，就回傳 0
+        if not data or len(data) < 12: 
+            return 0.0
+        
+        # 1. 依照 'date' 降冪排序，確保 index 0 絕對是最新公佈的月份
+        data.sort(key=lambda x: x['date'], reverse=True)
+        
+        latest_data = data[0]
+        latest_revenue = latest_data['revenue']
+        target_month = latest_data['revenue_month']
+        
+        # 2. 往歷史資料尋找「去年同一個月」的營收
+        last_year_revenue = None
+        for row in data[1:]:
+            if row['revenue_month'] == target_month:
+                last_year_revenue = row['revenue']
+                break
+                
+        # 防呆機制：如果找不到去年同期的資料，或去年營收為 0
+        if not last_year_revenue or last_year_revenue == 0:
+            return 0.0
+            
+        # 3. 執行 YoY 數學公式：(今年 - 去年) / 去年 * 100
+        yoy = ((latest_revenue - last_year_revenue) / last_year_revenue) * 100
+        
+        return round(yoy, 2)
+        
+    except Exception as e: 
+        print(f"YoY 運算錯誤 ({code}): {e}")
+        return 0.0
 # ========================================================
 
 # --- 功能 1: 抓取所有股票代號 (建立通訊錄) ---
