@@ -125,11 +125,11 @@ def generate_daily_recommendations():
                         price_str = row[idx_price].replace(',', '')
                         turnover_str = row[idx_turnover].replace(',', '')
                         
-                        if price_str == '--' or vol == 0: continue
+                        if price_str == '--' or turnover_str == '--': continue
                         price = float(price_str)
                         turnover = float(turnover_str)
                         
-                        # 🔥 選股邏輯：價格 > 10元，且 量大 (這裡設 2000 張 = 2,000,000 股)
+                        # 🔥 選股邏輯：價格 > 10元
                         if price < 10: continue
                         
                         sign = row[idx_sign]
