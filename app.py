@@ -525,7 +525,7 @@ def handle_message(event):
             reason = reasons_map.get(stock['code'], default_reason)
             
             bubble = {
-                "type": "bubble", "size": "kilo",
+                "type": "bubble", "size": "hecto",
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
@@ -536,6 +536,10 @@ def handle_message(event):
                 "body": {"type": "box", "layout": "vertical", "contents": [
                     {"type": "text", "text": str(stock['close']), "weight": "bold", "size": "3xl", "color": stock['color'], "align": "center"},
                     {"type": "text", "text": stock['change_display'], "size": "xs", "color": stock['color'], "align": "center"},
+
+                    # 🔥 修正點：在這裡新增一行，把後台算好的籌碼與買超金額印出來
+                    {"type": "text", "text": f"💰 近5日法人: {stock.get('chips', 'N/A')}", "size": "sm", "weight": "bold", "color": "#D84315", "align": "center", "margin": "md"},
+                    
                     {"type": "separator", "margin": "md"},
                     {"type": "text", "text": reason, "size": "xs", "color": "#333333", "wrap": True, "margin": "md"},
                     {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": stock['code']}, "style": "link", "margin": "md"}
