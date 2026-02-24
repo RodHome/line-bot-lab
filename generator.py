@@ -273,7 +273,8 @@ def generate_daily_recommendations():
     # 或是你可以選擇：若空的就不存，沿用昨天的 (看你需求，這裡預設是覆蓋)
     if final_list:
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
-            json.dump(final_list, f, ensure_ascii=False)
+            # 🔥 加上 indent=4，讓 JSON 產生 4 個空白鍵的漂亮縮排
+            json.dump(final_list, f, ensure_ascii=False, indent=4)
             print("💾 已儲存 daily_recommendations.json")
     else:
         print("⚠️ 本次未產出新名單，未覆蓋檔案。")
