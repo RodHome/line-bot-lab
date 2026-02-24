@@ -29,44 +29,54 @@ def get_finmind_chips(code):
     except: return 0, 0
 
 def get_finmind_revenue_yoy(code):
-    """查詢最新一個月的營收 YoY (%)"""
-    # 🔥 關鍵修改：往前推 400 天，確保絕對能抓到「去年同一個月」的營收
-    start = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
+    """查詢營收，自動對齊去年同月，並回傳開發者查核數據"""
+    # 抓取過去 480 天，確保涵蓋 16 個月以便對齊去年同期
+    start = (datetime.now() - timedelta(days=480)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
+    # 預設回傳格式 (現在改為回傳字典)
+    default_res = {
+        "yoy": 0.0, 
+        "debug_info": {"status": "No Data", "this_rev": 0, "last_rev": 0, "this_period": "N/A", "last_period": "N/A"}
+    }
+    
     try:
         res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
         data = res.json().get('data', [])
         
-        # 如果抓不到資料，或資料筆數不到一年(無法比對 YoY)，就回傳 0
-        if not data or len(data) < 12: 
-            return 0.0
-        
-        # 1. 依照 'date' 降冪排序，確保 index 0 絕對是最新公佈的月份
-        data.sort(key=lambda x: x['date'], reverse=True)
-        
-        latest_data = data[0]
-        latest_revenue = latest_data['revenue']
-        target_month = latest_data['revenue_month']
-        
-        # 2. 往歷史資料尋找「去年同一個月」的營收
-        last_year_revenue = None
-        for row in data[1:]:
-            if row['revenue_month'] == target_month:
-                last_year_revenue = row['revenue']
-                break
-                
-        # 防呆機制：如果找不到去年同期的資料，或去年營收為 0
-        if not last_year_revenue or last_year_revenue == 0:
-            return 0.0
+        if not data: return default_res
             
-        # 3. 執行 YoY 數學公式：(今年 - 去年) / 去年 * 100
-        yoy = ((latest_revenue - last_year_revenue) / last_year_revenue) * 100
+        # 依日期由新到舊排序 (年、月雙重排序，徹底防呆)
+        data.sort(key=lambda x: (x['revenue_year'], x['revenue_month']), reverse=True)
         
-        return round(yoy, 2)
-        
-    except Exception as e: 
-        print(f"YoY 運算錯誤 ({code}): {e}")
-        return 0.0
+        # 嘗試從最新一筆開始，往回找去年同月
+        for i in range(len(data)):
+            target = data[i]
+            t_rev = target['revenue']
+            t_y = target['revenue_year']
+            t_m = target['revenue_month']
+            
+            # 尋找去年同月 (年份 -1 且 月份相同)
+            last_year_data = next((row for row in data if row['revenue_year'] == t_y - 1 and row['revenue_month'] == t_m), None)
+            
+            if last_year_data:
+                l_rev = last_year_data['revenue']
+                if l_rev == 0: continue
+                yoy = round(((t_rev - l_rev) / l_rev) * 100, 2)
+                
+                return {
+                    "yoy": yoy,
+                    "debug_info": {
+                        "this_rev": t_rev,
+                        "last_rev": l_rev,
+                        "this_period": f"{t_y}/{t_m}",
+                        "last_period": f"{t_y-1}/{t_m}",
+                        "formula": f"({t_rev} - {l_rev}) / {l_rev}"
+                    }
+                }
+        return default_res
+    except Exception as e:
+        default_res["debug_info"]["status"] = f"Error: {str(e)}"
+        return default_res
 # ========================================================
 
 # --- 功能 1: 抓取所有股票代號 (建立通訊錄) ---
@@ -218,7 +228,10 @@ def generate_daily_recommendations():
                     price = item['price']
                     
                     acc_f, acc_t = get_finmind_chips(code)
-                    yoy = get_finmind_revenue_yoy(code)
+                    
+                    # ⚠️ 這裡接收剛剛寫好的新版字典
+                    yoy_data = get_finmind_revenue_yoy(code) 
+                    yoy = yoy_data['yoy']
                     
                     chips_sum = acc_f + acc_t
                     buy_value = chips_sum * 1000 * price
@@ -236,7 +249,9 @@ def generate_daily_recommendations():
                             "chips_display": f"{chips_sum}張 ({buy_value_y}億)",
                             "buy_value": buy_value,
                             "yoy": yoy,
-                            "tag": "外資大買" if acc_f > acc_t else "投信作帳"
+                            "tag": "外資大買" if acc_f > acc_t else "投信作帳",
+                            # ⚠️ 新增：將開發者查帳資訊存入 JSON
+                            "debug_info": yoy_data['debug_info']
                         })
                 
                 # 🔥 4. 將過關的菁英，依照「買超金額」由大到小排序
