@@ -458,7 +458,7 @@ def scan_recommendations_turbo(target_sector=None):
             # 備用防護機制：若抓不到資料，改由菁英池隨機抽樣
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
             candidates_pool = random.sample(elite_codes, min(10, len(elite_codes)))
-    def scan_recommendations_turbo(target_sector=None):
+def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
     
     if target_sector:
