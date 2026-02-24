@@ -1,10 +1,10 @@
 [
     {
         "code": "2317",
-        "price": 228.5,
-        "turnover": 20484840309.0,
-        "chips_display": "64814張 (148.1億)",
-        "buy_value": 14809999000.0,
+        "price": 232.0,
+        "turnover": 15807760926.0,
+        "chips_display": "64814張 (150.4億)",
+        "buy_value": 15036848000.0,
         "yoy": 35.53,
         "tag": "外資大買",
         "debug_info": {
@@ -16,11 +16,43 @@
         }
     },
     {
+        "code": "3711",
+        "price": 381.5,
+        "turnover": 12822808115.0,
+        "chips_display": "28690張 (109.5億)",
+        "buy_value": 10945235000.0,
+        "yoy": 21.33,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 59988631000,
+            "last_rev": 49444261000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(59988631000 - 49444261000) / 49444261000"
+        }
+    },
+    {
+        "code": "2345",
+        "price": 1405.0,
+        "turnover": 4741763915.0,
+        "chips_display": "6418張 (90.2億)",
+        "buy_value": 9017290000.0,
+        "yoy": 71.87,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 21527345000,
+            "last_rev": 12525239000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(21527345000 - 12525239000) / 12525239000"
+        }
+    },
+    {
         "code": "2301",
-        "price": 184.5,
-        "turnover": 7304673004.0,
-        "chips_display": "40183張 (74.1億)",
-        "buy_value": 7413763500.0,
+        "price": 193.5,
+        "turnover": 7253794814.0,
+        "chips_display": "40183張 (77.8億)",
+        "buy_value": 7775410500.0,
         "yoy": 16.18,
         "tag": "外資大買",
         "debug_info": {
@@ -32,11 +64,27 @@
         }
     },
     {
+        "code": "2382",
+        "price": 284.0,
+        "turnover": 3860242168.0,
+        "chips_display": "25432張 (72.2億)",
+        "buy_value": 7222688000.0,
+        "yoy": 61.92,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 230834858000,
+            "last_rev": 142560447000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(230834858000 - 142560447000) / 142560447000"
+        }
+    },
+    {
         "code": "1303",
-        "price": 83.6,
-        "turnover": 13203136465.0,
-        "chips_display": "74604張 (62.4億)",
-        "buy_value": 6236894400.0,
+        "price": 90.8,
+        "turnover": 14721072451.0,
+        "chips_display": "74604張 (67.7億)",
+        "buy_value": 6774043200.0,
         "yoy": 11.8,
         "tag": "外資大買",
         "debug_info": {
@@ -49,10 +97,10 @@
     },
     {
         "code": "2313",
-        "price": 205.0,
-        "turnover": 12385579384.0,
-        "chips_display": "25536張 (52.3億)",
-        "buy_value": 5234880000.0,
+        "price": 225.5,
+        "turnover": 24600083939.0,
+        "chips_display": "25536張 (57.6億)",
+        "buy_value": 5758368000.0,
         "yoy": 40.2,
         "tag": "外資大買",
         "debug_info": {
@@ -64,27 +112,11 @@
         }
     },
     {
-        "code": "2408",
-        "price": 289.0,
-        "turnover": 27145542238.0,
-        "chips_display": "17203張 (49.7億)",
-        "buy_value": 4971667000.0,
-        "yoy": 608.02,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 15309988000,
-            "last_rev": 2162373000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(15309988000 - 2162373000) / 2162373000"
-        }
-    },
-    {
         "code": "2337",
-        "price": 103.5,
-        "turnover": 20343154153.0,
-        "chips_display": "45557張 (47.2億)",
-        "buy_value": 4715149500.0,
+        "price": 113.5,
+        "turnover": 13358597686.0,
+        "chips_display": "45557張 (51.7億)",
+        "buy_value": 5170719500.0,
         "yoy": 51.41,
         "tag": "外資大買",
         "debug_info": {
@@ -96,11 +128,27 @@
         }
     },
     {
+        "code": "2408",
+        "price": 298.0,
+        "turnover": 27773122221.0,
+        "chips_display": "17203張 (51.3億)",
+        "buy_value": 5126494000.0,
+        "yoy": 608.02,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 15309988000,
+            "last_rev": 2162373000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(15309988000 - 2162373000) / 2162373000"
+        }
+    },
+    {
         "code": "2308",
-        "price": 1305.0,
-        "turnover": 29474881945.0,
-        "chips_display": "3261張 (42.6億)",
-        "buy_value": 4255605000.0,
+        "price": 1385.0,
+        "turnover": 19251273775.0,
+        "chips_display": "3261張 (45.2億)",
+        "buy_value": 4516485000.0,
         "yoy": 32.87,
         "tag": "投信作帳",
         "debug_info": {
@@ -112,27 +160,11 @@
         }
     },
     {
-        "code": "2883",
-        "price": 20.55,
-        "turnover": 3591386746.0,
-        "chips_display": "192060張 (39.5億)",
-        "buy_value": 3946833000.0,
-        "yoy": 28.25,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 8752466000,
-            "last_rev": 6824318000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(8752466000 - 6824318000) / 6824318000"
-        }
-    },
-    {
         "code": "3481",
-        "price": 23.35,
-        "turnover": 10787045055.0,
-        "chips_display": "154726張 (36.1億)",
-        "buy_value": 3612852100.0,
+        "price": 24.85,
+        "turnover": 12660361185.0,
+        "chips_display": "154726張 (38.4億)",
+        "buy_value": 3844941100.0,
         "yoy": 18.63,
         "tag": "外資大買",
         "debug_info": {
@@ -144,43 +176,11 @@
         }
     },
     {
-        "code": "2887",
-        "price": 25.3,
-        "turnover": 4593885616.0,
-        "chips_display": "137500張 (34.8億)",
-        "buy_value": 3478750000.0,
-        "yoy": 117.67,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 18773450000,
-            "last_rev": 8624919000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(18773450000 - 8624919000) / 8624919000"
-        }
-    },
-    {
-        "code": "3167",
-        "price": 278.0,
-        "turnover": 3057319645.0,
-        "chips_display": "12082張 (33.6億)",
-        "buy_value": 3358796000.0,
-        "yoy": 119.57,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 601545000,
-            "last_rev": 273970000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(601545000 - 273970000) / 273970000"
-        }
-    },
-    {
         "code": "3037",
-        "price": 405.5,
-        "turnover": 20820021118.0,
-        "chips_display": "8138張 (33.0億)",
-        "buy_value": 3299959000.0,
+        "price": 446.0,
+        "turnover": 36986419466.0,
+        "chips_display": "8138張 (36.3億)",
+        "buy_value": 3629548000.0,
         "yoy": 34.48,
         "tag": "投信作帳",
         "debug_info": {
@@ -193,10 +193,10 @@
     },
     {
         "code": "2449",
-        "price": 316.5,
-        "turnover": 8858920801.0,
-        "chips_display": "10055張 (31.8億)",
-        "buy_value": 3182407500.0,
+        "price": 326.0,
+        "turnover": 6420373807.0,
+        "chips_display": "10055張 (32.8億)",
+        "buy_value": 3277930000.0,
         "yoy": 41.28,
         "tag": "外資大買",
         "debug_info": {
@@ -209,10 +209,10 @@
     },
     {
         "code": "2327",
-        "price": 281.5,
-        "turnover": 10252428432.0,
-        "chips_display": "9226張 (26.0億)",
-        "buy_value": 2597119000.0,
+        "price": 301.0,
+        "turnover": 24600361856.0,
+        "chips_display": "9226張 (27.8億)",
+        "buy_value": 2777026000.0,
         "yoy": 27.13,
         "tag": "外資大買",
         "debug_info": {
@@ -225,10 +225,10 @@
     },
     {
         "code": "1560",
-        "price": 467.5,
-        "turnover": 2672328166.0,
-        "chips_display": "5196張 (24.3億)",
-        "buy_value": 2429130000.0,
+        "price": 498.0,
+        "turnover": 3466164929.0,
+        "chips_display": "5196張 (25.9億)",
+        "buy_value": 2587608000.0,
         "yoy": 33.07,
         "tag": "外資大買",
         "debug_info": {
