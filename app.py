@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v16.5 
-BOT_VERSION = "v16.5 (推薦篩選改採買超金額)"
+# 🟢 [版本號] v17.0 
+BOT_VERSION = "v17.0 (基本面與籌碼雙引擎秒回版)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -394,42 +394,52 @@ def get_stock_id(text):
     if clean.isdigit() and len(clean) >= 4: return clean
     return None
 
-def check_stock_worker_turbo(code):
+def check_stock_worker_turbo(item):
+    # 支援新版字典結構或舊版字串
+    if isinstance(item, dict):
+        code = item.get('code')
+        item_data = item
+    else:
+        code = str(item)
+        item_data = {}
+
     try:
+        # 1. 抓取「即時」股價與均線 (計算依然在 fetch_data_light 裡運作)
         data = fetch_data_light(code)
         if not data: return None
-        # 核心防護：必須站上 20 日均線 (月線)    
-        if data['close'] > data['ma20']:
-            f_str, t_str, af_val, at_val = fetch_chips_accumulate(code) 
-            chips_sum = af_val + at_val
+        
+        # 🔥 補回技術面護城河：就算基本面再好，跌破月線 (20日均線) 就無情淘汰！
+        if data['close'] < data['ma20']: 
+            return None 
 
-            # 🔥 升級 1：計算三大法人(外資+投信)近 5 日買超總金額 (台幣)
-            # chips_sum 單位是「張」(1000股)，所以：張數 * 1000 * 收盤價
-            buy_value = chips_sum * 1000 * data['close']
-            
-            # 🔥 升級 2：條件改為「買超金額 > 3億」或「三線多頭 (維持原樣)」
-            is_hot = buy_value > 300000000 or (data['close'] > data['ma5'] and data['close'] > data['ma60'])
-                        
-            if is_hot:
-                name = CODE_TO_NAME.get(code, code)
-                sector = ELITE_STOCK_DATA.get(name, {}).get('sector', '熱門股')
-                signals = get_technical_signals(data, chips_sum)
-                signal_str = " | ".join(signals)
+        name = CODE_TO_NAME.get(code, code)
+        sector = ELITE_STOCK_DATA.get(name, {}).get('sector', '熱門股')
+        
+        # 2. 提取後台算好的強大數據
+        chips_display = item_data.get('chips_display', 'N/A')
+        buy_value = item_data.get('buy_value', 0)
+        yoy = item_data.get('yoy', 'N/A')
+        tag = item_data.get('tag', '強勢股')
+        
+        # 3. 取得技術指標
+        signals = get_technical_signals(data, 1000 if buy_value > 0 else 0)
+        signal_str = " | ".join(signals)
 
-                # 將買超金額轉為「億」為單位，方便 Line 卡片顯示
-                buy_value_y = round(buy_value / 100000000, 1)
-                chips_display = f"{chips_sum}張 ({buy_value_y}億)"
-                
-                return {
-                    "code": code, "name": name, "sector": sector,
-                    "close": data['close'], "change_display": data['change_display'], "color": data['color'],
-                    "chips": chips_display, 
-                    "buy_value": buy_value, # 🔥 新增：純數字的買超金額，專供精準排序使用
-                    "signal_str": signal_str,
-                    "tag": "外資大買" if af_val > at_val else "主力控盤"
-                }
-    except: return None
-    return None
+        # 格式化 YoY 顯示字串
+        yoy_display = f"+{yoy}%" if isinstance(yoy, (int, float)) and yoy > 0 else f"{yoy}%"
+
+        return {
+            "code": code, "name": name, "sector": sector,
+            "close": data['close'], "change_display": data['change_display'], "color": data['color'],
+            "chips": chips_display, 
+            "buy_value": buy_value,
+            "yoy_display": yoy_display, 
+            "signal_str": signal_str,
+            "tag": tag
+        }
+    except Exception as e: 
+        print(f"Worker Error: {e}")
+        return None
 
 def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
@@ -448,33 +458,36 @@ def scan_recommendations_turbo(target_sector=None):
             # 備用防護機制：若抓不到資料，改由菁英池隨機抽樣
             elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
             candidates_pool = random.sample(elite_codes, min(10, len(elite_codes)))
+    def scan_recommendations_turbo(target_sector=None):
+    candidates_pool = []
     
-    # 若產業篩選出的名單超過 10 檔，一樣進行亂數取樣以保護系統效能
-    if len(candidates_pool) > 10:
-        candidates_pool = random.sample(candidates_pool, 10)
+    if target_sector:
+        pool = [{"code": v['code']} for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
+        if pool: candidates_pool = pool
+    else:
+        # 抓取 GitHub 上的全市場熱門名單字典
+        twse_list = fetch_twse_candidates()
+        if twse_list and isinstance(twse_list[0], dict) and 'yoy' in twse_list[0]:
+            # 🔥 革命性升級：不再隨機抽樣！直接取 Generator 算好、最強的前 8 檔菁英
+            candidates_pool = twse_list[:8] 
+        else:
+            # 備用防護機制
+            elite_codes = [{"code": v['code']} for v in ELITE_STOCK_DATA.values()]
+            candidates_pool = random.sample(elite_codes, min(8, len(elite_codes)))
     
     valid_candidates = []
     
-    # --- 2. 啟動並行驗證 ---
-    # 使用 3 個 workers 避免記憶體溢出，等待這 10 檔全部驗證完畢
+    # 並行獲取這幾檔的「即時現價」
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         results = executor.map(check_stock_worker_turbo, candidates_pool)
     
     for res in results:
-        # 只要符合均線與籌碼條件的標的，全部收錄
         if res: valid_candidates.append(res)
-        # 🔥 移除原本的 break 提早結束機制，強制收集完所有合格標的
         
-    # --- 3. 籌碼擇優排序 ---
+    # 確保依照籌碼買超金額排序
     if valid_candidates:
-        try:
-            # 🔥 升級 3：直接使用剛剛算好的 buy_value (買超金額) 進行降冪排序
-            valid_candidates.sort(key=lambda x: x.get('buy_value', 0), reverse=True)
-        except Exception as e:
-            print(f"[Warn] 排序籌碼時發生錯誤: {e}")
-            
-    # --- 4. 截斷回傳 ---
-    # 回傳籌碼分數最高的前 5 檔 (若不足 5 檔則全數回傳)
+        valid_candidates.sort(key=lambda x: x.get('buy_value', 0), reverse=True)
+        
     return valid_candidates[:5]
 
 # --- Line Bot Handlers ---
@@ -537,8 +550,11 @@ def handle_message(event):
                     {"type": "text", "text": str(stock['close']), "weight": "bold", "size": "3xl", "color": stock['color'], "align": "center"},
                     {"type": "text", "text": stock['change_display'], "size": "xs", "color": stock['color'], "align": "center"},
 
-                    # 🔥 修正點：在這裡新增一行，把後台算好的籌碼與買超金額印出來
+                    # 🔥 籌碼金額 (從 JSON 讀取)
                     {"type": "text", "text": f"💰 近5日法人: {stock.get('chips', 'N/A')}", "size": "sm", "weight": "bold", "color": "#D84315", "align": "center", "margin": "md"},
+                    
+                    # 🔥 營收 YoY (從 JSON 讀取的新武器！)
+                    {"type": "text", "text": f"📈 營收 YoY: {stock.get('yoy_display', 'N/A')}", "size": "sm", "weight": "bold", "color": "#1976D2", "align": "center", "margin": "sm"},
                     
                     {"type": "separator", "margin": "md"},
                     {"type": "text", "text": reason, "size": "xs", "color": "#333333", "wrap": True, "margin": "md"},
