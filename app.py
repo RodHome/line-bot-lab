@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🟢 [版本號] v17.0 
-BOT_VERSION = "v17.0 (基本面與籌碼雙引擎秒回版)"
+# 🤖 [版本號] v17.1 
+BOT_VERSION = "v17.1 (新增使用說明)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -71,6 +71,23 @@ def get_taiwan_time_str():
     return tw_time.strftime('%H:%M:%S')
 
 # TWSE 全市場掃描 [修改] 讓 Bot 直接讀取 GitHub 算好的資料
+# --- [新增功能] 隔日沖券商讀取 ---
+def get_day_trade_brokers():
+    """讀取本地 JSON 檔，若檔案不存在或讀取失敗則回傳預設名單"""
+    try:
+        if os.path.exists('day_trade_brokers.json'):
+            with open('day_trade_brokers.json', 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[Warn] 讀取隔日沖名單失敗: {e}")
+    
+    # 防呆預設值 (避免檔案遺失導致報錯)
+    return {
+        "update_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "brokers": {
+            "預設常見分點": ["凱基-台北", "元大-土城永寧", "富邦-建國", "群益-大安"]
+        }
+    }
 def fetch_twse_candidates():
     # 🔥 這是你的 GitHub Raw 連結 (根據你提供的截圖 RodHome/line-bot-lab)
     # 如果你的檔案名稱不是 daily_recommendations.json，請修改這裡
@@ -173,8 +190,8 @@ def get_technical_signals(data, chips_val):
     if chips_val > 1000: signals.append("💰外資大買")
     elif chips_val < -1000: signals.append("💸外資大賣")
     
-    if close > ma5 > ma20 > ma60: signals.append("🟢三線多頭")
-    elif close < ma5 < ma20 < ma60: signals.append("🔴三線空頭")
+    if close > ma5 > ma20 > ma60: signals.append("🔴三線多頭")
+    elif close < ma5 < ma20 < ma60: signals.append("🟢三線空頭")
     
     unique_signals = list(set(signals))
     if not unique_signals: unique_signals = ["🟡趨勢盤整"]
@@ -445,23 +462,6 @@ def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
     
     if target_sector:
-        pool = [v['code'] for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
-        if pool: candidates_pool = pool
-    else:
-        # 若無指定產業，抓取 GitHub 上的全市場熱門名單 (約 50 檔)
-        twse_list = fetch_twse_candidates()
-        if twse_list:
-            # 🔥 無痛相容處理：判斷 JSON 內是新版 dict 還是舊版字串，統一萃取出 code
-            twse_codes = [item['code'] if isinstance(item, dict) else item for item in twse_list]
-            candidates_pool = random.sample(twse_codes, min(10, len(twse_codes)))
-        else:
-            # 備用防護機制：若抓不到資料，改由菁英池隨機抽樣
-            elite_codes = [v['code'] for v in ELITE_STOCK_DATA.values()]
-            candidates_pool = random.sample(elite_codes, min(10, len(elite_codes)))
-def scan_recommendations_turbo(target_sector=None):
-    candidates_pool = []
-    
-    if target_sector:
         pool = [{"code": v['code']} for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
         if pool: candidates_pool = pool
     else:
@@ -536,6 +536,10 @@ def handle_message(event):
         for stock in good_stocks:
             default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
             reason = reasons_map.get(stock['code'], default_reason)
+
+            # 🔥 [修改處 1] 被動防禦提醒 (推薦卡片)：若帶量突破，短評後方附加警語
+            if "量增價漲" in stock['signal_str'] or "RSI過熱" in stock['signal_str']:
+                reason += "\n🚨 留意隔日沖倒貨風險"
             
             bubble = {
                 "type": "bubble", "size": "hecto",
@@ -565,12 +569,42 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
         return
 
+    # 🔥 [修改處 2] 隔日沖主動查詢
+    if msg in ["隔日沖", "主力", "主力分點"]:
+        dt_data = get_day_trade_brokers() # 需確保已新增 get_day_trade_brokers() 函式
+        reply_text = f"🚨 【常見隔日沖券商清單】 🚨\n📅 更新日期：{dt_data.get('update_date', '未知')}\n\n發現股票爆量長紅？盤後請務必檢查是否有以下分點大量買超：\n\n"
+        
+        for category, brokers in dt_data.get('brokers', {}).items():
+            reply_text += f"📍 {category}：\n- {'、'.join(brokers)}\n\n"
+            
+        reply_text += "💡 實戰技巧：若上述名單買超合計佔當日總成交量 > 10%~15%，隔天早盤 9:00~9:30 切勿盲目追高！"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+        return
+        
     # [功能 2] 個股/ETF 診斷 (優化版)
     stock_id = get_stock_id(msg)
     user_cost = None
     cost_match = re.search(r'(成本|cost)[:\s]*(\d+\.?\d*)', msg, re.IGNORECASE)
     if cost_match: user_cost = float(cost_match.group(2))
 
+    # 🔥 [修改處 3] 防呆引導：攔截無效輸入，回傳 Flex 導覽選單
+    if not stock_id:
+        welcome_flex = {
+            "type": "bubble",
+            "body": {
+                "type": "box", "layout": "vertical", "spacing": "md",
+                "contents": [
+                    {"type": "text", "text": "⚠️ 找不到您輸入的代號或指令喔！", "weight": "bold", "color": "#D32F2F", "wrap": True},
+                    {"type": "text", "text": "💡 【程式高手 Bot 使用指南】\n請直接輸入股票名稱/代號，或點擊下方按鈕探索功能：", "wrap": True, "size": "sm", "color": "#666666"},
+                    {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🚀 今日推薦飆股", "text": "推薦"}, "margin": "md"},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 個股診斷範例", "text": "2330 成本 800"}},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖券商名單", "text": "隔日沖"}}
+                ]
+            }
+        }
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="使用導覽", contents=welcome_flex))
+        return
+    
     if stock_id:
         name = CODE_TO_NAME.get(stock_id, stock_id)
         if stock_id in ETF_META: name = ETF_META[stock_id]['name']
@@ -605,6 +639,14 @@ def handle_message(event):
         
         f_str, t_str, af_val, at_val = chips_res
         is_etf = stock_id.startswith("00")
+
+        signals = get_technical_signals(data, af_val + at_val)
+        signal_str = " | ".join(signals)
+
+        # 🔥 [修改處 4-1] 產生被動防禦字串
+        warning_block = ""
+        if "🚀量增價漲" in signal_str or "🔥RSI過熱" in signal_str:
+            warning_block = "🚨 【籌碼防禦】此標的爆量強勢，請留意是否有『凱基-台北』等隔日沖分點進駐，嚴防早盤洗盤！\n------------------\n"
         
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
@@ -614,14 +656,12 @@ def handle_message(event):
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
-                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}"
+                # 🔥 [修改處 4-2] 字串尾端加上 warning_block
+                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}"
             except: reply = "AI 數據解析失敗 (請檢查 Key)。"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-            return
-
-        signals = get_technical_signals(data, af_val + at_val)
-        signal_str = " | ".join(signals)
-        
+            return    
+                
         cache_key = f"{stock_id}_query"
         ai_reply_text = get_cached_ai_response(cache_key)
         
@@ -658,8 +698,10 @@ def handle_message(event):
         f"------------------\n"
         f"{ai_reply_text}\n"
         f"------------------\n"    
-        f"💡 輸入『推薦』查看今日熱門飆股！\n"
-        f"💡 輸入『(股票名稱/代號) 成本 $$$』可解鎖 AI 專屬診斷！\n"
+        f"{warning_block}"  # 🔥 [修改處 4-3] 插入警示區塊變數
+        f"💡 輸入『推薦』查看熱門股！\n"
+        f"💡 輸入『(股票名稱/代號)』AI分析個股！\n"
+        f"💡 輸入『(股票名稱/代號) 成本 $$$』AI診斷合適進出場價！\n"
         f"(版本: {BOT_VERSION})"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
