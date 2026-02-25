@@ -569,15 +569,33 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
         return
 
-    # 🔥 [修改處 2] 隔日沖主動查詢
+    # 🔥 [修改處 2] 隔日沖主動查詢 (版面美化版)
     if msg in ["隔日沖", "主力", "主力分點"]:
-        dt_data = get_day_trade_brokers() # 需確保已新增 get_day_trade_brokers() 函式
-        reply_text = f"🚨 【常見隔日沖券商清單】 🚨\n📅 更新日期：{dt_data.get('update_date', '未知')}\n\n發現股票爆量長紅？盤後請務必檢查是否有以下分點大量買超：\n\n"
+        dt_data = get_day_trade_brokers() 
         
+        reply_text = (
+            f"🚨 【常見隔日沖券商清單】 🚨\n"
+            f"📅 更新日期：{dt_data.get('update_date', '未知')}\n"
+            f"────────────────\n"
+            f"發現股票爆量長紅？盤後請務必檢查是否有以下分點大量買超：\n\n"
+        )       
+        
+        # 歷遍所有分類
         for category, brokers in dt_data.get('brokers', {}).items():
-            reply_text += f"📍 {category}：\n- {'、'.join(brokers)}\n\n"
+            reply_text += f"🎯 【{category}】\n"
             
-        reply_text += "💡 實戰技巧：若上述名單買超合計佔當日總成交量 > 10%~15%，隔天早盤 9:00~9:30 切勿盲目追高！"
+            # 將券商名單每 3 個一組強制作斷行，並用「中點」分隔，視覺更乾淨
+            for i in range(0, len(brokers), 3):
+                chunk = brokers[i:i+3]
+                reply_text += " ‧ ".join(chunk) + "\n"
+            reply_text += "\n"
+            
+        reply_text += (
+            f"────────────────\n"
+            f"💡 實戰技巧：\n"
+            f"若上述名單買超合計佔當日總成交量 > 10%~15%，隔天早盤 9:00~9:30 切勿盲目追高！"
+        )
+        
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         return
         
@@ -596,8 +614,17 @@ def handle_message(event):
                 "contents": [
                     {"type": "text", "text": "⚠️ 找不到您輸入的代號或指令喔！", "weight": "bold", "color": "#D32F2F", "wrap": True},
                     {"type": "text", "text": "💡 【程式高手 Bot 使用指南】\n請直接輸入股票名稱/代號，或點擊下方按鈕探索功能：", "wrap": True, "size": "sm", "color": "#666666"},
-                    {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🚀 今日推薦飆股", "text": "推薦"}, "margin": "md"},
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 個股診斷範例", "text": "2330 成本 800"}},
+                    
+                    # 第一顆按鈕：全市場飆股推薦
+                    {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🚀 今日推薦", "text": "推薦"}, "margin": "md"},
+                    
+                    # 第二顆按鈕：(新增) 單純詢問個股，不帶成本
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 個股評估", "text": "台積電"}},
+                    
+                    # 第三顆按鈕：帶有成本的持股健檢
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 持股診斷", "text": "2330 成本 1800"}},
+                    
+                    # 第四顆按鈕：隔日沖名單查詢
                     {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖券商名單", "text": "隔日沖"}}
                 ]
             }
