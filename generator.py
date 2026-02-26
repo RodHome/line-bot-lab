@@ -5,6 +5,7 @@ import re
 import os
 import time
 from datetime import datetime, timedelta, timezone
+from io import StringIO
 
 # ================= 新增：FinMind 查詢區域 =================
 FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '')
@@ -79,7 +80,7 @@ def get_finmind_revenue_yoy(code):
         return default_res
 # ========================================================
 
-# --- 功能 1: 抓取所有股票代號與產業分類 (升級版) ---
+# --- 功能 1: 抓取所有股票代號與產業分類 (精準過濾版) ---
 def update_stock_list_json():
     print("🚀 [Task 1] 開始抓取所有股票代號與產業分類...")
     
@@ -116,7 +117,8 @@ def update_stock_list_json():
     for url in urls:
         try:
             res = requests.get(url, timeout=10)
-            dfs = pd.read_html(res.text)
+            # 🔥 修復 Pandas 警告，使用 StringIO 包裝 HTML 內容
+            dfs = pd.read_html(StringIO(res.text))
             df = dfs[0]
             
             df.columns = df.iloc[0]
@@ -135,11 +137,18 @@ def update_stock_list_json():
                 sector_val = str(row[sector_col]).strip() if sector_col else "未知產業"
                 if sector_val == 'nan': sector_val = "無"
                 
-                # 🔥 優化正則表達式，支援抓取含英文字母的代號 (例如 00679B)
+                # 抓出代號與名稱
                 match = re.match(r'^([A-Z0-9]{4,6})\s+(.+)', item)
                 if match:
                     code = match.group(1)
                     name = match.group(2).strip()
+                    
+                    # 🛡️ 【關鍵過濾器】：排除四萬檔權證與可轉債
+                    is_normal_stock = (len(code) == 4 and code.isdigit()) # 條件 1: 四碼純數字 (一般股票)
+                    is_etf = code.startswith('00')                        # 條件 2: 00 開頭 (ETF)
+                    
+                    if not (is_normal_stock or is_etf):
+                        continue # 不是一般股票也不是 ETF，直接跳過不收錄
                     
                     # 套用覆寫規則：若是菁英股，替換為我們自訂的熱門標籤
                     if code in CUSTOM_ELITE_DATA:
@@ -153,11 +162,11 @@ def update_stock_list_json():
         except Exception as e:
             print(f"⚠️ [Task 1] 抓取錯誤 ({url}): {e}")
 
-    # 將 ETF 專屬資訊合併進去
+    # 將 ETF 專屬資訊合併進去 (覆蓋掉爬蟲抓的生硬分類)
     for code, meta in CUSTOM_ETF_META.items():
         stock_map[code] = meta
 
-    print(f"✅ [Task 1] 完成，共抓取 {len(stock_map)} 檔股票 -> 存入 stock_list.json")
+    print(f"✅ [Task 1] 完成，共過濾出 {len(stock_map)} 檔純股票與ETF -> 存入 stock_list.json")
 
     # 存檔 1 (新版結構)
     with open('stock_list.json', 'w', encoding='utf-8') as f:
