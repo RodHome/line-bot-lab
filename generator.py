@@ -176,7 +176,7 @@ def update_stock_list_json():
 def generate_daily_recommendations():
     print("\n🚀 [Task 2] 開始分析每日熱門飆股...")
     
-   stock_meta = {}
+    stock_meta = {}
     try:
         if os.path.exists('stock_list.json'):
             with open('stock_list.json', 'r', encoding='utf-8') as f:
