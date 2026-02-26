@@ -272,7 +272,7 @@ def generate_daily_recommendations():
                         # 🔥 動能濾網升級：收紅，且單日成交金額大於 3 億元 (300,000,000)
                         if is_up and turnover > 300000000: 
                             # ⚠️ 這裡一定要把 price 存進來，FinMind 才能算金額！
-                            candidates.append({"code": code, "turnover": turnover, "price": price})
+                            candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上市"})
                     except: continue
 
                 # 👇👇👇 從這裡開始替換【上櫃 (TPEx) 爬蟲】 👇👇👇
@@ -317,7 +317,7 @@ def generate_daily_recommendations():
                                 is_up = ('+' in sign) or ('red' in sign)
                                 
                                 if is_up and turnover > 300000000: 
-                                    candidates.append({"code": code, "turnover": turnover, "price": price})
+                                    candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上櫃"})
                             except: continue
                         print("✅ 上櫃 (TPEx) 飆股已成功合併至候選池！")
                     else:
@@ -353,14 +353,21 @@ def generate_daily_recommendations():
                     time.sleep(0.5) # 避免被 API 封鎖
                     
                     # 🔥 3. 分析師終極濾網：營收 YoY > 10% 且 法人買超金額 > 3億
+                    # 👇👇👇 從這裡開始替換 👇👇👇
                     if yoy > 10 and buy_value > 300000000:
                         meta_info = stock_meta.get(code, {})
                         stock_name = meta_info.get('name', '未知名稱')
                         stock_sector = meta_info.get('sector', '未知產業')
+                        
+                        # 取得剛剛貼上的上市/上櫃標籤，並格式化日期 (YYYY-MM-DD)
+                        stock_exchange = item.get('exchange', '未知')
+                        date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
 
                         final_list.append({
+                            "date": date_str,          # ✅ 新增：資料日期
                             "code": code,
                             "name": stock_name,
+                            "exchange": stock_exchange,# ✅ 新增：上市或上櫃
                             "sector": stock_sector,
                             "price": price,
                             "turnover": turnover,
@@ -370,6 +377,7 @@ def generate_daily_recommendations():
                             "tag": "外資大買" if acc_f > acc_t else "投信作帳",
                             "debug_info": yoy_data['debug_info']
                         })
+                    # 👆👆👆 替換到這裡結束 👆👆👆
                 
                 # 🔥 4. 將過關的菁英，依照「買超金額」由大到小排序
                 final_list.sort(key=lambda x: x['buy_value'], reverse=True)
