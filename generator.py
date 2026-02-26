@@ -79,9 +79,32 @@ def get_finmind_revenue_yoy(code):
         return default_res
 # ========================================================
 
-# --- 功能 1: 抓取所有股票代號 (建立通訊錄) ---
+# --- 功能 1: 抓取所有股票代號與產業分類 (升級版) ---
 def update_stock_list_json():
-    print("🚀 [Task 1] 開始抓取所有股票代號對照表...")
+    print("🚀 [Task 1] 開始抓取所有股票代號與產業分類...")
+    
+    # 🔥 將原本 app.py 裡的自訂標籤移到這裡，作為「覆寫規則」
+    CUSTOM_ETF_META = {
+        "00878": {"name": "國泰永續高股息", "type": "高股息ETF", "sector": "ESG/殖利率/填息"},
+        "0056":  {"name": "元大高股息", "type": "高股息ETF", "sector": "預測殖利率/填息"},
+        "00919": {"name": "群益台灣精選高息", "type": "高股息ETF", "sector": "殖利率/航運半導體週期"},
+        "00929": {"name": "復華台灣科技優息", "type": "高股息ETF", "sector": "月配息/科技股景氣"},
+        "00713": {"name": "元大台灣高息低波", "type": "高股息ETF", "sector": "低波動/防禦性"},
+        "00940": {"name": "元大台灣價值高息", "type": "高股息ETF", "sector": "月配息/價值投資"},
+        "00939": {"name": "統一台灣高息動能", "type": "高股息ETF", "sector": "動能指標/月底領息"},
+        "0050":  {"name": "元大台灣50", "type": "市值型ETF", "sector": "大盤乖離/台積電展望"},
+        "006208":{"name": "富邦台50", "type": "市值型ETF", "sector": "大盤乖離/台積電展望"},
+        "00881": {"name": "國泰台灣5G+", "type": "科技型ETF", "sector": "半導體/通訊供應鏈/台積電"},
+        "00679B":{"name": "元大美債20年", "type": "債券型ETF", "sector": "美債殖利率/降息預期"},
+        "00687B":{"name": "國泰20年美債", "type": "債券型ETF", "sector": "美債殖利率/降息預期"}
+    }
+
+    # 菁英股的熱門產業標籤
+    CUSTOM_ELITE_DATA = {
+        "2330": "半導體", "2317": "AI伺服器", "2454": "IC設計", "2382": "AI伺服器",
+        "3231": "AI伺服器", "2376": "板卡", "2603": "航運", "2609": "航運",
+        "1519": "重電", "1503": "重電", "3017": "散熱", "3324": "散熱"
+    }
     
     urls = [
         "https://isin.twse.com.tw/isin/C_public.jsp?strMode=2", # 上市
@@ -93,38 +116,50 @@ def update_stock_list_json():
     for url in urls:
         try:
             res = requests.get(url, timeout=10)
-            # 使用 pandas 讀取 HTML 表格
             dfs = pd.read_html(res.text)
             df = dfs[0]
             
-            # 整理欄位 (第一列通常是標題)
             df.columns = df.iloc[0]
             df = df.iloc[1:]
             
-            # 找到代號欄位
-            col_matches = [c for c in df.columns if "有價證券代號" in str(c)]
-            if not col_matches: continue
-            col_name = col_matches[0]
+            # 找出欄位名稱
+            col_code_name = [c for c in df.columns if "有價證券代號" in str(c)]
+            col_sector = [c for c in df.columns if "產業別" in str(c)]
+            if not col_code_name: continue
             
-            for item in df[col_name]:
-                item = str(item).strip()
-                # 抓出 "2330 台積電" 這種格式
-                match = re.match(r'^(\d{4})\s+(.+)', item)
+            name_col = col_code_name[0]
+            sector_col = col_sector[0] if col_sector else None
+            
+            for index, row in df.iterrows():
+                item = str(row[name_col]).strip()
+                sector_val = str(row[sector_col]).strip() if sector_col else "未知產業"
+                if sector_val == 'nan': sector_val = "無"
+                
+                # 🔥 優化正則表達式，支援抓取含英文字母的代號 (例如 00679B)
+                match = re.match(r'^([A-Z0-9]{4,6})\s+(.+)', item)
                 if match:
                     code = match.group(1)
                     name = match.group(2).strip()
-                    stock_map[name] = code
+                    
+                    # 套用覆寫規則：若是菁英股，替換為我們自訂的熱門標籤
+                    if code in CUSTOM_ELITE_DATA:
+                        sector_val = CUSTOM_ELITE_DATA[code]
+                        
+                    stock_map[code] = {
+                        "name": name,
+                        "sector": sector_val,
+                        "type": "股票"
+                    }
         except Exception as e:
             print(f"⚠️ [Task 1] 抓取錯誤 ({url}): {e}")
 
-    # 補上熱門 ETF
-    etfs = ["0050", "0056", "00878", "00929", "00919", "00940", "006208", "00713", "00939", "00679B"]
-    for code in etfs:
-        stock_map[code] = code  # ETF 有時候代號與名稱相同或需特殊處理，這邊簡化
+    # 將 ETF 專屬資訊合併進去
+    for code, meta in CUSTOM_ETF_META.items():
+        stock_map[code] = meta
 
     print(f"✅ [Task 1] 完成，共抓取 {len(stock_map)} 檔股票 -> 存入 stock_list.json")
 
-    # 存檔 1
+    # 存檔 1 (新版結構)
     with open('stock_list.json', 'w', encoding='utf-8') as f:
         json.dump(stock_map, f, ensure_ascii=False, indent=2)
 
