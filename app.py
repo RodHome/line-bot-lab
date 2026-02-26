@@ -11,49 +11,37 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🤖 [版本號] v17.1 
-BOT_VERSION = "v17.1 (新增使用說明)"
+# 🤖 [版本號] v17.2 
+BOT_VERSION = "v17.2 (程式碼優化)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
 TWSE_CACHE = {"date": "", "data": []}
 
-# 🔥 ETF 屬性資料庫
-ETF_META = {
-    "00878": {"name": "國泰永續高股息", "type": "高股息", "focus": "ESG/殖利率/填息"},
-    "0056":  {"name": "元大高股息", "type": "高股息", "focus": "預測殖利率/填息"},
-    "00919": {"name": "群益台灣精選高息", "type": "高股息", "focus": "殖利率/航運半導體週期"},
-    "00929": {"name": "復華台灣科技優息", "type": "高股息", "focus": "月配息/科技股景氣"},
-    "00713": {"name": "元大台灣高息低波", "type": "高股息", "focus": "低波動/防禦性"},
-    "00940": {"name": "元大台灣價值高息", "type": "高股息", "focus": "月配息/價值投資"},
-    "00939": {"name": "統一台灣高息動能", "type": "高股息", "focus": "動能指標/月底領息"},
-    "0050":  {"name": "元大台灣50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
-    "006208":{"name": "富邦台50", "type": "市值型", "focus": "大盤乖離/台積電展望"},
-    "00881": {"name": "國泰台灣5G+", "type": "科技型", "focus": "半導體/通訊供應鏈/台積電"},
-    "00679B":{"name": "元大美債20年", "type": "債券型", "focus": "美債殖利率/降息預期"},
-    "00687B":{"name": "國泰20年美債", "type": "債券型", "focus": "美債殖利率/降息預期"}
-}
-
-# 菁英池 (備用方案)
-ELITE_STOCK_DATA = {
-    "台積電": {"code": "2330", "sector": "半導體"}, "鴻海": {"code": "2317", "sector": "AI伺服器"},
-    "聯發科": {"code": "2454", "sector": "IC設計"}, "廣達": {"code": "2382", "sector": "AI伺服器"},
-    "緯創": {"code": "3231", "sector": "AI伺服器"}, "技嘉": {"code": "2376", "sector": "板卡"},
-    "長榮": {"code": "2603", "sector": "航運"}, "陽明": {"code": "2609", "sector": "航運"},
-    "華城": {"code": "1519", "sector": "重電"}, "士電": {"code": "1503", "sector": "重電"},
-    "奇鋐": {"code": "3017", "sector": "散熱"}, "雙鴻": {"code": "3324", "sector": "散熱"}
-}
-ELITE_STOCK_POOL = {k: v["code"] for k, v in ELITE_STOCK_DATA.items()}
-ALL_STOCK_MAP = ELITE_STOCK_POOL.copy()
+# 🔥 新增：由外部 JSON 驅動的全域詮釋資料庫
+STOCK_META = {}
+ALL_STOCK_MAP = {}   # 中文名稱轉代號 (供對話比對)
+CODE_TO_NAME = {}    # 代號轉中文名稱
+FALLBACK_POOL = []   # 備用抽樣池 (僅限普通股票)
 
 try:
     if os.path.exists('stock_list.json'):
         with open('stock_list.json', 'r', encoding='utf-8') as f:
-            full_list = json.load(f)
-            ALL_STOCK_MAP.update(full_list)
-except: pass
-
-CODE_TO_NAME = {v: k for k, v in ALL_STOCK_MAP.items()}
+            STOCK_META = json.load(f)
+            
+        # 動態建立查詢字典與備用池
+        for code, info in STOCK_META.items():
+            name = info.get('name', '')
+            if name:
+                ALL_STOCK_MAP[name] = code      # "台積電" -> "2330"
+            ALL_STOCK_MAP[code] = code          # "2330" -> "2330" (防呆)
+            CODE_TO_NAME[code] = name
+            
+            # 建立純股票的備用池 (排除 ETF)，供推薦選股失效時抽樣
+            if info.get('type') == '股票':
+                FALLBACK_POOL.append(code)
+except Exception as e:
+    print(f"[Warn] 載入 stock_list.json 失敗: {e}")
 
 token = os.environ.get('LINE_CHANNEL_ACCESS_TOKEN')
 secret = os.environ.get('LINE_CHANNEL_SECRET')
@@ -430,7 +418,7 @@ def check_stock_worker_turbo(item):
             return None 
 
         name = CODE_TO_NAME.get(code, code)
-        sector = ELITE_STOCK_DATA.get(name, {}).get('sector', '熱門股')
+        sector = STOCK_META.get(code, {}).get('sector', '熱門股')
         
         # 2. 提取後台算好的強大數據
         chips_display = item_data.get('chips_display', 'N/A')
@@ -462,18 +450,18 @@ def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
     
     if target_sector:
-        pool = [{"code": v['code']} for k, v in ELITE_STOCK_DATA.items() if target_sector in v['sector']]
+        # ✅ 從全市場資料庫中，篩選出符合指定產業的股票
+        pool = [{"code": code} for code, info in STOCK_META.items() if target_sector in info.get('sector', '')]
         if pool: candidates_pool = pool
     else:
-        # 抓取 GitHub 上的全市場熱門名單字典
         twse_list = fetch_twse_candidates()
         if twse_list and isinstance(twse_list[0], dict) and 'yoy' in twse_list[0]:
-            # 🔥 革命性升級：不再隨機抽樣！直接取 Generator 算好、最強的前 8 檔菁英
             candidates_pool = twse_list[:8] 
         else:
-            # 備用防護機制
-            elite_codes = [{"code": v['code']} for v in ELITE_STOCK_DATA.values()]
-            candidates_pool = random.sample(elite_codes, min(8, len(elite_codes)))
+            # ✅ 備用防護機制：改從動態產生的 FALLBACK_POOL 隨機抽樣
+            elite_codes = [{"code": c} for c in FALLBACK_POOL]
+            if elite_codes:
+                candidates_pool = random.sample(elite_codes, min(8, len(elite_codes)))
     
     valid_candidates = []
     
@@ -633,8 +621,7 @@ def handle_message(event):
         return
     
     if stock_id:
-        name = CODE_TO_NAME.get(stock_id, stock_id)
-        if stock_id in ETF_META: name = ETF_META[stock_id]['name']
+        name = STOCK_META.get(stock_id, {}).get('name', CODE_TO_NAME.get(stock_id, stock_id))
 
         # 🔥 並行抓取開始
         data = None
@@ -726,9 +713,6 @@ def handle_message(event):
         f"{ai_reply_text}\n"
         f"------------------\n"    
         f"{warning_block}"  # 🔥 [修改處 4-3] 插入警示區塊變數
-        f"💡 輸入『推薦』查看熱門股！\n"
-        f"💡 輸入『(股票名稱/代號)』AI分析個股！\n"
-        f"💡 輸入『(股票名稱/代號) 成本 $$$』AI診斷合適進出場價！\n"
         f"(版本: {BOT_VERSION})"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
