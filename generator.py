@@ -275,8 +275,8 @@ def generate_daily_recommendations():
                             candidates.append({"code": code, "turnover": turnover, "price": price})
                     except: continue
 
-                # -----從這裡開始插入【上櫃 (TPEx) 爬蟲】-----
-                # 將西元年轉換為民國年 (例如 20240520 -> 113/05/20)
+                # 👇👇👇 從這裡開始替換【上櫃 (TPEx) 爬蟲】 👇👇👇
+                # 將西元年轉換為民國年 (例如 20260226 -> 115/02/26)
                 roc_year = int(target_date[:4]) - 1911
                 roc_date = f"{roc_year}/{target_date[4:6]}/{target_date[6:8]}"
                 
@@ -287,6 +287,13 @@ def generate_daily_recommendations():
                     res_otc = requests.get(url_otc, timeout=10)
                     data_otc = res_otc.json()
                     
+                    # ⚠️ 防呆機制：如果上櫃資料還沒產出（aaData 為空），改抓最新交易日（不帶日期參數）
+                    if 'aaData' not in data_otc or not data_otc['aaData']:
+                        print("⚠️ 指定日期的上櫃資料尚未準備好，自動轉向抓取最新交易日...")
+                        url_otc_latest = "https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&se=EW"
+                        res_otc = requests.get(url_otc_latest, timeout=10)
+                        data_otc = res_otc.json()
+
                     if 'aaData' in data_otc and data_otc['aaData']:
                         for row in data_otc['aaData']:
                             try:
@@ -295,7 +302,9 @@ def generate_daily_recommendations():
                                 if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
                                 
                                 price_str = str(row[2]).replace(',', '').strip()
-                                turnover_str = str(row[9]).replace(',', '').strip() # 索引 9 是上櫃的成交金額
+                                
+                                # 🔥 修正 Bug：上櫃的成交金額是在索引 8！不是 9！
+                                turnover_str = str(row[8]).replace(',', '').strip() 
                                 
                                 if price_str == '----' or price_str == '--' or turnover_str == '--': continue
                                 price = float(price_str)
@@ -312,9 +321,10 @@ def generate_daily_recommendations():
                             except: continue
                         print("✅ 上櫃 (TPEx) 飆股已成功合併至候選池！")
                     else:
-                        print("⚠️ 今日上櫃無資料。")
+                        print("⚠️ 仍無法取得上櫃資料。")
                 except Exception as e:
                     print(f"❌ 上櫃抓取失敗: {e}")
+                # 👆👆👆 替換結束 👆👆👆
                             
                # 🔥 1. 依「成交金額 (turnover)」排序，取前 50 檔母體
                 candidates.sort(key=lambda x: x['turnover'], reverse=True)
