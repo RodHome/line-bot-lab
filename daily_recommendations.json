@@ -21,6 +21,26 @@
     },
     {
         "date": "2026-02-26",
+        "code": "2344",
+        "name": "華邦電",
+        "exchange": "上市",
+        "sector": "半導體業",
+        "price": 122.5,
+        "turnover": 21860028123.0,
+        "chips_display": "52218張 (64.0億)",
+        "buy_value": 6396705000.0,
+        "yoy": 94.16,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 11778411000,
+            "last_rev": 6066312000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(11778411000 - 6066312000) / 6066312000"
+        }
+    },
+    {
+        "date": "2026-02-26",
         "code": "2883",
         "name": "凱基金",
         "exchange": "上市",
@@ -97,6 +117,26 @@
             "this_period": "2026/1",
             "last_period": "2025/1",
             "formula": "(6025154000 - 3792018000) / 3792018000"
+        }
+    },
+    {
+        "date": "2026-02-26",
+        "code": "3008",
+        "name": "大立光",
+        "exchange": "上市",
+        "sector": "光電業",
+        "price": 2520.0,
+        "turnover": 4120878410.0,
+        "chips_display": "1175張 (29.6億)",
+        "buy_value": 2961000000.0,
+        "yoy": 11.14,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 5498867000,
+            "last_rev": 4947585000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(5498867000 - 4947585000) / 4947585000"
         }
     },
     {
@@ -181,6 +221,46 @@
     },
     {
         "date": "2026-02-26",
+        "code": "4979",
+        "name": "華星光",
+        "exchange": "上櫃",
+        "sector": "通信網路業",
+        "price": 421.5,
+        "turnover": 13110887500.0,
+        "chips_display": "4549張 (19.2億)",
+        "buy_value": 1917403500.0,
+        "yoy": 26.83,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 412324000,
+            "last_rev": 325106000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(412324000 - 325106000) / 325106000"
+        }
+    },
+    {
+        "date": "2026-02-26",
+        "code": "3105",
+        "name": "穩懋",
+        "exchange": "上櫃",
+        "sector": "半導體業",
+        "price": 338.0,
+        "turnover": 14344741500.0,
+        "chips_display": "5171張 (17.5億)",
+        "buy_value": 1747798000.0,
+        "yoy": 24.66,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 1467701000,
+            "last_rev": 1177334000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(1467701000 - 1177334000) / 1177334000"
+        }
+    },
+    {
+        "date": "2026-02-26",
         "code": "3665",
         "name": "貿聯-KY",
         "exchange": "上市",
@@ -217,86 +297,6 @@
             "this_period": "2026/1",
             "last_period": "2025/1",
             "formula": "(3720425000 - 2566125000) / 2566125000"
-        }
-    },
-    {
-        "date": "2026-02-26",
-        "code": "8150",
-        "name": "南茂",
-        "exchange": "上市",
-        "sector": "半導體業",
-        "price": 71.5,
-        "turnover": 8368991763.0,
-        "chips_display": "19998張 (14.3億)",
-        "buy_value": 1429857000.0,
-        "yoy": 31.23,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 2290436000,
-            "last_rev": 1745306000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(2290436000 - 1745306000) / 1745306000"
-        }
-    },
-    {
-        "date": "2026-02-26",
-        "code": "6139",
-        "name": "亞翔",
-        "exchange": "上市",
-        "sector": "其他電子業",
-        "price": 585.0,
-        "turnover": 5908959933.0,
-        "chips_display": "2125張 (12.4億)",
-        "buy_value": 1243125000.0,
-        "yoy": 87.64,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 6563074000,
-            "last_rev": 3497783000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(6563074000 - 3497783000) / 3497783000"
-        }
-    },
-    {
-        "date": "2026-02-26",
-        "code": "8028",
-        "name": "昇陽半導體",
-        "exchange": "上市",
-        "sector": "半導體業",
-        "price": 188.0,
-        "turnover": 2913392380.0,
-        "chips_display": "6282張 (11.8億)",
-        "buy_value": 1181016000.0,
-        "yoy": 16.68,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 420144000,
-            "last_rev": 360072000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(420144000 - 360072000) / 360072000"
-        }
-    },
-    {
-        "date": "2026-02-26",
-        "code": "1717",
-        "name": "長興",
-        "exchange": "上市",
-        "sector": "化學工業",
-        "price": 69.0,
-        "turnover": 7612278921.0,
-        "chips_display": "8605張 (5.9億)",
-        "buy_value": 593745000.0,
-        "yoy": 16.98,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 3889579000,
-            "last_rev": 3325017000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(3889579000 - 3325017000) / 3325017000"
         }
     }
 ]
