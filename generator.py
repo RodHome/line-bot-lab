@@ -282,6 +282,9 @@ def generate_daily_recommendations():
                 valid_roc_date = None
                 base_date = datetime.strptime(target_date, '%Y%m%d')
                 
+                # 🛡️ 加上 User-Agent 偽裝成瀏覽器，避免被櫃買中心阻擋
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                
                 # 🔥 主動往回找最近的交易日 (最多找 6 天)
                 for i in range(6):
                     check_date = base_date - timedelta(days=i)
@@ -290,7 +293,7 @@ def generate_daily_recommendations():
                     
                     url_otc = f"https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d={roc_date}&se=EW"
                     try:
-                        res_otc = requests.get(url_otc, timeout=10)
+                        res_otc = requests.get(url_otc, headers=headers, timeout=10)
                         temp_data = res_otc.json()
                         
                         # 🌟 適應 TPEx 新版 API 結構 (tables)
@@ -305,62 +308,68 @@ def generate_daily_recommendations():
                     
                     time.sleep(0.5)
 
+                tpex_count = 0  # 📊 [新增] 用來統計有幾檔上櫃股通過 3 億門檻
+
                 # 開始解析新版上櫃資料
                 if data_otc and 'tables' in data_otc and data_otc['tables']:
                     table = data_otc['tables'][0]
-                    # 清理欄位名稱的多餘空白 (例如 "收盤 " 變成 "收盤")
                     fields = [str(f).strip() for f in table.get('fields', [])]
                     raw_data = table.get('data', [])
                     
-                    # 動態抓取欄位索引
                     try:
                         idx_code = fields.index("代號")
                         idx_price = fields.index("收盤")
                         idx_turnover = fields.index("成交金額(元)")
                         idx_sign = fields.index("漲跌")
                     except:
-                        # 預設索引 (根據你提供的 JSON)
                         idx_code, idx_price, idx_turnover, idx_sign = 0, 2, 8, 3
                     
                     for row in raw_data:
                         try:
                             code = str(row[idx_code]).strip()
-                            # 排除 ETF 與 權證
                             if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
                             
                             price_str = str(row[idx_price]).replace(',', '').strip()
                             turnover_str = str(row[idx_turnover]).replace(',', '').strip() 
                             
-                            # 遇到無交易或除息日則跳過
                             if price_str in ['----', '--', '', '除息', '除權'] or turnover_str in ['--', '', '0']: continue
                             
                             price = float(price_str)
                             turnover = float(turnover_str)
-                            
                             if price < 10: continue
                             
-                            # 判斷紅K (新版 API 給的是乾淨字串如 "+1.5" 或單純的 "1.5")
+                            # 🔥 強化版漲跌判斷：處理沒有加號的隱藏紅K
                             raw_sign = str(row[idx_sign]).replace(',', '').strip()
-                            is_up = ('+' in raw_sign)
-                            if not is_up:
+                            is_up = False
+                            if '+' in raw_sign or 'red' in raw_sign:
+                                is_up = True
+                            else:
                                 try:
-                                    if float(raw_sign) > 0: is_up = True
+                                    clean_sign = re.sub(r'[^\d.-]', '', raw_sign)
+                                    if clean_sign and float(clean_sign) > 0:
+                                        is_up = True
                                 except: pass
                             
                             # 條件：收紅 且 成交金額 > 3億
                             if is_up and turnover > 300000000: 
                                 candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上櫃"})
+                                tpex_count += 1
                         except: continue
-                    print("✅ 上櫃 (TPEx) 飆股已成功合併至候選池！")
+                    print(f"✅ 上櫃 (TPEx) 飆股已成功合併至候選池！(共 {tpex_count} 檔通過 3 億門檻)")
                 else:
                     print("❌ 仍無法取得上櫃資料，請檢查 API 狀態。")
                 # 👆👆👆 替換結束 👆👆👆
                             
-               # 🔥 1. 依「成交金額 (turnover)」排序，取前 50 檔母體
+                # 🔥 1. 依「成交金額 (turnover)」排序，取前 50 檔母體
                 candidates.sort(key=lambda x: x['turnover'], reverse=True)
                 top_50 = candidates[:50]
                 
-                print(f"✅ [Task 2] 第一階段篩選完成，取得 50 檔強勢資金股。啟動 FinMind 深度掃描...")
+                # 📊 [新增] 統計 Top 50 的板塊分佈
+                tw_count = sum(1 for x in top_50 if x.get('exchange') == '上市')
+                otc_count = sum(1 for x in top_50 if x.get('exchange') == '上櫃')
+                
+                print(f"✅ [Task 2] 第一階段篩選完成，取得 50 檔強勢資金股 (上市: {tw_count} 檔 / 上櫃: {otc_count} 檔)。")
+                print("啟動 FinMind 深度掃描...")
                 final_list = []
                 
                 # 🔥 2. 針對 50 檔逐一調查基本面與籌碼
