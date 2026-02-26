@@ -274,7 +274,48 @@ def generate_daily_recommendations():
                             # ⚠️ 這裡一定要把 price 存進來，FinMind 才能算金額！
                             candidates.append({"code": code, "turnover": turnover, "price": price})
                     except: continue
+
+                # -----從這裡開始插入【上櫃 (TPEx) 爬蟲】-----
+                # 將西元年轉換為民國年 (例如 20240520 -> 113/05/20)
+                roc_year = int(target_date[:4]) - 1911
+                roc_date = f"{roc_year}/{target_date[4:6]}/{target_date[6:8]}"
                 
+                url_otc = f"https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d={roc_date}&se=EW"
+                print(f"🔄 正在抓取上櫃 (TPEx) 行情: {roc_date} ...")
+                
+                try:
+                    res_otc = requests.get(url_otc, timeout=10)
+                    data_otc = res_otc.json()
+                    
+                    if 'aaData' in data_otc and data_otc['aaData']:
+                        for row in data_otc['aaData']:
+                            try:
+                                code = str(row[0]).strip()
+                                # 排除 ETF 與 權證
+                                if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
+                                
+                                price_str = str(row[2]).replace(',', '').strip()
+                                turnover_str = str(row[9]).replace(',', '').strip() # 索引 9 是上櫃的成交金額
+                                
+                                if price_str == '----' or price_str == '--' or turnover_str == '--': continue
+                                price = float(price_str)
+                                turnover = float(turnover_str)
+                                
+                                if price < 10: continue
+                                
+                                sign = str(row[3])
+                                # 判斷紅K (上櫃的漲跌幅常帶有 HTML 的 red 標籤，或者直接顯示 +)
+                                is_up = ('+' in sign) or ('red' in sign)
+                                
+                                if is_up and turnover > 300000000: 
+                                    candidates.append({"code": code, "turnover": turnover, "price": price})
+                            except: continue
+                        print("✅ 上櫃 (TPEx) 飆股已成功合併至候選池！")
+                    else:
+                        print("⚠️ 今日上櫃無資料。")
+                except Exception as e:
+                    print(f"❌ 上櫃抓取失敗: {e}")
+                            
                # 🔥 1. 依「成交金額 (turnover)」排序，取前 50 檔母體
                 candidates.sort(key=lambda x: x['turnover'], reverse=True)
                 top_50 = candidates[:50]
