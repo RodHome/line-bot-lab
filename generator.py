@@ -175,6 +175,23 @@ def update_stock_list_json():
 # --- 功能 2: 抓取每日熱門飆股 (建立推薦菜單) ---
 def generate_daily_recommendations():
     print("\n🚀 [Task 2] 開始分析每日熱門飆股...")
+    
+   stock_meta = {}
+    try:
+        if os.path.exists('stock_list.json'):
+            with open('stock_list.json', 'r', encoding='utf-8') as f:
+                stock_meta = json.load(f)
+    except Exception as e:
+        print(f"⚠️ 讀取 stock_list.json 失敗: {e}")
+   
+    # 🔥 [新增] 讀取剛剛產生的 stock_list.json，用來查詢名稱與產業別
+    stock_meta = {}
+    try:
+        if os.path.exists('stock_list.json'):
+            with open('stock_list.json', 'r', encoding='utf-8') as f:
+                stock_meta = json.load(f)
+    except Exception as e:
+        print(f"⚠️ 讀取 stock_list.json 失敗: {e}")
 
     # 設定目標日期 (GitHub Actions 通常在 UTC 時間跑，台灣+8)
     # 策略：抓取「最新收盤日」。如果今天是週六日，API 會自動給最近的週五資料，或我們指定日期。
@@ -286,15 +303,20 @@ def generate_daily_recommendations():
                     
                     # 🔥 3. 分析師終極濾網：營收 YoY > 10% 且 法人買超金額 > 3億
                     if yoy > 10 and buy_value > 300000000:
+                        meta_info = stock_meta.get(code, {})
+                        stock_name = meta_info.get('name', '未知名稱')
+                        stock_sector = meta_info.get('sector', '未知產業')
+
                         final_list.append({
                             "code": code,
+                            "name": stock_name,
+                            "sector": stock_sector,
                             "price": price,
                             "turnover": turnover,
                             "chips_display": f"{chips_sum}張 ({buy_value_y}億)",
                             "buy_value": buy_value,
                             "yoy": yoy,
                             "tag": "外資大買" if acc_f > acc_t else "投信作帳",
-                            # ⚠️ 新增：將開發者查帳資訊存入 JSON
                             "debug_info": yoy_data['debug_info']
                         })
                 
