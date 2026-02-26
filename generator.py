@@ -276,54 +276,84 @@ def generate_daily_recommendations():
                     except: continue
 
                 # 👇👇👇 從這裡開始替換【上櫃 (TPEx) 爬蟲】 👇👇👇
-                # 將西元年轉換為民國年 (例如 20260226 -> 115/02/26)
-                roc_year = int(target_date[:4]) - 1911
-                roc_date = f"{roc_year}/{target_date[4:6]}/{target_date[6:8]}"
+                print(f"🔄 正在尋找最新上櫃 (TPEx) 行情...")
                 
-                url_otc = f"https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d={roc_date}&se=EW"
-                print(f"🔄 正在抓取上櫃 (TPEx) 行情: {roc_date} ...")
+                data_otc = None
+                valid_roc_date = None
+                base_date = datetime.strptime(target_date, '%Y%m%d')
                 
-                try:
-                    res_otc = requests.get(url_otc, timeout=10)
-                    data_otc = res_otc.json()
+                # 🔥 主動往回找最近的交易日 (最多找 6 天)
+                for i in range(6):
+                    check_date = base_date - timedelta(days=i)
+                    roc_year = check_date.year - 1911
+                    roc_date = f"{roc_year}/{check_date.strftime('%m/%d')}"
                     
-                    # ⚠️ 防呆機制：如果上櫃資料還沒產出（aaData 為空），改抓最新交易日（不帶日期參數）
-                    if 'aaData' not in data_otc or not data_otc['aaData']:
-                        print("⚠️ 指定日期的上櫃資料尚未準備好，自動轉向抓取最新交易日...")
-                        url_otc_latest = "https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&se=EW"
-                        res_otc = requests.get(url_otc_latest, timeout=10)
-                        data_otc = res_otc.json()
+                    url_otc = f"https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d={roc_date}&se=EW"
+                    try:
+                        res_otc = requests.get(url_otc, timeout=10)
+                        temp_data = res_otc.json()
+                        
+                        # 🌟 適應 TPEx 新版 API 結構 (tables)
+                        if 'tables' in temp_data and temp_data['tables']:
+                            if 'data' in temp_data['tables'][0] and len(temp_data['tables'][0]['data']) > 0:
+                                data_otc = temp_data
+                                valid_roc_date = roc_date
+                                print(f"✅ 成功取得上櫃資料，實際資料日期: {valid_roc_date}")
+                                break
+                    except Exception as e:
+                        print(f"⚠️ {roc_date} 抓取失敗，嘗試前一天... ({e})")
+                    
+                    time.sleep(0.5)
 
-                    if 'aaData' in data_otc and data_otc['aaData']:
-                        for row in data_otc['aaData']:
-                            try:
-                                code = str(row[0]).strip()
-                                # 排除 ETF 與 權證
-                                if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
-                                
-                                price_str = str(row[2]).replace(',', '').strip()
-                                
-                                # 🔥 修正 Bug：上櫃的成交金額是在索引 8！不是 9！
-                                turnover_str = str(row[8]).replace(',', '').strip() 
-                                
-                                if price_str == '----' or price_str == '--' or turnover_str == '--': continue
-                                price = float(price_str)
-                                turnover = float(turnover_str)
-                                
-                                if price < 10: continue
-                                
-                                sign = str(row[3])
-                                # 判斷紅K (上櫃的漲跌幅常帶有 HTML 的 red 標籤，或者直接顯示 +)
-                                is_up = ('+' in sign) or ('red' in sign)
-                                
-                                if is_up and turnover > 300000000: 
-                                    candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上櫃"})
-                            except: continue
-                        print("✅ 上櫃 (TPEx) 飆股已成功合併至候選池！")
-                    else:
-                        print("⚠️ 仍無法取得上櫃資料。")
-                except Exception as e:
-                    print(f"❌ 上櫃抓取失敗: {e}")
+                # 開始解析新版上櫃資料
+                if data_otc and 'tables' in data_otc and data_otc['tables']:
+                    table = data_otc['tables'][0]
+                    # 清理欄位名稱的多餘空白 (例如 "收盤 " 變成 "收盤")
+                    fields = [str(f).strip() for f in table.get('fields', [])]
+                    raw_data = table.get('data', [])
+                    
+                    # 動態抓取欄位索引
+                    try:
+                        idx_code = fields.index("代號")
+                        idx_price = fields.index("收盤")
+                        idx_turnover = fields.index("成交金額(元)")
+                        idx_sign = fields.index("漲跌")
+                    except:
+                        # 預設索引 (根據你提供的 JSON)
+                        idx_code, idx_price, idx_turnover, idx_sign = 0, 2, 8, 3
+                    
+                    for row in raw_data:
+                        try:
+                            code = str(row[idx_code]).strip()
+                            # 排除 ETF 與 權證
+                            if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
+                            
+                            price_str = str(row[idx_price]).replace(',', '').strip()
+                            turnover_str = str(row[idx_turnover]).replace(',', '').strip() 
+                            
+                            # 遇到無交易或除息日則跳過
+                            if price_str in ['----', '--', '', '除息', '除權'] or turnover_str in ['--', '', '0']: continue
+                            
+                            price = float(price_str)
+                            turnover = float(turnover_str)
+                            
+                            if price < 10: continue
+                            
+                            # 判斷紅K (新版 API 給的是乾淨字串如 "+1.5" 或單純的 "1.5")
+                            raw_sign = str(row[idx_sign]).replace(',', '').strip()
+                            is_up = ('+' in raw_sign)
+                            if not is_up:
+                                try:
+                                    if float(raw_sign) > 0: is_up = True
+                                except: pass
+                            
+                            # 條件：收紅 且 成交金額 > 3億
+                            if is_up and turnover > 300000000: 
+                                candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上櫃"})
+                        except: continue
+                    print("✅ 上櫃 (TPEx) 飆股已成功合併至候選池！")
+                else:
+                    print("❌ 仍無法取得上櫃資料，請檢查 API 狀態。")
                 # 👆👆👆 替換結束 👆👆👆
                             
                # 🔥 1. 依「成交金額 (turnover)」排序，取前 50 檔母體
