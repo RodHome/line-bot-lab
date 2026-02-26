@@ -507,6 +507,30 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     msg = event.message.text.strip()
+
+    # 🔥 [新增功能] 選股邏輯說明
+    if msg in ["選股邏輯", "推薦說明", "篩選條件"]:
+        logic_text = (
+            "⚙️ 【程式高手 AI 飆股雷達：嚴格篩選邏輯】\n"
+            "────────────────\n"
+            "為了確保推薦品質，避免選到流動性差或基本面不佳的標的，系統每日盤後會對全市場進行「地毯式雙重掃描」：\n\n"
+            "1️⃣ 第一關：價量濾網 (剔除冷門與低價股)\n"
+            " ‧ 排除 ETF、權證與 DR 股\n"
+            " ‧ 股價必須大於 10 元\n"
+            " ‧ 單日成交金額必須大於 3 億元且當日收紅\n\n"
+            "2️⃣ 第二關：基本面與大戶籌碼 (勝率核心)\n"
+            " ‧ 營收 YoY (年增率) 必須 > 10% (確保業績真成長)\n"
+            " ‧ 近 5 日「外資+投信」買超合計 > 3 億元 (確保有大人照顧)\n\n"
+            "────────────────\n"
+            "💡 常見問答：為什麼某檔強勢股 (如：鴻勁) 沒入榜？\n"
+            "若某檔股票大漲卻未被推薦，通常是因為：\n"
+            "1. 板塊限制：本系統雷達目前嚴選「上市」股票，暫不涵蓋流動性風險較高的興櫃股。\n"
+            "2. 營收未跟上：近期單月營收年增率尚未突破 10%。\n"
+            "3. 籌碼結構：雖然漲停，但法人(外資/投信)買超金額未達 3 億門檻，屬於純內資或主力拉抬。\n\n"
+            "📌 我們的鐵律：只推薦有「基本面」與「法人大資金」雙重背書的優質標的！"
+        )
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=logic_text))
+        return
     
     # [功能 1] 推薦選股
     if msg.startswith("推薦") or msg.startswith("選股"):
@@ -576,30 +600,6 @@ def handle_message(event):
             }
             bubbles.append(bubble)
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
-        return
-
-    # 🔥 [新增功能] 選股邏輯說明
-    if msg in ["選股邏輯", "推薦說明", "篩選條件"]:
-        logic_text = (
-            "⚙️ 【程式高手 AI 飆股雷達：嚴格篩選邏輯】\n"
-            "────────────────\n"
-            "為了確保推薦品質，避免選到流動性差或基本面不佳的標的，系統每日盤後會對全市場進行「地毯式雙重掃描」：\n\n"
-            "1️⃣ 第一關：價量濾網 (剔除冷門與低價股)\n"
-            " ‧ 排除 ETF、權證與 DR 股\n"
-            " ‧ 股價必須大於 10 元\n"
-            " ‧ 單日成交金額必須大於 3 億元且當日收紅\n\n"
-            "2️⃣ 第二關：基本面與大戶籌碼 (勝率核心)\n"
-            " ‧ 營收 YoY (年增率) 必須 > 10% (確保業績真成長)\n"
-            " ‧ 近 5 日「外資+投信」買超合計 > 3 億元 (確保有大人照顧)\n\n"
-            "────────────────\n"
-            "💡 常見問答：為什麼某檔強勢股 (如：鴻勁) 沒入榜？\n"
-            "若某檔股票大漲卻未被推薦，通常是因為：\n"
-            "1. 板塊限制：本系統雷達目前嚴選「上市」股票，暫不涵蓋流動性風險較高的興櫃股。\n"
-            "2. 營收未跟上：近期單月營收年增率尚未突破 10%。\n"
-            "3. 籌碼結構：雖然漲停，但法人(外資/投信)買超金額未達 3 億門檻，屬於純內資或主力拉抬。\n\n"
-            "📌 我們的鐵律：只推薦有「基本面」與「法人大資金」雙重背書的優質標的！"
-        )
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=logic_text))
         return
     
     # 🔥 [修改處 2] 隔日沖主動查詢 (版面美化版)
@@ -708,7 +708,7 @@ def handle_message(event):
         # 🔥 [修改處 4-1] 產生被動防禦字串
         warning_block = ""
         if "🚀量增價漲" in signal_str or "🔥RSI過熱" in signal_str:
-            warning_block = "🚨 【籌碼防禦】此標的爆量強勢，請留意是否有『凱基-台北』等隔日沖分點進駐，嚴防早盤洗盤！\n------------------\n"
+            warning_block = "🚨【籌碼防禦】本檔爆量強勢，請留意是否隔日沖分點進駐，嚴防洗盤！\n------------------\n"
         
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
