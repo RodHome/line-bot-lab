@@ -1,202 +1,48 @@
 [
     {
-        "code": "2317",
-        "price": 246.5,
-        "turnover": 40771218065.0,
-        "chips_display": "168886張 (416.3億)",
-        "buy_value": 41630399000.0,
-        "yoy": 35.53,
+        "code": "3481",
+        "name": "群創",
+        "sector": "光電業",
+        "price": 26.8,
+        "turnover": 21727996932.0,
+        "chips_display": "323233張 (86.6億)",
+        "buy_value": 8662644400.0,
+        "yoy": 18.63,
         "tag": "外資大買",
         "debug_info": {
-            "this_rev": 730039420000,
-            "last_rev": 538665759000,
+            "this_rev": 22139342000,
+            "last_rev": 18662677000,
             "this_period": "2026/1",
             "last_period": "2025/1",
-            "formula": "(730039420000 - 538665759000) / 538665759000"
+            "formula": "(22139342000 - 18662677000) / 18662677000"
         }
     },
     {
-        "code": "2382",
-        "price": 297.5,
-        "turnover": 14652320929.0,
-        "chips_display": "37357張 (111.1億)",
-        "buy_value": 11113707500.0,
-        "yoy": 61.92,
+        "code": "2883",
+        "name": "凱基金",
+        "sector": "金融保險業",
+        "price": 21.95,
+        "turnover": 3356875285.0,
+        "chips_display": "212638張 (46.7億)",
+        "buy_value": 4667404100.0,
+        "yoy": 28.25,
         "tag": "外資大買",
         "debug_info": {
-            "this_rev": 230834858000,
-            "last_rev": 142560447000,
+            "this_rev": 8752466000,
+            "last_rev": 6824318000,
             "this_period": "2026/1",
             "last_period": "2025/1",
-            "formula": "(230834858000 - 142560447000) / 142560447000"
-        }
-    },
-    {
-        "code": "1303",
-        "price": 94.9,
-        "turnover": 15354709961.0,
-        "chips_display": "115011張 (109.1億)",
-        "buy_value": 10914543900.0,
-        "yoy": 11.8,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 22872625000,
-            "last_rev": 20458289000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(22872625000 - 20458289000) / 20458289000"
-        }
-    },
-    {
-        "code": "2308",
-        "price": 1435.0,
-        "turnover": 21095841245.0,
-        "chips_display": "7071張 (101.5億)",
-        "buy_value": 10146885000.0,
-        "yoy": 32.87,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 49675223000,
-            "last_rev": 37385532000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(49675223000 - 37385532000) / 37385532000"
-        }
-    },
-    {
-        "code": "6770",
-        "price": 76.8,
-        "turnover": 36519111235.0,
-        "chips_display": "103060張 (79.2億)",
-        "buy_value": 7915008000.0,
-        "yoy": 26.27,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 4618023000,
-            "last_rev": 3657160000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(4618023000 - 3657160000) / 3657160000"
-        }
-    },
-    {
-        "code": "3711",
-        "price": 389.0,
-        "turnover": 11403083229.0,
-        "chips_display": "15430張 (60.0億)",
-        "buy_value": 6002270000.0,
-        "yoy": 21.33,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 59988631000,
-            "last_rev": 49444261000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(59988631000 - 49444261000) / 49444261000"
-        }
-    },
-    {
-        "code": "2345",
-        "price": 1450.0,
-        "turnover": 7087602720.0,
-        "chips_display": "3149張 (45.7億)",
-        "buy_value": 4566050000.0,
-        "yoy": 71.87,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 21527345000,
-            "last_rev": 12525239000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(21527345000 - 12525239000) / 12525239000"
-        }
-    },
-    {
-        "code": "6669",
-        "price": 4060.0,
-        "turnover": 11691424240.0,
-        "chips_display": "1098張 (44.6億)",
-        "buy_value": 4457880000.0,
-        "yoy": 121.9,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 83225290000,
-            "last_rev": 37506396000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(83225290000 - 37506396000) / 37506396000"
-        }
-    },
-    {
-        "code": "2492",
-        "price": 156.0,
-        "turnover": 7334794468.0,
-        "chips_display": "21952張 (34.2億)",
-        "buy_value": 3424512000.0,
-        "yoy": 20.41,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 3485568000,
-            "last_rev": 2894858000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(3485568000 - 2894858000) / 2894858000"
-        }
-    },
-    {
-        "code": "6213",
-        "price": 146.5,
-        "turnover": 5378763265.0,
-        "chips_display": "22410張 (32.8億)",
-        "buy_value": 3283065000.0,
-        "yoy": 42.19,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 3163692000,
-            "last_rev": 2224926000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(3163692000 - 2224926000) / 2224926000"
-        }
-    },
-    {
-        "code": "1802",
-        "price": 61.3,
-        "turnover": 17935654105.0,
-        "chips_display": "44718張 (27.4億)",
-        "buy_value": 2741213400.0,
-        "yoy": 17.57,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 3668041000,
-            "last_rev": 3119843000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(3668041000 - 3119843000) / 3119843000"
-        }
-    },
-    {
-        "code": "8021",
-        "price": 264.5,
-        "turnover": 8709377441.0,
-        "chips_display": "8678張 (23.0億)",
-        "buy_value": 2295331000.0,
-        "yoy": 59.17,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 453191000,
-            "last_rev": 284728000,
-            "this_period": "2026/1",
-            "last_period": "2025/1",
-            "formula": "(453191000 - 284728000) / 284728000"
+            "formula": "(8752466000 - 6824318000) / 6824318000"
         }
     },
     {
         "code": "3443",
-        "price": 2575.0,
-        "turnover": 6020642370.0,
-        "chips_display": "798張 (20.5億)",
-        "buy_value": 2054850000.0,
+        "name": "創意",
+        "sector": "半導體業",
+        "price": 2770.0,
+        "turnover": 13627684925.0,
+        "chips_display": "798張 (22.1億)",
+        "buy_value": 2210460000.0,
         "yoy": 107.78,
         "tag": "外資大買",
         "debug_info": {
@@ -208,27 +54,49 @@
         }
     },
     {
-        "code": "3533",
-        "price": 1795.0,
-        "turnover": 5046562625.0,
-        "chips_display": "1111張 (19.9億)",
-        "buy_value": 1994245000.0,
-        "yoy": 31.46,
-        "tag": "外資大買",
+        "code": "2449",
+        "name": "京元電子",
+        "sector": "半導體業",
+        "price": 327.0,
+        "turnover": 6086835770.0,
+        "chips_display": "6422張 (21.0億)",
+        "buy_value": 2099994000.0,
+        "yoy": 41.28,
+        "tag": "投信作帳",
         "debug_info": {
-            "this_rev": 3520081000,
-            "last_rev": 2677630000,
+            "this_rev": 3369542000,
+            "last_rev": 2384946000,
             "this_period": "2026/1",
             "last_period": "2025/1",
-            "formula": "(3520081000 - 2677630000) / 2677630000"
+            "formula": "(3369542000 - 2384946000) / 2384946000"
+        }
+    },
+    {
+        "code": "2884",
+        "name": "玉山金",
+        "sector": "金融保險業",
+        "price": 35.1,
+        "turnover": 3372817154.0,
+        "chips_display": "57077張 (20.0億)",
+        "buy_value": 2003402700.0,
+        "yoy": 40.52,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 9245634000,
+            "last_rev": 6579740000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(9245634000 - 6579740000) / 6579740000"
         }
     },
     {
         "code": "2404",
-        "price": 1035.0,
-        "turnover": 4802571962.0,
-        "chips_display": "1751張 (18.1億)",
-        "buy_value": 1812285000.0,
+        "name": "漢唐",
+        "sector": "其他電子業",
+        "price": 1130.0,
+        "turnover": 8557754755.0,
+        "chips_display": "1751張 (19.8億)",
+        "buy_value": 1978630000.0,
         "yoy": 58.89,
         "tag": "外資大買",
         "debug_info": {
@@ -237,6 +105,168 @@
             "this_period": "2026/1",
             "last_period": "2025/1",
             "formula": "(6025154000 - 3792018000) / 3792018000"
+        }
+    },
+    {
+        "code": "3008",
+        "name": "大立光",
+        "sector": "光電業",
+        "price": 2520.0,
+        "turnover": 4120878410.0,
+        "chips_display": "739張 (18.6億)",
+        "buy_value": 1862280000.0,
+        "yoy": 11.14,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 5498867000,
+            "last_rev": 4947585000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(5498867000 - 4947585000) / 4947585000"
+        }
+    },
+    {
+        "code": "2887",
+        "name": "台新新光金",
+        "sector": "金融保險業",
+        "price": 25.6,
+        "turnover": 4683544815.0,
+        "chips_display": "59548張 (15.2億)",
+        "buy_value": 1524428800.0,
+        "yoy": 117.67,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 18773450000,
+            "last_rev": 8624919000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(18773450000 - 8624919000) / 8624919000"
+        }
+    },
+    {
+        "code": "2059",
+        "name": "川湖",
+        "sector": "電子零組件業",
+        "price": 3445.0,
+        "turnover": 6277040585.0,
+        "chips_display": "403張 (13.9億)",
+        "buy_value": 1388335000.0,
+        "yoy": 43.9,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 1774956000,
+            "last_rev": 1233439000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(1774956000 - 1233439000) / 1233439000"
+        }
+    },
+    {
+        "code": "3017",
+        "name": "奇鋐",
+        "sector": "散熱",
+        "price": 1765.0,
+        "turnover": 18313736690.0,
+        "chips_display": "715張 (12.6億)",
+        "buy_value": 1261975000.0,
+        "yoy": 150.01,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 17003457000,
+            "last_rev": 6801065000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(17003457000 - 6801065000) / 6801065000"
+        }
+    },
+    {
+        "code": "3665",
+        "name": "貿聯-KY",
+        "sector": "其他電子業",
+        "price": 1410.0,
+        "turnover": 7899669790.0,
+        "chips_display": "857張 (12.1億)",
+        "buy_value": 1208370000.0,
+        "yoy": 34.2,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 7455820000,
+            "last_rev": 5555836000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(7455820000 - 5555836000) / 5555836000"
+        }
+    },
+    {
+        "code": "6805",
+        "name": "富世達",
+        "sector": "電子零組件業",
+        "price": 1710.0,
+        "turnover": 6248293120.0,
+        "chips_display": "543張 (9.3億)",
+        "buy_value": 928530000.0,
+        "yoy": 115.76,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 1404405000,
+            "last_rev": 650896000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(1404405000 - 650896000) / 650896000"
+        }
+    },
+    {
+        "code": "3037",
+        "name": "欣興",
+        "sector": "電子零組件業",
+        "price": 481.5,
+        "turnover": 39369887727.0,
+        "chips_display": "1897張 (9.1億)",
+        "buy_value": 913405500.0,
+        "yoy": 34.48,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 12766959000,
+            "last_rev": 9493871000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(12766959000 - 9493871000) / 9493871000"
+        }
+    },
+    {
+        "code": "6789",
+        "name": "采鈺",
+        "sector": "半導體業",
+        "price": 342.0,
+        "turnover": 3068331317.0,
+        "chips_display": "1787張 (6.1億)",
+        "buy_value": 611154000.0,
+        "yoy": 10.54,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 772684000,
+            "last_rev": 699005000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(772684000 - 699005000) / 699005000"
+        }
+    },
+    {
+        "code": "8028",
+        "name": "昇陽半導體",
+        "sector": "半導體業",
+        "price": 188.0,
+        "turnover": 2913392380.0,
+        "chips_display": "2615張 (4.9億)",
+        "buy_value": 491620000.0,
+        "yoy": 16.68,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 420144000,
+            "last_rev": 360072000,
+            "this_period": "2026/1",
+            "last_period": "2025/1",
+            "formula": "(420144000 - 360072000) / 360072000"
         }
     }
 ]
