@@ -449,30 +449,47 @@ def check_stock_worker_turbo(item):
 def scan_recommendations_turbo(target_sector=None):
     candidates_pool = []
     
-    if target_sector:
-        # ✅ 從全市場資料庫中，篩選出符合指定產業的股票
-        pool = [{"code": code} for code, info in STOCK_META.items() if target_sector in info.get('sector', '')]
-        if pool: candidates_pool = pool
+    # 1. 先取得今日的推薦母池 (由 generator 算好的 GitHub 嚴格名單)
+    twse_list = fetch_twse_candidates()
+    
+    # 確認名單是新版結構 (有 yoy 等資料)
+    if twse_list and isinstance(twse_list[0], dict) and 'yoy' in twse_list[0]:
+        pool_source = twse_list
     else:
-        twse_list = fetch_twse_candidates()
-        if twse_list and isinstance(twse_list[0], dict) and 'yoy' in twse_list[0]:
+        # 若 API 失效，使用備用池 (這裡也要組裝成 dict 格式讓 worker 吃)
+        pool_source = [{"code": c} for c in FALLBACK_POOL]
+        
+    # 2. 進行產業過濾 或 全量抽樣
+    if target_sector:
+        # 🔥 修正點：只在「嚴格過濾後的推薦母池」中，比對 STOCK_META 裡的產業標籤
+        for item in pool_source:
+            code = item.get('code')
+            sector = STOCK_META.get(code, {}).get('sector', '')
+            if target_sector in sector:
+                candidates_pool.append(item)
+                
+        # 如果今天的飆股池裡面，剛好沒有這個產業，直接回傳空陣列
+        if not candidates_pool:
+            return []
+    else:
+        # 如果沒有指定產業
+        if pool_source == twse_list:
+            # 直接取推薦池算好、最強的前 8 檔
             candidates_pool = twse_list[:8] 
         else:
-            # ✅ 備用防護機制：改從動態產生的 FALLBACK_POOL 隨機抽樣
-            elite_codes = [{"code": c} for c in FALLBACK_POOL]
-            if elite_codes:
-                candidates_pool = random.sample(elite_codes, min(8, len(elite_codes)))
+            # 備用池隨機抽 8 檔
+            candidates_pool = random.sample(pool_source, min(8, len(pool_source)))
     
     valid_candidates = []
     
-    # 並行獲取這幾檔的「即時現價」
+    # 3. 交給 worker 進行最後的現價與均線確認
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         results = executor.map(check_stock_worker_turbo, candidates_pool)
     
     for res in results:
         if res: valid_candidates.append(res)
         
-    # 確保依照籌碼買超金額排序
+    # 4. 確保依照籌碼買超金額排序
     if valid_candidates:
         valid_candidates.sort(key=lambda x: x.get('buy_value', 0), reverse=True)
         
@@ -498,8 +515,12 @@ def handle_message(event):
         
         good_stocks = scan_recommendations_turbo(target_sector)
         
+       # 🔥 優化：更精確的回報找不到標的之原因
         if not good_stocks:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場震盪，暫無符合強勢條件的標的。"))
+            if target_sector:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 今日的嚴選飆股池中，暫無符合條件的「{target_sector}」相關個股。"))
+            else:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 市場震盪，暫無符合強勢條件的標的。"))
             return
             
         stocks_payload = [{"code": s['code'], "name": s['name'], "signal": s['signal_str'], "sector": s['sector']} for s in good_stocks]
@@ -557,6 +578,30 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
         return
 
+    # 🔥 [新增功能] 選股邏輯說明
+    if msg in ["選股邏輯", "推薦說明", "篩選條件"]:
+        logic_text = (
+            "⚙️ 【程式高手 AI 飆股雷達：嚴格篩選邏輯】\n"
+            "────────────────\n"
+            "為了確保推薦品質，避免選到流動性差或基本面不佳的標的，系統每日盤後會對全市場進行「地毯式雙重掃描」：\n\n"
+            "1️⃣ 第一關：價量濾網 (剔除冷門與低價股)\n"
+            " ‧ 排除 ETF、權證與 DR 股\n"
+            " ‧ 股價必須大於 10 元\n"
+            " ‧ 單日成交金額必須大於 3 億元且當日收紅\n\n"
+            "2️⃣ 第二關：基本面與大戶籌碼 (勝率核心)\n"
+            " ‧ 營收 YoY (年增率) 必須 > 10% (確保業績真成長)\n"
+            " ‧ 近 5 日「外資+投信」買超合計 > 3 億元 (確保有大人照顧)\n\n"
+            "────────────────\n"
+            "💡 常見問答：為什麼某檔強勢股 (如：鴻勁) 沒入榜？\n"
+            "若某檔股票大漲卻未被推薦，通常是因為：\n"
+            "1. 板塊限制：本系統雷達目前嚴選「上市」股票，暫不涵蓋流動性風險較高的興櫃股。\n"
+            "2. 營收未跟上：近期單月營收年增率尚未突破 10%。\n"
+            "3. 籌碼結構：雖然漲停，但法人(外資/投信)買超金額未達 3 億門檻，屬於純內資或主力拉抬。\n\n"
+            "📌 我們的鐵律：只推薦有「基本面」與「法人大資金」雙重背書的優質標的！"
+        )
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=logic_text))
+        return
+    
     # 🔥 [修改處 2] 隔日沖主動查詢 (版面美化版)
     if msg in ["隔日沖", "主力", "主力分點"]:
         dt_data = get_day_trade_brokers() 
@@ -614,6 +659,9 @@ def handle_message(event):
                     
                     # 第四顆按鈕：隔日沖名單查詢
                     {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖券商名單", "text": "隔日沖"}}
+
+                    # 🔥 [新增] 第 5 顆按鈕：選股邏輯說明
+                    {"type": "button", "style": "secondary", "color": "#F57C00", "action": {"type": "message", "label": "🧠 AI 選股邏輯說明", "text": "選股邏輯"}}
                 ]
             }
         }
