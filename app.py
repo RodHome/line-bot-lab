@@ -3,7 +3,7 @@ import json
 import time
 import math
 import concurrent.futures
-import twstock
+# import twstock
 from datetime import datetime, timedelta, time as dtime, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -240,63 +240,44 @@ def call_gemini_json(prompt, system_instruction=None):
     return None
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
+# --- 🔥 優化版：數據擷取 (移除了會卡死的 twstock，改用極速 API 與防呆機制) ---
 def fetch_data_light(stock_id):
-    # 定義內部子任務
-    def get_history():
-        token = os.environ.get('FINMIND_TOKEN', '')
-        url_hist = "https://api.finmindtrade.com/api/v4/data"
-        try:
-            start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-            res = requests.get(url_hist, params={
-                "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
-            }, timeout=4)
-            return res.json().get('data', [])
-        except: return []
-
-    def get_realtime():
-        try:
-            return twstock.realtime.get(stock_id)
-        except: return None
-
-    # 並行執行
+    token = os.environ.get('FINMIND_TOKEN', '')
+    url_hist = "https://api.finmindtrade.com/api/v4/data"
     hist_data = []
-    stock_rt = None
+    
+    # 1. 抓取歷史資料 (帶 4 秒極限 timeout)
     try:
-        # max_workers=2 為 Zeabur 安全值
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            future_hist = executor.submit(get_history)
-            future_rt = executor.submit(get_realtime)
-            
-            hist_data = future_hist.result(timeout=5)
-            stock_rt = future_rt.result(timeout=5)
+        start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
+        res = requests.get(url_hist, params={
+            "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
+        }, timeout=4)
+        hist_data = res.json().get('data', [])
     except Exception as e:
-        print(f"[Warn] 並行擷取失敗，改為序列執行: {e}")
-        hist_data = get_history()
-        stock_rt = get_realtime()
-
+        print(f"[Warn] FinMind 歷史股價抓取失敗: {e}")
+        
     if not hist_data: return None
 
-    # 數據縫合
+    # 2. 抓取即時股價 (替換掉 twstock，改用極速 Yahoo API)
     latest_price = 0
     source_name = "歷史"
     update_time = get_taiwan_time_str()
     
     try:
-        if stock_rt and stock_rt['success']:
-            real_price = stock_rt['realtime']['latest_trade_price']
-            rt_time = stock_rt['realtime'].get('latest_trade_time', '')
-            if rt_time: update_time = rt_time 
-            
-            if real_price and real_price != "-":
-                latest_price = float(real_price)
-                source_name = "TWSE"
-            else:
-                bid = stock_rt['realtime']['best_bid_price'][0]
-                ask = stock_rt['realtime']['best_ask_price'][0]
-                if bid and ask and bid != "-" and ask != "-":
-                    latest_price = round((float(bid) + float(ask)) / 2, 2)
-                    source_name = "TWSE(試)"
-    except: pass
+        # 簡單判斷上市上櫃後綴 (.TW 或 .TWO)
+        suffix = ".TW" if len(stock_id) == 4 and stock_id.startswith(('1', '2', '3', '4', '5', '9')) else ".TWO"
+        if stock_id.startswith('00'): suffix = ".TW" # ETF 預設給上市
+        
+        y_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{stock_id}{suffix}"
+        y_res = requests.get(y_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2) # 只要 2 秒拿不到就果斷放棄，絕不卡死
+        if y_res.status_code == 200:
+            y_data = y_res.json()
+            meta = y_data['chart']['result'][0]['meta']
+            if 'regularMarketPrice' in meta:
+                latest_price = float(meta['regularMarketPrice'])
+                source_name = "即時"
+    except Exception as e:
+        pass # Yahoo 失敗就算了，我們還有歷史收盤價當底線
 
     if latest_price == 0:
         latest_price = hist_data[-1]['close']
@@ -309,12 +290,12 @@ def fetch_data_light(stock_id):
     today_str = datetime.now().strftime('%Y-%m-%d')
     hist_last_date = hist_data[-1]['date']
 
-    if hist_last_date != today_str:
+    if hist_last_date != today_str and source_name == "即時":
         closes.append(latest_price)
         highs.append(latest_price)
         lows.append(latest_price)
         volumes.append(0)
-    else:
+    elif hist_last_date == today_str and source_name == "即時":
         closes[-1] = latest_price
 
     ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
@@ -695,9 +676,13 @@ def handle_message(event):
                 eps = future_eps.result(timeout=5)
 
         except Exception as e:
-            print(f"並行錯誤: {e}")
-            if not data: data = fetch_data_light(stock_id) # 補救
-            if not data: return
+            # 🔥 將原本的 e 改為 repr(e)，這樣就算是 TimeoutError 也能印出確切原因
+            print(f"並行錯誤: {repr(e)}")
+            
+            # 🛑 絕對不能再呼叫一次 fetch_data_light！逾時就是逾時了，果斷告訴使用者，避免伺服器被砍！
+            if not data: 
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 網路連線擁塞，讀取股價資料逾時，請稍後再試。"))
+                return
         
         f_str, t_str, af_val, at_val = chips_res
         is_etf = stock_id.startswith("00")
