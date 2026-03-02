@@ -3,7 +3,7 @@ import json
 import time
 import math
 import concurrent.futures
-# import twstock
+import twstock
 from datetime import datetime, timedelta, time as dtime, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -175,8 +175,8 @@ def get_technical_signals(data, chips_val):
     if k > 80: signals.append("📈KD高檔")
     elif k < 20: signals.append("📉KD低檔")
     
-    if chips_val > 1000: signals.append("💰法人大買")
-    elif chips_val < -1000: signals.append("💸法人大賣")
+    if chips_val > 1000: signals.append("💰外資大買")
+    elif chips_val < -1000: signals.append("💸外資大賣")
     
     if close > ma5 > ma20 > ma60: signals.append("🔴三線多頭")
     elif close < ma5 < ma20 < ma60: signals.append("🟢三線空頭")
@@ -239,108 +239,108 @@ def call_gemini_json(prompt, system_instruction=None):
             except: continue
     return None
 
-# --- 🔥 終極優化版：雙引擎報價擷取 (官方 MIS 絕對即時 + Yahoo 歷史均線) ---
+# --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 def fetch_data_light(stock_id):
-    # 1. 快速判斷上市或上櫃 (做為預設查詢頻道)
-    suffix = ".TW" if len(stock_id) == 4 and stock_id.startswith(('1', '2', '3', '4', '5', '9')) else ".TWO"
-    if stock_id.startswith('00'): suffix = ".TW" 
-    market = "tse" if suffix == ".TW" else "otc"
-    
-    # 變數預設值初始化
-    closes, highs, lows = [], [], []
-    ma5 = ma20 = ma60 = res_price = sup_price = 0
-    
-    # ==========================================
-    # 🚀 副引擎：Yahoo API (只抓歷史算均線，容許延遲)
-    # ==========================================
-    y_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{stock_id}{suffix}?range=6mo&interval=1d"
-    try:
-        # 只給 2 秒等待，就算 Yahoo 失敗，我們還是要讓 MIS 吐出現價
-        y_res = requests.get(y_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.0)
-        if y_res.status_code == 200:
-            y_data = y_res.json()
-            result = y_data['chart']['result'][0]
-            indicators = result['indicators']['quote'][0]
-            
-            closes_raw = indicators.get('close', [])
-            highs_raw = indicators.get('high', [])
-            lows_raw = indicators.get('low', [])
-            
-            # 清除偶爾出現的 null 爛資料
-            valid_idx = [i for i, c in enumerate(closes_raw) if c is not None]
-            closes = [closes_raw[i] for i in valid_idx]
-            highs = [highs_raw[i] for i in valid_idx]
-            lows = [lows_raw[i] for i in valid_idx]
-            
-            if len(closes) > 0:
-                ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
-                ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
-                ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
-                res_price, sup_price = calculate_cdp(highs[-1], lows[-1], closes[-1])
-    except Exception as e:
-        print(f"[Warn] Yahoo 歷史解析失敗: {e}")
-        
-    # ==========================================
-    # 🚀 主引擎：官方 MIS API (絕對即時，主導現價與漲跌)
-    # ==========================================
-    m_url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={market}_{stock_id}.tw&json=1&delay=0"
-    try:
-        m_res = requests.get(m_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.5)
-        m_data = m_res.json()
-        
-        # 🛡️ 雙重保險：如果用 tse 找不到，自動換成 otc 再抓一次 (避免分類錯誤)
-        if ("msgArray" not in m_data or len(m_data["msgArray"]) == 0) and market == "tse":
-            m_url_retry = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_{stock_id}.tw&json=1&delay=0"
-            m_res = requests.get(m_url_retry, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.5)
-            m_data = m_res.json()
+    # 定義內部子任務
+    def get_history():
+        token = os.environ.get('FINMIND_TOKEN', '')
+        url_hist = "https://api.finmindtrade.com/api/v4/data"
+        try:
+            start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
+            res = requests.get(url_hist, params={
+                "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
+            }, timeout=4)
+            return res.json().get('data', [])
+        except: return []
 
-        # 真的找不到就放棄
-        if "msgArray" not in m_data or len(m_data["msgArray"]) == 0:
-            return None 
-            
-        info = m_data["msgArray"][0]
-        
-        # 💡 看盤軟體防呆取價邏輯
-        z = info.get("z", "-")  # 最新成交價
-        b = info.get("b", "-")  # 買方出價
-        a = info.get("a", "-")  # 賣方出價
-        y_close = float(info.get("y", "0")) # 昨日收盤價
-        
-        latest_price = 0
-        if z != "-": 
-            latest_price = float(z)
-        elif b != "-" and b != "": 
-            latest_price = float(b.split("_")[0])
-        elif a != "-" and a != "": 
-            latest_price = float(a.split("_")[0])
-        else: 
-            latest_price = y_close
-        
-        # 精準計算漲跌幅 (無誤差)
-        change = latest_price - y_close
-        change_pct = round(change / y_close * 100, 2) if y_close > 0 else 0
-        sign = "+" if change > 0 else ""
-        color = "#D32F2F" if change >= 0 else "#2E7D32" # 台灣股市：紅漲綠跌
-        
-        update_time = info.get("t", "未知")
-        open_price = float(info.get("o", latest_price)) if info.get("o", "-") != "-" else latest_price
+    def get_realtime():
+        try:
+            return twstock.realtime.get(stock_id)
+        except: return None
 
-        # 組裝成 app.py 需要的字典格式
-        return {
-            "code": stock_id, 
-            "close": round(latest_price, 2), 
-            "update_time": f"{update_time} (即時)",
-            "resistance": res_price, "support": sup_price,
-            "ma5": ma5, "ma20": ma20, "ma60": ma60,
-            "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
-            "color": color,
-            "raw_closes": closes, "raw_highs": highs, "raw_lows": lows,
-            "open": open_price
-        }
-        
+    # 並行執行
+    hist_data = []
+    stock_rt = None
+    try:
+        # max_workers=2 為 Zeabur 安全值
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_hist = executor.submit(get_history)
+            future_rt = executor.submit(get_realtime)
+            
+            hist_data = future_hist.result(timeout=5)
+            stock_rt = future_rt.result(timeout=5)
     except Exception as e:
-        print(f"[Warn] 官方 MIS 解析失敗: {e}")
-        return None
+        print(f"[Warn] 並行擷取失敗，改為序列執行: {e}")
+        hist_data = get_history()
+        stock_rt = get_realtime()
+
+    if not hist_data: return None
+
+    # 數據縫合
+    latest_price = 0
+    source_name = "歷史"
+    update_time = get_taiwan_time_str()
+    
+    try:
+        if stock_rt and stock_rt['success']:
+            real_price = stock_rt['realtime']['latest_trade_price']
+            rt_time = stock_rt['realtime'].get('latest_trade_time', '')
+            if rt_time: update_time = rt_time 
+            
+            if real_price and real_price != "-":
+                latest_price = float(real_price)
+                source_name = "TWSE"
+            else:
+                bid = stock_rt['realtime']['best_bid_price'][0]
+                ask = stock_rt['realtime']['best_ask_price'][0]
+                if bid and ask and bid != "-" and ask != "-":
+                    latest_price = round((float(bid) + float(ask)) / 2, 2)
+                    source_name = "TWSE(試)"
+    except: pass
+
+    if latest_price == 0:
+        latest_price = hist_data[-1]['close']
+
+    closes = [d['close'] for d in hist_data]
+    highs = [d['max'] for d in hist_data]
+    lows = [d['min'] for d in hist_data]
+    volumes = [d['Trading_Volume'] for d in hist_data]
+
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    hist_last_date = hist_data[-1]['date']
+
+    if hist_last_date != today_str:
+        closes.append(latest_price)
+        highs.append(latest_price)
+        lows.append(latest_price)
+        volumes.append(0)
+    else:
+        closes[-1] = latest_price
+
+    ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
+    ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
+    ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
+
+    prev_close = closes[-2] if len(closes) > 1 else latest_price
+    change = latest_price - prev_close
+    change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
+    sign = "+" if change > 0 else ""
+    color = "#D32F2F" if change >= 0 else "#2E7D32"
+
+    last_day = hist_data[-1]
+    res_price, sup_price = calculate_cdp(last_day['max'], last_day['min'], last_day['close'])
+
+    return {
+        "code": stock_id, 
+        "close": latest_price, 
+        "update_time": f"{update_time} ({source_name})",
+        "resistance": res_price, "support": sup_price,
+        "ma5": ma5, "ma20": ma20, "ma60": ma60,
+        "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
+        "color": color,
+        "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
+        "open": hist_data[-1]['open']
+    }
 
 def fetch_chips_accumulate(stock_id):
     token = os.environ.get('FINMIND_TOKEN', '')
@@ -427,7 +427,7 @@ def check_stock_worker_turbo(item):
         tag = item_data.get('tag', '強勢股')
         
         # 3. 取得技術指標
-        signals = get_technical_signals(data, 1001 if buy_value > 0 else 0)
+        signals = get_technical_signals(data, 1000 if buy_value > 0 else 0)
         signal_str = " | ".join(signals)
 
         # 格式化 YoY 顯示字串
@@ -695,13 +695,9 @@ def handle_message(event):
                 eps = future_eps.result(timeout=5)
 
         except Exception as e:
-            # 🔥 將原本的 e 改為 repr(e)，這樣就算是 TimeoutError 也能印出確切原因
-            print(f"並行錯誤: {repr(e)}")
-            
-            # 🛑 絕對不能再呼叫一次 fetch_data_light！逾時就是逾時了，果斷告訴使用者，避免伺服器被砍！
-            if not data: 
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 無法取得 {stock_id} 的股價資料，可能是網路壅塞或代號錯誤，請稍後再試。"))
-                return
+            print(f"並行錯誤: {e}")
+            if not data: data = fetch_data_light(stock_id) # 補救
+            if not data: return
         
         f_str, t_str, af_val, at_val = chips_res
         is_etf = stock_id.startswith("00")
