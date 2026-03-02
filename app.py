@@ -175,8 +175,8 @@ def get_technical_signals(data, chips_val):
     if k > 80: signals.append("📈KD高檔")
     elif k < 20: signals.append("📉KD低檔")
     
-    if chips_val > 1000: signals.append("💰外資大買")
-    elif chips_val < -1000: signals.append("💸外資大賣")
+    if chips_val > 1000: signals.append("💰法人大買")
+    elif chips_val < -1000: signals.append("💸法人大賣")
     
     if close > ma5 > ma20 > ma60: signals.append("🔴三線多頭")
     elif close < ma5 < ma20 < ma60: signals.append("🟢三線空頭")
@@ -427,7 +427,7 @@ def check_stock_worker_turbo(item):
         tag = item_data.get('tag', '強勢股')
         
         # 3. 取得技術指標
-        signals = get_technical_signals(data, 1000 if buy_value > 0 else 0)
+        signals = get_technical_signals(data, 1001 if buy_value > 0 else 0)
         signal_str = " | ".join(signals)
 
         # 格式化 YoY 顯示字串
