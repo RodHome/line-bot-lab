@@ -239,83 +239,107 @@ def call_gemini_json(prompt, system_instruction=None):
             except: continue
     return None
 
-# --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
-# --- 🔥 優化版：數據擷取 (移除了會卡死的 twstock，改用極速 API 與防呆機制) ---
-# --- 🔥 終極優化版：純 Yahoo 數據擷取 (同時搞定歷史與即時，極速不卡死) ---
+# --- 🔥 終極優化版：雙引擎報價擷取 (官方 MIS 絕對即時 + Yahoo 歷史均線) ---
 def fetch_data_light(stock_id):
-    # 判斷上市或上櫃 (給 Yahoo 的專屬後綴)
+    # 1. 快速判斷上市或上櫃 (做為預設查詢頻道)
     suffix = ".TW" if len(stock_id) == 4 and stock_id.startswith(('1', '2', '3', '4', '5', '9')) else ".TWO"
     if stock_id.startswith('00'): suffix = ".TW" 
+    market = "tse" if suffix == ".TW" else "otc"
     
-    # 抓取過去半年(6mo)的日K線資料，一次解決歷史與即時報價！
+    # 變數預設值初始化
+    closes, highs, lows = [], [], []
+    ma5 = ma20 = ma60 = res_price = sup_price = 0
+    
+    # ==========================================
+    # 🚀 副引擎：Yahoo API (只抓歷史算均線，容許延遲)
+    # ==========================================
     y_url = f"https://query1.finance.yahoo.com/v8/finance/chart/{stock_id}{suffix}?range=6mo&interval=1d"
-    
     try:
-        # 給予 4 秒的極限等待時間
-        y_res = requests.get(y_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=4)
-        if y_res.status_code != 200: 
-            print(f"[Warn] Yahoo 回應異常: {y_res.status_code}")
-            return None
+        # 只給 2 秒等待，就算 Yahoo 失敗，我們還是要讓 MIS 吐出現價
+        y_res = requests.get(y_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.0)
+        if y_res.status_code == 200:
+            y_data = y_res.json()
+            result = y_data['chart']['result'][0]
+            indicators = result['indicators']['quote'][0]
             
-        y_data = y_res.json()
-        result = y_data['chart']['result'][0]
-        meta = result['meta']
-        indicators = result['indicators']['quote'][0]
+            closes_raw = indicators.get('close', [])
+            highs_raw = indicators.get('high', [])
+            lows_raw = indicators.get('low', [])
+            
+            # 清除偶爾出現的 null 爛資料
+            valid_idx = [i for i, c in enumerate(closes_raw) if c is not None]
+            closes = [closes_raw[i] for i in valid_idx]
+            highs = [highs_raw[i] for i in valid_idx]
+            lows = [lows_raw[i] for i in valid_idx]
+            
+            if len(closes) > 0:
+                ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
+                ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
+                ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
+                res_price, sup_price = calculate_cdp(highs[-1], lows[-1], closes[-1])
+    except Exception as e:
+        print(f"[Warn] Yahoo 歷史解析失敗: {e}")
         
-        # 取得陣列
-        closes = indicators.get('close', [])
-        highs = indicators.get('high', [])
-        lows = indicators.get('low', [])
-        opens = indicators.get('open', [])
-        volumes = indicators.get('volume', [])
+    # ==========================================
+    # 🚀 主引擎：官方 MIS API (絕對即時，主導現價與漲跌)
+    # ==========================================
+    m_url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={market}_{stock_id}.tw&json=1&delay=0"
+    try:
+        m_res = requests.get(m_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.5)
+        m_data = m_res.json()
         
-        # 🛡️ 防呆機制：清除 Yahoo 偶爾會有的 null 爛資料 (例如暫停交易日)
-        valid_idx = [i for i, c in enumerate(closes) if c is not None]
-        if not valid_idx: return None
-        
-        closes = [closes[i] for i in valid_idx]
-        highs = [highs[i] for i in valid_idx]
-        lows = [lows[i] for i in valid_idx]
-        opens = [opens[i] for i in valid_idx]
-        volumes = [volumes[i] for i in valid_idx]
-        
-        latest_price = round(closes[-1], 2)
-        prev_close = round(closes[-2], 2) if len(closes) > 1 else latest_price
-        
-        # 計算漲跌
-        change = latest_price - prev_close
-        change_pct = round(change / prev_close * 100, 2) if prev_close > 0 else 0
-        sign = "+" if change > 0 else ""
-        color = "#D32F2F" if change >= 0 else "#2E7D32"
-        
-        # 計算均線
-        ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
-        ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
-        ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
-        
-        # 計算支撐壓力 (CDP)
-        res_price, sup_price = calculate_cdp(highs[-1], lows[-1], closes[-1])
-        
-        # 取得更新時間
-        update_time = get_taiwan_time_str()
-        if 'regularMarketTime' in meta:
-            utc_time = datetime.fromtimestamp(meta['regularMarketTime'], timezone.utc)
-            update_time = (utc_time + timedelta(hours=8)).strftime('%H:%M:%S')
+        # 🛡️ 雙重保險：如果用 tse 找不到，自動換成 otc 再抓一次 (避免分類錯誤)
+        if ("msgArray" not in m_data or len(m_data["msgArray"]) == 0) and market == "tse":
+            m_url_retry = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_{stock_id}.tw&json=1&delay=0"
+            m_res = requests.get(m_url_retry, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2.5)
+            m_data = m_res.json()
 
+        # 真的找不到就放棄
+        if "msgArray" not in m_data or len(m_data["msgArray"]) == 0:
+            return None 
+            
+        info = m_data["msgArray"][0]
+        
+        # 💡 看盤軟體防呆取價邏輯
+        z = info.get("z", "-")  # 最新成交價
+        b = info.get("b", "-")  # 買方出價
+        a = info.get("a", "-")  # 賣方出價
+        y_close = float(info.get("y", "0")) # 昨日收盤價
+        
+        latest_price = 0
+        if z != "-": 
+            latest_price = float(z)
+        elif b != "-" and b != "": 
+            latest_price = float(b.split("_")[0])
+        elif a != "-" and a != "": 
+            latest_price = float(a.split("_")[0])
+        else: 
+            latest_price = y_close
+        
+        # 精準計算漲跌幅 (無誤差)
+        change = latest_price - y_close
+        change_pct = round(change / y_close * 100, 2) if y_close > 0 else 0
+        sign = "+" if change > 0 else ""
+        color = "#D32F2F" if change >= 0 else "#2E7D32" # 台灣股市：紅漲綠跌
+        
+        update_time = info.get("t", "未知")
+        open_price = float(info.get("o", latest_price)) if info.get("o", "-") != "-" else latest_price
+
+        # 組裝成 app.py 需要的字典格式
         return {
             "code": stock_id, 
-            "close": latest_price, 
-            "update_time": f"{update_time} (Yahoo)",
+            "close": round(latest_price, 2), 
+            "update_time": f"{update_time} (即時)",
             "resistance": res_price, "support": sup_price,
             "ma5": ma5, "ma20": ma20, "ma60": ma60,
             "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
             "color": color,
-            "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
-            "open": opens[-1]
+            "raw_closes": closes, "raw_highs": highs, "raw_lows": lows,
+            "open": open_price
         }
         
     except Exception as e:
-        print(f"[Warn] Yahoo 股價解析失敗: {e}")
+        print(f"[Warn] 官方 MIS 解析失敗: {e}")
         return None
 
 def fetch_chips_accumulate(stock_id):
