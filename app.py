@@ -474,8 +474,8 @@ def scan_recommendations_turbo(target_sector=None):
     else:
         # 如果沒有指定產業
         if pool_source == twse_list:
-            # 直接取推薦池算好、最強的前 8 檔
-            candidates_pool = twse_list[:8] 
+            # 🔥 升級盲抽機制：從 50 檔強勢母池中，每次隨機抽出 8 檔候選！
+            candidates_pool = random.sample(twse_list, min(8, len(twse_list)))
         else:
             # 備用池隨機抽 8 檔
             candidates_pool = random.sample(pool_source, min(8, len(pool_source)))
