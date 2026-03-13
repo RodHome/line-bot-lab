@@ -4,3 +4,4 @@ requests
 twstock
 gunicorn
 lxml
+yfinance
