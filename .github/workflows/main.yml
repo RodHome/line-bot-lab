@@ -18,10 +18,10 @@ jobs:
     
     steps:
     - name: Checkout code (下載程式碼)
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python (安裝 Python)
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
 
