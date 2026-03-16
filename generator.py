@@ -627,17 +627,21 @@ def generate_left_side_value():
             })
             print(f"   🏆 終極入選: {code} (法人 5 日內買超 {buy_days} 天)")
 
-    # ---------------------------------------------------------
-    # 📦 結算與獨立存檔
+   # ---------------------------------------------------------
+    # 📦 結算與獨立強制存檔 (修復「殭屍舊檔案」問題)
     # ---------------------------------------------------------
     if final_list:
-        # 依照負乖離率由深到淺排序 (越便宜越前面)
+        # 依照負乖離率由深到淺排序
         final_list.sort(key=lambda x: float(x['bias60'].replace('%', '')))
-        with open('left_side_value.json', 'w', encoding='utf-8') as f:
-            json.dump(final_list, f, ensure_ascii=False, indent=4)
-        print(f"💾 任務完成！已儲存 left_side_value.json (共 {len(final_list)} 檔無敵黃金坑達標)")
+        print(f"✅ 任務完成！共 {len(final_list)} 檔無敵黃金坑達標。")
     else:
-        print("⚠️ 本次掃描無任何股票通過嚴格的三層漏斗 (市場可能無超跌錯殺股)。")
+        print("⚠️ 本次掃描無股票通過三層漏斗 (名單為空)。")
+
+    # 🔥 關鍵防呆：無論名單是不是空的，都「強制覆寫」檔案！
+    # 這樣一來，如果今天沒標的，檔案裡面就會是一個乾淨的空陣列 []
+    with open('left_side_value.json', 'w', encoding='utf-8') as f:
+        json.dump(final_list, f, ensure_ascii=False, indent=4)
+        print("💾 已強制更新 left_side_value.json (確保 Line Bot 不會讀到過期資料)")
 
 # ========================================================
 if __name__ == "__main__":
