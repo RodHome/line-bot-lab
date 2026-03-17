@@ -6,6 +6,7 @@ import os
 import time
 from datetime import datetime, timedelta, timezone
 from io import StringIO
+import yfinance as yf
 
 # ================= 新增：FinMind 查詢區域 =================
 FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '')
@@ -673,7 +674,7 @@ def generate_deposit_stocks():
     
     # 📝 你專屬的存股口袋名單 (未來要新增/刪除，只需改這行！)
     DEPOSIT_WATCHLIST = [
-        "2886", "2892", "5880", "2880","2890" # 官股金控
+        "2886", "2892", "5880", "2880","2890", # 官股金控
         "2881", "2882", "2891", "2884", # 民營金控
         "2330",                         # 護國神山
         "0050", "0056", "00878", "00713", "00919","00881" # 國民 ETF
