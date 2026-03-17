@@ -609,10 +609,12 @@ def generate_left_side_value():
 
             close_today = closes[-1]
             ma60 = sum(closes[-60:]) / 60
-            ma5 = sum(closes[-5:]) / 5  # 🔥 新增週線，用來判斷黃金交叉
+            ma24 = sum(closes[-24:]) / 24 # 🔥 新增月線
+            ma6 = sum(closes[-6:]) / 6    # 🔥 新增週線
             
             bias60 = (close_today - ma60) / ma60
-            bias5 = (close_today - ma5) / ma5 
+            bias24 = (close_today - ma24) / ma24
+            bias6 = (close_today - ma6) / ma6
 
             if bias60 >= -0.03: continue
             
@@ -631,7 +633,8 @@ def generate_left_side_value():
 
             # 通過第二層考驗，把數據打包給第三層算分
             item['bias60'] = bias60
-            item['bias5'] = bias5
+            item['bias24'] = bias24 # 傳遞給第三層
+            item['bias6'] = bias6   # 傳遞給第三層
             item['vol_ratio'] = vol_ratio
             item['amplitude'] = amplitude
             item['ma60'] = ma60
@@ -682,10 +685,10 @@ def generate_left_side_value():
             elif -5.0 < bias_pct <= -3.0: score += 5
 
             # 🎯 判斷趨勢狀態 (Trend Status)
-            if item['bias5'] > 0:
-                trend_status = "⭐ 底部起漲 (初次進場訊號)"
+            if item['bias6'] > 0:
+                trend_status = "⭐ 底部起漲 (乖離6已翻正)"
             else:
-                trend_status = "⏳ 築底量縮中 (分批試單)"
+                trend_status = "⏳ 築底量縮中 (乖離6仍為負)"
                 
             # 計算建議進場價 (取今日收盤與季線的折衷，或是保守取今日收盤往下抓 1%)
             entry_price = round(item['price'] * 0.99, 2)
@@ -700,6 +703,8 @@ def generate_left_side_value():
                 "trend_status": trend_status,
                 "entry_price": entry_price,
                 "bias60": f"{bias_pct:.1f}%",
+                "bias24": f"{item['bias24']*100:.1f}%", # 🔥 新增
+                "bias6": f"{item['bias6']*100:.1f}%",   # 🔥 新增
                 "vol_ratio": f"{item['vol_ratio']*100:.1f}%",
                 "eps": eps,
                 "yield_rate": yield_rate,
