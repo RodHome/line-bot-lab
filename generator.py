@@ -79,6 +79,58 @@ def get_finmind_revenue_yoy(code):
     except Exception as e:
         default_res["debug_info"]["status"] = f"Error: {str(e)}"
         return default_res
+#==========3/17==================================
+# 🔥 [為左側雷達新增] 專門抓取近 N 日的法人買賣超陣列
+def get_finmind_chips_history(code, days=3):
+    start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    url = "https://api.finmindtrade.com/api/v4/data"
+    history = []
+    try:
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
+        data = res.json().get('data', [])
+        if not data: return [0]*days
+        
+        unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
+        target_dates = unique_dates[:days]
+        target_dates.reverse() # 把舊的排前面，新的排後面
+        
+        for t_date in target_dates:
+            daily_net = 0
+            for row in data:
+                if row['date'] == t_date:
+                    val = (row['buy'] - row['sell']) // 1000
+                    if row['name'] in ['Foreign_Investor', 'Investment_Trust']:
+                        daily_net += val
+            history.append(daily_net)
+        return history
+    except: return [0]*days
+
+# 🔥 [為左側雷達新增] 查詢單季 EPS 與 殖利率
+def get_finmind_fundamentals(code, current_price):
+    eps_latest = 0.0
+    yield_rate = 0.0
+    start = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
+    url = "https://api.finmindtrade.com/api/v4/data"
+    
+    # 抓 EPS
+    try:
+        res = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=5)
+        data = res.json().get('data', [])
+        eps_data = [d for d in data if d['type'] == 'EPS']
+        if eps_data: eps_latest = float(eps_data[-1]['value'])
+    except: pass
+    
+    # 抓殖利率 (近一年股息 / 現價)
+    try:
+        res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=5)
+        data_div = res_div.json().get('data', [])
+        total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data_div])
+        if total_dividend > 0 and current_price > 0:
+            yield_rate = round((total_dividend / current_price) * 100, 2)
+    except: pass
+    
+    return eps_latest, yield_rate
+#==========3/17==================================
 # ========================================================
 
 # --- 功能 1: 抓取所有股票代號與產業分類 (精準過濾版) ---
