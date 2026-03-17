@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🤖 [版本號] v17.3 
-BOT_VERSION = "v17.3 (隨機推薦)"
+# 🤖 [版本號] v18.0 
+BOT_VERSION = "v18.0 (多策略雷達版)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -531,7 +531,30 @@ def handle_message(event):
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=logic_text))
         return
-    
+    # 🔥 [新增功能] 左側黃金坑邏輯說明
+    if msg in ["左側邏輯", "左側說明", "左側條件", "黃金坑邏輯"]:
+        left_logic_text = (
+            "🤖【AI 左側雷達：黃金坑篩選邏輯】\n"
+            "—— 嚴守「不接刀、只撿鑽石」的逆勢價值投資 ——\n"
+            "每日盤後從全市場尋找「被錯殺、量縮打底、法人偷吃貨」的潛伏股：\n\n"
+            "1️⃣ 第一關：流動性降維 (尋找無人問津區)\n"
+            " ‧ 股價 > 10 元，剔除仙股風險。\n"
+            " ‧ 成交額 1000萬~3億：避開當沖熱門，鎖定冷門潛伏區。\n\n"
+            "2️⃣ 第二關：技術面尋底 (確認賣壓竭盡)\n"
+            " ‧ 跌深委屈：季線負乖離達 -3% 以下 (均線引力空間大)。\n"
+            " ‧ 量縮窒息：今日成交量低於 20日均量 80% (浮額清洗完畢)。\n"
+            " ‧ 低波築底：近 10 日振幅 < 12% (底部橫盤不再劇烈下殺)。\n"
+            " ‧ 尚未起漲：近 5 日漲幅 < 5% (買在安全起漲點前)。\n\n"
+            "3️⃣ 第三關：籌碼與基本面定錨 (終極防飛刀)\n"
+            " ‧ 獲利底線：最新單季 EPS > 0 (公司必須賺錢，拒絕價值陷阱)。\n"
+            " ‧ 聰明錢進駐：近 5 日內「外資或投信」買超 >= 3 天。\n"
+            " ‧ 轉機特例：法人連買 4 天，無視短期營收衰退，視為強勢轉機股。\n\n"
+            "🎯【獨家信心評分系統】\n"
+            "符合上述條件後，系統會依據「法人連買天數」、「量縮窒息程度 (<50%)」、「負乖離深度」給予 1~100 分綜合評分，分數越高勝率越大！"
+        )
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=left_logic_text))
+        return
+        
     # [功能 1] 推薦選股
     if msg.startswith("推薦") or msg.startswith("選股"):
         parts = msg.split()
@@ -631,7 +654,58 @@ def handle_message(event):
         
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         return
-        
+    # ================3/17==========================
+    # 🌟 新增功能 3：召喚【左側黃金坑】
+    # ==========================================
+    if msg == "左側":
+        try:
+            with open('left_side_value.json', 'r', encoding='utf-8') as f:
+                left_data = json.load(f)
+            
+            if not left_data:
+                reply_text = "🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"
+            else:
+                reply_text = "📊 【每日左側黃金坑掃描報告】\n" + "═" * 18 + "\n"
+                # 只取分數最高的前 5 名
+                for item in left_data[:5]:
+                    reply_text += f"🔥 推薦首選：{item['name']} ({item['code']})\n"
+                    reply_text += f"🌟 信心評分：{item.get('score', 'N/A')} 分\n"
+                    reply_text += f"📍 當前位置：季線負乖離 {item['bias60']}\n"
+                    reply_text += f"📊 籌碼動能：法人連買 {item.get('buy_days', 'N/A')} 天 (量縮至 {item.get('vol_ratio', 'N/A')})\n"
+                    reply_text += f"💡 操作建議：\n【{item.get('trend_status', '築底中')}】\n建議 {item.get('entry_price', 'N/A')} 元附近分批佈局。\n"
+                    reply_text += "─" * 18 + "\n"
+                
+                if len(left_data) > 5:
+                    reply_text += f"*(還有 {len(left_data)-5} 檔符合條件，僅顯示前五名最高分)*\n"
+                    
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+        except Exception as e:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 左側資料讀取失敗，請確認今日爬蟲是否已執行。"))
+        return
+
+    # ==========================================
+    # 🌟 新增功能 4：召喚【存股加碼雷達】
+    # ==========================================
+    if msg in ["存股", "金融股"]:
+        try:
+            with open('deposit_stocks.json', 'r', encoding='utf-8') as f:
+                deposit_data = json.load(f)
+            
+            if not deposit_data:
+                reply_text = "⚠️ 目前無存股名單資料，請稍後再試。"
+            else:
+                reply_text = "🏦 【存股打折加碼雷達】\n" + "═" * 18 + "\n"
+                for item in deposit_data:
+                    reply_text += f"{item['signal']} {item['name']} ({item['code']})\n"
+                    reply_text += f"現價 {item['price']} | 乖離率 {item['bias_20']}%\n"
+                    reply_text += f"👉 {item['action']}\n"
+                    reply_text += "─" * 18 + "\n"
+                    
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+        except Exception as e:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 存股資料讀取失敗，請確認今日爬蟲是否已執行。"))
+        return    
+    #=================3/17==========================
     # [功能 2] 個股/ETF 診斷 (優化版)
     stock_id = get_stock_id(msg)
     user_cost = None
@@ -639,6 +713,7 @@ def handle_message(event):
     if cost_match: user_cost = float(cost_match.group(2))
 
     # 🔥 [修改處 3] 防呆引導：攔截無效輸入，回傳 Flex 導覽選單
+    # 🔥 防呆引導：攔截無效輸入，回傳 Flex 導覽選單
     if not stock_id:
         welcome_flex = {
             "type": "bubble",
@@ -646,22 +721,24 @@ def handle_message(event):
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
                     {"type": "text", "text": "⚠️ 找不到您輸入的代號或指令喔！", "weight": "bold", "color": "#D32F2F", "wrap": True},
-                    {"type": "text", "text": "💡 【程式高手 Bot 使用指南】\n請直接輸入股票名稱/代號，或點擊下方按鈕探索功能：", "wrap": True, "size": "sm", "color": "#666666"},
+                    {"type": "text", "text": "💡 【程式高手 Bot 使用指南】\n請直接輸入股票名稱/代號，或點擊下方按鈕探索三大策略：", "wrap": True, "size": "sm", "color": "#666666"},
                     
-                    # 第一顆按鈕：全市場飆股推薦
-                    {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🚀 今日推薦", "text": "推薦"}, "margin": "md"},
+                    # --- 三大主力策略區 (用顏色區分) ---
+                    {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🚀 右側動能：今日推薦", "text": "推薦"}, "margin": "md"},
+                    {"type": "button", "style": "primary", "color": "#00897B", "action": {"type": "message", "label": "🛡️ 左側價值：超跌黃金坑", "text": "左側"}, "margin": "sm"},
+                    {"type": "button", "style": "primary", "color": "#8E24AA", "action": {"type": "message", "label": "🏦 存股雷達：打折加碼區", "text": "存股"}, "margin": "sm"},
                     
-                    # 第二顆按鈕：(新增) 單純詢問個股，不帶成本
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 個股評估", "text": "台積電"}},
-                    
-                    # 第三顆按鈕：帶有成本的持股健檢
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 持股診斷", "text": "2330 成本 1800"}},
-                    
-                    # 第四顆按鈕：隔日沖名單查詢
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖券商名單", "text": "隔日沖"}},
+                    # --- 個股與進階查詢區 (灰色次要按鈕) ---
+                    {"type": "separator", "margin": "lg"},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 個股評估 (輸入代號)", "text": "台積電"}, "margin": "md"},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 持股診斷 (帶成本)", "text": "2330 成本 1800"}, "margin": "sm"},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖券商名單", "text": "隔日沖"}, "margin": "sm"},
 
-                    # 🔥 [新增] 第 5 顆按鈕：選股邏輯說明
-                    {"type": "button", "style": "secondary", "color": "#F57C00", "action": {"type": "message", "label": "🧠 AI 選股邏輯說明", "text": "選股邏輯"}}
+                    # --- 說明區 (雙按鈕並排) ---
+                    {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "md", "contents": [
+                        {"type": "button", "style": "secondary", "color": "#1E88E5", "action": {"type": "message", "label": "🧠 右側邏輯", "text": "右側邏輯"}},
+                        {"type": "button", "style": "secondary", "color": "#00897B", "action": {"type": "message", "label": "🧠 左側邏輯", "text": "左側邏輯"}}
+                    ]}
                 ]
             }
         }
