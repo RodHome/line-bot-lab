@@ -546,7 +546,7 @@ def generate_left_side_value():
                         turnover = float(row[idx_turnover].replace(',', ''))
                         price = float(row[idx_price].replace(',', ''))
                         # 🔥 條件：成交金額 5000萬 ~ 3億，且股價 > 10元
-                        if 50000000 <= turnover <= 300000000 and price >= 10:
+                         <= turnover <= 300000000 and price >= 10:
                             layer1_candidates.append({"code": code, "price": price, "market": "TW"})
                     except: pass
     except Exception as e:
@@ -578,8 +578,8 @@ def generate_left_side_value():
                         if price_str in ['----', '--', '除息', '除權'] or turnover_str in ['--', '']: continue
                         turnover = float(turnover_str)
                         price = float(price_str)
-                        # 🔥 條件：成交金額 5000萬 ~ 3億，且股價 > 10元
-                        if 50000000 <= turnover <= 300000000 and price >= 10:
+                        # 🔥 條件：成交金額 1000萬 ~ 3億，且股價 > 10元
+                        if 10000000 <= turnover <= 300000000 and price >= 10:
                             layer1_candidates.append({"code": code, "price": price, "market": "TWO"})
                     except: pass
                 break
@@ -661,10 +661,10 @@ def generate_left_side_value():
     print(f"   [黑洞分析] 無K線資料: {fail_nodata}檔 | 程式報錯: {fail_error}檔")
     print(f"   [邏輯淘汰] 乖離不深: {fail_bias}檔 | 量沒縮: {fail_vol}檔 | 波動仍大: {fail_amp}檔 | 已起漲: {fail_mom}檔")
 
+   # ---------------------------------------------------------
+    # 🏦 第三層：聰明錢與基本面定錨 (優化版：釋放中小型轉機股)
     # ---------------------------------------------------------
-    # 🏦 第三層：聰明錢與基本面定錨 (FinMind 深查)
-    # ---------------------------------------------------------
-    print("🏦 [第三層] 啟動 FinMind 查核：法人連買、EPS>0、營收 YoY>0...")
+    print("🏦 [第三層] 啟動 FinMind 查核：法人連買、EPS>0、轉機股探測...")
     final_list = []
     
     for item in layer2_candidates:
@@ -672,18 +672,24 @@ def generate_left_side_value():
         
         # 1. 查 EPS 與 殖利率
         eps, yield_rate = get_finmind_fundamentals(code, item['price'])
-        if eps <= 0: continue # 🔴 淘汰：近一季虧損股
+        if eps <= 0: continue # 🔴 淘汰：近一季虧損股 (死守底線：公司不能賠錢)
         
         # 2. 查營收 YoY
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
-        if yoy <= 0: continue # 🔴 淘汰：營收衰退股
         
-        # 3. 查法人籌碼 (近 5 天內，有 3 天以上買超)
+        # 3. 查法人籌碼 (近 5 天內，有幾天買超)
         chips_history = get_finmind_chips_history(code, days=5)
         buy_days = sum(1 for x in chips_history if x > 0)
         
-        if buy_days >= 3:
+        # 🔥 核心優化：聰明錢轉機股邏輯
+        passed = False
+        if buy_days >= 4:
+            passed = True # 法人瘋狂吃貨(5天買4天)，強烈背書，無視目前營收表現！
+        elif buy_days == 3 and yoy > -15.0:
+            passed = True # 法人溫和吃貨(5天買3天)，容許營收小幅衰退(等待轉機)
+            
+        if passed:
             # 🏆 完美通過三層漏斗！
             final_list.append({
                 "date": datetime.now(timezone.utc).strftime('%Y-%m-%d'),
@@ -697,9 +703,23 @@ def generate_left_side_value():
                 "yield_rate": yield_rate,
                 "yoy": yoy,
                 "buy_days_in_5": buy_days,
-                "tag": "左側黃金坑"
+                "tag": "轉機潛伏股" if yoy <= 0 else "左側黃金坑" # 依照營收給予不同標籤
             })
-            print(f"   🏆 終極入選: {code} (法人 5 日內買超 {buy_days} 天)")
+            print(f"   🏆 終極入選: {code} (法人 5 日內買超 {buy_days} 天, YoY: {yoy}%)")
+
+    # ---------------------------------------------------------
+    # 📦 結算與獨立強制存檔 (修復「殭屍舊檔案」問題)
+    # ---------------------------------------------------------
+    if final_list:
+        # 依照負乖離率由深到淺排序
+        final_list.sort(key=lambda x: float(x['bias60'].replace('%', '')))
+        print(f"✅ 任務完成！共 {len(final_list)} 檔無敵黃金坑達標。")
+    else:
+        print("⚠️ 本次掃描無股票通過三層漏斗 (名單為空)。")
+
+    with open('left_side_value.json', 'w', encoding='utf-8') as f:
+        json.dump(final_list, f, ensure_ascii=False, indent=4)
+        print("💾 已強制更新 left_side_value.json (確保 Line Bot 不會讀到過期資料)")
 
    # ---------------------------------------------------------
     # 📦 結算與獨立強制存檔 (修復「殭屍舊檔案」問題)
