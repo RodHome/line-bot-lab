@@ -537,16 +537,20 @@ def generate_left_side_value():
     print(f"✅ 第一層降維完畢，全市場 2000 檔中，共 {len(layer1_candidates)} 檔符合流動性門檻，進入第二層。")
 
     # ---------------------------------------------------------
-    # 📉 第二層：位階與動能過濾 (yfinance 抓 60 天 K 線)
+    # 📉 第二層：位階與動能過濾 (yfinance 抓 K 線) - 修正版
     # ---------------------------------------------------------
     print("📉 [第二層] 啟動 yfinance 計算：尋找負乖離、量縮窒息、低波築底...")
     layer2_candidates = []
     
+    # 準備幾個計數器，幫我們抓出是哪個條件殺死最多股票
+    fail_bias, fail_vol, fail_amp, fail_mom = 0, 0, 0, 0
+    
     for item in layer1_candidates:
         code = item['code']
         try:
+            # 🔥 修復 1：改抓 4 個月，保證絕對能湊滿 60 個實際交易日！
             ticker = yf.Ticker(f"{code}.{item['market']}")
-            df = ticker.history(period="3mo") # 抓約 60 個交易日
+            df = ticker.history(period="4mo") 
             if len(df) < 60: continue
 
             closes = df['Close'].tolist()
@@ -558,34 +562,43 @@ def generate_left_side_value():
             ma60 = sum(closes[-60:]) / 60
             bias60 = (close_today - ma60) / ma60
 
-            # 🛑 條件 A: 季線負乖離 (必須小於 -5%)
-            if bias60 >= -0.05: continue
+            # 🛑 條件 A: 季線負乖離 (放寬到 -3% 以上，先求有再求深)
+            if bias60 >= -0.03: 
+                fail_bias += 1
+                continue
 
-            # 🛑 條件 B: 量縮窒息 (今日成交量 < 20日均量 * 0.6)
+            # 🛑 條件 B: 量縮窒息 (放寬：今日成交量 < 20日均量的 80%)
             vol_today = volumes[-1]
             ma20_vol = sum(volumes[-20:]) / 20
-            if vol_today >= ma20_vol * 0.6: continue
+            if vol_today >= ma20_vol * 0.8: 
+                fail_vol += 1
+                continue
 
-            # 🛑 條件 C: 低波震盪 (近 10 日高低點振幅 < 5%，代表跌勢趨緩築底中)
+            # 🛑 條件 C: 低波築底 (修復矛盾：近 10 日振幅放寬到 12% 以內即可)
             recent_10_high = max(highs[-10:])
             recent_10_low = min(lows[-10:])
             amplitude = (recent_10_high - recent_10_low) / recent_10_low
-            if amplitude >= 0.05: continue
+            if amplitude >= 0.12: 
+                fail_amp += 1
+                continue
 
-            # 🛑 條件 D: 籌碼逆向發動前 (近 5 日股價漲幅 < 3%)
-            if (close_today - closes[-5]) / closes[-5] >= 0.03: continue
+            # 🛑 條件 D: 近 5 日股價漲幅 < 5% (不要已經起漲太多的)
+            if (close_today - closes[-5]) / closes[-5] >= 0.05: 
+                fail_mom += 1
+                continue
 
             # 通過第二層嚴苛考驗！
             item['bias60'] = bias60
             item['amplitude'] = amplitude
             item['ma60'] = ma60
             layer2_candidates.append(item)
-            print(f"   🎯 鎖定符合技術特徵標的: {code}")
+            print(f"   🎯 鎖定符合技術特徵標的: {code} (乖離: {bias60*100:.1f}%)")
             
         except Exception: pass
         time.sleep(0.1) # 保護 yfinance 不被鎖 IP
 
     print(f"✅ 第二層過濾完畢，剩餘 {len(layer2_candidates)} 檔進入終極基本面查核。")
+    print(f"   [淘汰主因分析] 乖離不夠深: {fail_bias}檔 | 量沒縮: {fail_vol}檔 | 波動仍大: {fail_amp}檔 | 已起漲: {fail_mom}檔")
 
     # ---------------------------------------------------------
     # 🏦 第三層：聰明錢與基本面定錨 (FinMind 深查)
