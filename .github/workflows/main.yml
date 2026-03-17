@@ -37,8 +37,6 @@ jobs:
         git config --global user.name 'GitHub Action Bot'
         git config --global user.email 'action@github.com'
         
-        # 🔥 關鍵修改：同時加入兩個 JSON 檔案
-        git add stock_list.json daily_recommendations.json
-        
-        # 檢查是否有變動，有才 commit，避免報錯
-        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update stock list & recommendations" && git push)
+        # 🔥 請機器人把四大天王通通打包帶走！
+        git add stock_list.json daily_recommendations.json left_side_value.json deposit_stocks.json
+        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update all stock JSONs" && git push)
