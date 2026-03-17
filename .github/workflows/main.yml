@@ -1,12 +1,12 @@
 name: Daily Stock List Update
 
 # 設定觸發條件：
-# 1. schedule: 改為 07:00 UTC (等於台灣時間下午 15:00)
+# 1. schedule: 改為 08:30 UTC (等於台灣下午 16:30)
 #    這樣可以直接抓到「當日」剛收盤的籌碼數據，不用等到隔天早上。
 # 2. workflow_dispatch: 手動觸發按鈕
 on:
   schedule:
-    - cron: '0 7 * * *'
+    - cron: '30 8 * * *'
   workflow_dispatch:
 
 permissions:
