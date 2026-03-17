@@ -521,7 +521,7 @@ def generate_left_side_value():
     # 🌊 第一層：大數據降維 (流動性 5,000萬 ~ 3億)
     # 為了 100% 不干擾右側，我們在左側雷達內自己發動一次輕量級爬蟲
     # ---------------------------------------------------------
-    print("🌊 [第一層] 大數據降維：尋找流動性 5000萬~3億 的潛伏股...")
+    print("🌊 [第一層] 大數據降維：尋找流動性 1000萬~3億 的潛伏股...")
     layer1_candidates = []
     
     # 1. 抓取上市 (TWSE) 最新交易日
@@ -545,8 +545,8 @@ def generate_left_side_value():
                     try:
                         turnover = float(row[idx_turnover].replace(',', ''))
                         price = float(row[idx_price].replace(',', ''))
-                        # 🔥 條件：成交金額 5000萬 ~ 3億，且股價 > 10元
-                         <= turnover <= 300000000 and price >= 10:
+                        # 🔥 條件：成交金額 1000萬 ~ 3億，且股價 > 10元
+                        if 10000000 <= turnover <= 300000000 and price >= 10:
                             layer1_candidates.append({"code": code, "price": price, "market": "TW"})
                     except: pass
     except Exception as e:
