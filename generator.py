@@ -590,26 +590,17 @@ def generate_left_side_value():
     print(f"✅ 第一層降維完畢，全市場 2000 檔中，共 {len(layer1_candidates)} 檔符合流動性門檻，進入第二層。")
 
     # ---------------------------------------------------------
-    # 📉 第二層：位階與動能過濾 (yfinance 抓 K 線) - 抓漏版
+    # 📉 第二層：位階與動能過濾 (新增量縮比例與週線運算)
     # ---------------------------------------------------------
     print("📉 [第二層] 啟動 yfinance 計算：尋找負乖離、量縮窒息、低波築底...")
     layer2_candidates = []
     
-    # 計數器：分為「黑洞淘汰」與「邏輯淘汰」
-    fail_bias, fail_vol, fail_amp, fail_mom = 0, 0, 0, 0
-    fail_nodata, fail_error = 0, 0 
-    
     for item in layer1_candidates:
         code = item['code']
         try:
-            # 放寬到 6mo，確保絕對能拿到 60 根 K 線
             ticker = yf.Ticker(f"{code}.{item['market']}")
             df = ticker.history(period="6mo") 
-            
-            # 🔍 黑洞 1：資料為空，或 K 線太少
-            if df.empty or len(df) < 60: 
-                fail_nodata += 1
-                continue
+            if df.empty or len(df) < 60: continue
 
             closes = df['Close'].tolist()
             lows = df['Low'].tolist()
@@ -618,104 +609,114 @@ def generate_left_side_value():
 
             close_today = closes[-1]
             ma60 = sum(closes[-60:]) / 60
+            ma5 = sum(closes[-5:]) / 5  # 🔥 新增週線，用來判斷黃金交叉
+            
             bias60 = (close_today - ma60) / ma60
+            bias5 = (close_today - ma5) / ma5 
 
-            # 🛑 邏輯淘汰區
-            if bias60 >= -0.03: 
-                fail_bias += 1
-                continue
+            if bias60 >= -0.03: continue
             
             vol_today = volumes[-1]
             ma20_vol = sum(volumes[-20:]) / 20
-            if vol_today >= ma20_vol * 0.8: 
-                fail_vol += 1
-                continue
+            vol_ratio = vol_today / ma20_vol # 🔥 記錄量縮比例，用來算分數
+            
+            if vol_ratio >= 0.8: continue
             
             recent_10_high = max(highs[-10:])
             recent_10_low = min(lows[-10:])
             amplitude = (recent_10_high - recent_10_low) / recent_10_low
-            if amplitude >= 0.12: 
-                fail_amp += 1
-                continue
             
-            if (close_today - closes[-5]) / closes[-5] >= 0.05: 
-                fail_mom += 1
-                continue
+            if amplitude >= 0.12: continue
+            if (close_today - closes[-5]) / closes[-5] >= 0.05: continue
 
-            # 過關！
+            # 通過第二層考驗，把數據打包給第三層算分
             item['bias60'] = bias60
+            item['bias5'] = bias5
+            item['vol_ratio'] = vol_ratio
             item['amplitude'] = amplitude
             item['ma60'] = ma60
             layer2_candidates.append(item)
-            print(f"   🎯 鎖定標的: {code} (乖離: {bias60*100:.1f}%)")
             
-        except Exception as e: 
-            # 🔍 黑洞 2：發生預期外的錯誤
-            fail_error += 1
-            if fail_error == 1: # 只印出第一筆錯誤，以免洗版
-                print(f"   ⚠️ yfinance 執行報錯範例 ({code}): {e}")
-        
-        time.sleep(0.1) # 保護機制
+        except Exception: pass
+        time.sleep(0.1)
 
-    print(f"✅ 第二層過濾完畢，剩餘 {len(layer2_candidates)} 檔進入終極基本面查核。")
-    print(f"   [黑洞分析] 無K線資料: {fail_nodata}檔 | 程式報錯: {fail_error}檔")
-    print(f"   [邏輯淘汰] 乖離不深: {fail_bias}檔 | 量沒縮: {fail_vol}檔 | 波動仍大: {fail_amp}檔 | 已起漲: {fail_mom}檔")
+    print(f"✅ 第二層過濾完畢，剩餘 {len(layer2_candidates)} 檔進入終極基本面與評分查核。")
 
-   # ---------------------------------------------------------
-    # 🏦 第三層：聰明錢與基本面定錨 (優化版：釋放中小型轉機股)
     # ---------------------------------------------------------
-    print("🏦 [第三層] 啟動 FinMind 查核：法人連買、EPS>0、轉機股探測...")
+    # 🏦 第三層：聰明錢定錨與 🌟信心評分系統 (Scoring Model)
+    # ---------------------------------------------------------
+    print("🏦 [第三層] 啟動 FinMind 查核與評分：法人連買、EPS、黃金交叉探測...")
     final_list = []
     
     for item in layer2_candidates:
         code = item['code']
-        
-        # 1. 查 EPS 與 殖利率
         eps, yield_rate = get_finmind_fundamentals(code, item['price'])
-        if eps <= 0: continue # 🔴 淘汰：近一季虧損股 (死守底線：公司不能賠錢)
+        if eps <= 0: continue # 🔴 淘汰虧損股
         
-        # 2. 查營收 YoY
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
         
-        # 3. 查法人籌碼 (近 5 天內，有幾天買超)
         chips_history = get_finmind_chips_history(code, days=5)
         buy_days = sum(1 for x in chips_history if x > 0)
         
-        # 🔥 核心優化：聰明錢轉機股邏輯
-        passed = False
-        if buy_days >= 4:
-            passed = True # 法人瘋狂吃貨(5天買4天)，強烈背書，無視目前營收表現！
-        elif buy_days == 3 and yoy > -15.0:
-            passed = True # 法人溫和吃貨(5天買3天)，容許營收小幅衰退(等待轉機)
+        # 門檻：法人至少買 3 天 (或轉機股特例)
+        if buy_days >= 4 or (buy_days == 3 and yoy > -15.0):
             
-        if passed:
-            # 🏆 完美通過三層漏斗！
+            # 🎯 啟動計分模型 (Base: 50)
+            score = 50 
+            
+            # 1. 籌碼權重 (Max 30)
+            if buy_days == 5: score += 30
+            elif buy_days == 4: score += 20
+            elif buy_days == 3: score += 10
+            
+            # 2. 量縮權重 (Max 10)
+            if item['vol_ratio'] < 0.5: score += 10
+            elif item['vol_ratio'] < 0.6: score += 8
+            elif item['vol_ratio'] < 0.7: score += 5
+            
+            # 3. 乖離權重 (Max 10)
+            bias_pct = item['bias60'] * 100
+            if -8.0 <= bias_pct <= -5.0: score += 10
+            elif bias_pct < -8.0: score += 8
+            elif -5.0 < bias_pct <= -3.0: score += 5
+
+            # 🎯 判斷趨勢狀態 (Trend Status)
+            if item['bias5'] > 0:
+                trend_status = "⭐ 底部起漲 (初次進場訊號)"
+            else:
+                trend_status = "⏳ 築底量縮中 (分批試單)"
+                
+            # 計算建議進場價 (取今日收盤與季線的折衷，或是保守取今日收盤往下抓 1%)
+            entry_price = round(item['price'] * 0.99, 2)
+
+            # 🏆 封裝入庫
             final_list.append({
                 "date": datetime.now(timezone.utc).strftime('%Y-%m-%d'),
                 "code": code,
                 "name": stock_meta[code]['name'],
-                "sector": stock_meta[code]['sector'],
                 "price": item['price'],
-                "bias60": f"{item['bias60']*100:.1f}%",
-                "amplitude": f"{item['amplitude']*100:.1f}%",
+                "score": score,
+                "trend_status": trend_status,
+                "entry_price": entry_price,
+                "bias60": f"{bias_pct:.1f}%",
+                "vol_ratio": f"{item['vol_ratio']*100:.1f}%",
                 "eps": eps,
                 "yield_rate": yield_rate,
-                "yoy": yoy,
-                "buy_days_in_5": buy_days,
-                "tag": "轉機潛伏股" if yoy <= 0 else "左側黃金坑" # 依照營收給予不同標籤
+                "buy_days": buy_days,
+                "tag": "左側黃金坑"
             })
-            print(f"   🏆 終極入選: {code} (法人 5 日內買超 {buy_days} 天, YoY: {yoy}%)")
+            print(f"   🏆 入選: {code} | 分數: {score} | 狀態: {trend_status}")
 
     # ---------------------------------------------------------
-    # 📦 結算與獨立強制存檔 (修復「殭屍舊檔案」問題)
+    # 📦 結算與存檔
     # ---------------------------------------------------------
     if final_list:
-        # 依照負乖離率由深到淺排序
-        final_list.sort(key=lambda x: float(x['bias60'].replace('%', '')))
+        # 依照「信心評分」由高到低排序 (最高分的排第一名！)
+        final_list.sort(key=lambda x: x['score'], reverse=True)
         print(f"✅ 任務完成！共 {len(final_list)} 檔無敵黃金坑達標。")
     else:
-        print("⚠️ 本次掃描無股票通過三層漏斗 (名單為空)。")
+        print("⚠️ 本次掃描無股票通過三層漏斗。")
 
     with open('left_side_value.json', 'w', encoding='utf-8') as f:
         json.dump(final_list, f, ensure_ascii=False, indent=4)
