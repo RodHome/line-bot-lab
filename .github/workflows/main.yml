@@ -27,7 +27,7 @@ jobs:
 
     - name: Install dependencies (安裝爬蟲套件)
       run: |
-        pip install requests pandas lxml html5lib
+        pip install requests pandas lxml html5lib yfinance
 
     - name: Run generator (執行爬蟲)
       run: python generator.py
