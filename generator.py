@@ -537,21 +537,26 @@ def generate_left_side_value():
     print(f"✅ 第一層降維完畢，全市場 2000 檔中，共 {len(layer1_candidates)} 檔符合流動性門檻，進入第二層。")
 
     # ---------------------------------------------------------
-    # 📉 第二層：位階與動能過濾 (yfinance 抓 K 線) - 修正版
+    # 📉 第二層：位階與動能過濾 (yfinance 抓 K 線) - 抓漏版
     # ---------------------------------------------------------
     print("📉 [第二層] 啟動 yfinance 計算：尋找負乖離、量縮窒息、低波築底...")
     layer2_candidates = []
     
-    # 準備幾個計數器，幫我們抓出是哪個條件殺死最多股票
+    # 計數器：分為「黑洞淘汰」與「邏輯淘汰」
     fail_bias, fail_vol, fail_amp, fail_mom = 0, 0, 0, 0
+    fail_nodata, fail_error = 0, 0 
     
     for item in layer1_candidates:
         code = item['code']
         try:
-            # 🔥 修復 1：改抓 4 個月，保證絕對能湊滿 60 個實際交易日！
+            # 放寬到 6mo，確保絕對能拿到 60 根 K 線
             ticker = yf.Ticker(f"{code}.{item['market']}")
-            df = ticker.history(period="4mo") 
-            if len(df) < 60: continue
+            df = ticker.history(period="6mo") 
+            
+            # 🔍 黑洞 1：資料為空，或 K 線太少
+            if df.empty or len(df) < 60: 
+                fail_nodata += 1
+                continue
 
             closes = df['Close'].tolist()
             lows = df['Low'].tolist()
@@ -562,43 +567,46 @@ def generate_left_side_value():
             ma60 = sum(closes[-60:]) / 60
             bias60 = (close_today - ma60) / ma60
 
-            # 🛑 條件 A: 季線負乖離 (放寬到 -3% 以上，先求有再求深)
+            # 🛑 邏輯淘汰區
             if bias60 >= -0.03: 
                 fail_bias += 1
                 continue
-
-            # 🛑 條件 B: 量縮窒息 (放寬：今日成交量 < 20日均量的 80%)
+            
             vol_today = volumes[-1]
             ma20_vol = sum(volumes[-20:]) / 20
             if vol_today >= ma20_vol * 0.8: 
                 fail_vol += 1
                 continue
-
-            # 🛑 條件 C: 低波築底 (修復矛盾：近 10 日振幅放寬到 12% 以內即可)
+            
             recent_10_high = max(highs[-10:])
             recent_10_low = min(lows[-10:])
             amplitude = (recent_10_high - recent_10_low) / recent_10_low
             if amplitude >= 0.12: 
                 fail_amp += 1
                 continue
-
-            # 🛑 條件 D: 近 5 日股價漲幅 < 5% (不要已經起漲太多的)
+            
             if (close_today - closes[-5]) / closes[-5] >= 0.05: 
                 fail_mom += 1
                 continue
 
-            # 通過第二層嚴苛考驗！
+            # 過關！
             item['bias60'] = bias60
             item['amplitude'] = amplitude
             item['ma60'] = ma60
             layer2_candidates.append(item)
-            print(f"   🎯 鎖定符合技術特徵標的: {code} (乖離: {bias60*100:.1f}%)")
+            print(f"   🎯 鎖定標的: {code} (乖離: {bias60*100:.1f}%)")
             
-        except Exception: pass
-        time.sleep(0.1) # 保護 yfinance 不被鎖 IP
+        except Exception as e: 
+            # 🔍 黑洞 2：發生預期外的錯誤
+            fail_error += 1
+            if fail_error == 1: # 只印出第一筆錯誤，以免洗版
+                print(f"   ⚠️ yfinance 執行報錯範例 ({code}): {e}")
+        
+        time.sleep(0.1) # 保護機制
 
     print(f"✅ 第二層過濾完畢，剩餘 {len(layer2_candidates)} 檔進入終極基本面查核。")
-    print(f"   [淘汰主因分析] 乖離不夠深: {fail_bias}檔 | 量沒縮: {fail_vol}檔 | 波動仍大: {fail_amp}檔 | 已起漲: {fail_mom}檔")
+    print(f"   [黑洞分析] 無K線資料: {fail_nodata}檔 | 程式報錯: {fail_error}檔")
+    print(f"   [邏輯淘汰] 乖離不深: {fail_bias}檔 | 量沒縮: {fail_vol}檔 | 波動仍大: {fail_amp}檔 | 已起漲: {fail_mom}檔")
 
     # ---------------------------------------------------------
     # 🏦 第三層：聰明錢與基本面定錨 (FinMind 深查)
@@ -657,7 +665,111 @@ def generate_left_side_value():
         print("💾 已強制更新 left_side_value.json (確保 Line Bot 不會讀到過期資料)")
 
 # ========================================================
+# ========================================================
+# 🔥 新增功能 4: 【金剛不壞：存股打折加碼雷達】(獨立產線)
+# ========================================================
+def generate_deposit_stocks():
+    print("\n🏦 [Task 4] 啟動存股打折加碼雷達 (均線乖離策略)...")
+    
+    # 📝 你專屬的存股口袋名單 (未來要新增/刪除，只需改這行！)
+    DEPOSIT_WATCHLIST = [
+        "2886", "2892", "5880", "2880","2890" # 官股金控
+        "2881", "2882", "2891", "2884", # 民營金控
+        "2330",                         # 護國神山
+        "0050", "0056", "00878", "00713", "00919","00881" # 國民 ETF
+    ]
+
+    # 讀取對照表來抓中文名稱
+    stock_meta = {}
+    try:
+        with open('stock_list.json', 'r', encoding='utf-8') as f:
+            stock_meta = json.load(f)
+    except Exception as e:
+        print(f"⚠️ 讀取 stock_list.json 失敗: {e}")
+
+    deposit_list = []
+
+    for code in DEPOSIT_WATCHLIST:
+        print(f"🔍 分析存股標的: {code} ...", end=" ")
+        try:
+            # 判斷上市或上櫃 (ETF通常是上市 TW)
+            ticker_tw = yf.Ticker(f"{code}.TW")
+            df = ticker_tw.history(period="3mo")
+            if df.empty:
+                ticker_two = yf.Ticker(f"{code}.TWO")
+                df = ticker_two.history(period="3mo")
+            
+            if len(df) < 20:
+                print("資料不足，跳過。")
+                continue
+
+            closes = df['Close'].tolist()
+            close_today = closes[-1]
+            
+            # 計算 20MA(月線) 與 5MA(週線，用來防飛刀)
+            ma20 = sum(closes[-20:]) / 20
+            ma5 = sum(closes[-5:]) / 5
+            
+            bias_20 = (close_today - ma20) / ma20 * 100
+            bias_5 = (close_today - ma5) / ma5 * 100
+
+            # 🧠 核心大腦：5 段式燈號與防飛刀邏輯
+            signal = ""
+            action = ""
+            anti_knife_warning = ""
+
+            if bias_20 > 8.0:
+                signal = "🔴 警示"
+                action = "【停扣 / 獲利了結】短線過熱，暫緩加碼。"
+            elif 3.0 < bias_20 <= 8.0:
+                signal = "🟡 觀望"
+                action = "【維持現狀】穩定上漲中，不急著動作。"
+            elif -2.0 <= bias_20 <= 3.0:
+                signal = "🟢 平穩"
+                action = "【定期定額】價值平衡區，適合無腦累積張數。"
+            elif -8.0 <= bias_20 < -2.0:
+                signal = "🛒 加碼"
+                action = "【小幅加碼】股價委屈，預估殖利率上升，分批撿便宜。"
+            else: # bias_20 < -8.0
+                signal = "🚨 重壓"
+                action = "【大舉進場】市場恐慌超跌，長線極佳買點浮現！"
+
+            # 🛡️ 防飛刀濾網 (當月線大跌，但週線還在跌，代表還沒見底)
+            if bias_20 < -2.0 and bias_5 < 0:
+                anti_knife_warning = " ⚠️ (跌勢未止，刀子還在掉，請分批慢接)"
+            elif bias_20 < -2.0 and bias_5 > 0:
+                anti_knife_warning = " ⭐ (週線翻正，跌勢止穩，黃金加碼點！)"
+
+            action += anti_knife_warning
+
+            meta_info = stock_meta.get(code, {})
+            deposit_list.append({
+                "code": code,
+                "name": meta_info.get('name', '未知名稱'),
+                "price": round(close_today, 2),
+                "bias_20": round(bias_20, 2),
+                "signal": signal,
+                "action": action
+            })
+            print(f"完成 (乖離 {bias_20:.2f}%)")
+
+        except Exception as e:
+            print(f"錯誤: {e}")
+        time.sleep(0.1)
+
+    # 📦 結算與存檔
+    if deposit_list:
+        # 依照乖離率由低到高排序 (越便宜、跌越多的排越上面)
+        deposit_list.sort(key=lambda x: x['bias_20'])
+        
+        with open('deposit_stocks.json', 'w', encoding='utf-8') as f:
+            json.dump(deposit_list, f, ensure_ascii=False, indent=4)
+        print(f"💾 任務完成！已儲存 deposit_stocks.json (共分析 {len(deposit_list)} 檔存股)")
+
+# ========================================================
+# 最後，記得在你的 __main__ 區塊把這支程式加上去執行！
 if __name__ == "__main__":
     update_stock_list_json()
-    generate_daily_recommendations()  # 右側產線 (舊有機制，0% 干擾)
-    generate_left_side_value()        # 左側產線 (全新獨立機制)
+    generate_daily_recommendations()  # 右側產線
+    generate_left_side_value()        # 左側產線
+    generate_deposit_stocks()         # 🏦 存股產線 (新增這行！)
