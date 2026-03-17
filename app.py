@@ -665,12 +665,12 @@ def handle_message(event):
             if not left_data:
                 reply_text = "🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"
             else:
-                reply_text = "📊 【每日左側黃金坑掃描報告】\n" + "═" * 18 + "\n"
+                reply_text = "📊 【左側標的掃描報告】\n" + "═" * 18 + "\n"
                 # 只取分數最高的前 5 名
                 for item in left_data[:5]:
-                    reply_text += f"🔥 推薦首選：{item['name']} ({item['code']})\n"
-                    reply_text += f"🌟 信心評分：{item.get('score', 'N/A')} 分\n"
-                    reply_text += f"📍 當前位置：季線負乖離 {item['bias60']}\n"
+                    reply_text += f"🔥 左側標的：{item['name']} ({item['code']})\n"
+                    reply_text += f"🌟 推薦評分：{item.get('score', 'N/A')} 分\n"
+                    reply_text += f"📍 乖離率：季線 {item['bias60']} | 月線 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}\n"
                     reply_text += f"📊 籌碼動能：法人連買 {item.get('buy_days', 'N/A')} 天 (量縮至 {item.get('vol_ratio', 'N/A')})\n"
                     reply_text += f"💡 操作建議：\n【{item.get('trend_status', '築底中')}】\n建議 {item.get('entry_price', 'N/A')} 元附近分批佈局。\n"
                     reply_text += "─" * 18 + "\n"
