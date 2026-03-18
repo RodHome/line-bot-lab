@@ -11,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 
 app = Flask(__name__)
 
-# 🤖 [版本號] v18.0 
-BOT_VERSION = "v18.0 (多策略雷達版)"
+# 🤖 [版本號] v18.1 
+BOT_VERSION = "v18.1 (使用介面優化)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -507,7 +507,22 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     msg = event.message.text.strip()
-
+    #🔥 [效能優化] 零成本引導教學攔截
+    if msg in ["如何評估", "如何診斷"]:
+        guide_text = (
+            "💡 【個股與持股診斷教學】\n"
+            "請直接在對話框輸入您的目標，系統將自動啟動 AI 運算：\n\n"
+            "🔎 單純評估個股：\n"
+            "請輸入「股票代號」或「名稱」。\n"
+            "👉 例如：2330 或 台積電\n\n"
+            "📊 帶有成本的持股健檢：\n"
+            "請輸入「代號」加上「成本 XX」。\n"
+            "👉 例如：2330 成本 800\n\n"
+            "⚠️ 注意：每次深度診斷約需 8-15 秒，請耐心等候喔！"
+        )
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=guide_text))
+        return
+        
     # 🔥 [新增功能] 選股邏輯說明
     if msg in ["選股邏輯", "推薦說明", "篩選條件","右側邏輯"]:
         logic_text = (
@@ -665,46 +680,100 @@ def handle_message(event):
             if not left_data:
                 reply_text = "🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"
             else:
-                reply_text = "📊 【左側標的掃描報告】\n" + "═" * 18 + "\n"
-                # 只取分數最高的前 5 名
+                bubbles = []
                 for item in left_data[:5]:
-                    reply_text += f"🔥 左側標的：{item['name']} ({item['code']})\n"
-                    reply_text += f"🌟 推薦評分：{item.get('score', 'N/A')} 分\n"
-                    reply_text += f"📍 乖離率：季線 {item['bias60']} | 月線 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}\n"
-                    reply_text += f"📊 籌碼動能：法人連買 {item.get('buy_days', 'N/A')} 天 (量縮至 {item.get('vol_ratio', 'N/A')})\n"
-                    reply_text += f"💡 操作建議：\n【{item.get('trend_status', '築底中')}】\n建議 {item.get('entry_price', 'N/A')} 元附近分批佈局。\n"
-                    reply_text += "─" * 18 + "\n"
-                
-                if len(left_data) > 5:
-                    reply_text += f"*(還有 {len(left_data)-5} 檔符合條件，僅顯示前五名最高分)*\n"
+                    # 顏色邏輯：分數越高越偏向熱情的紅色，否則偏穩重的深灰
+                    score = int(item.get('score', 50))
+                    header_color = "#D32F2F" if score >= 80 else "#455A64"
                     
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+                    bubble = {
+                        "type": "bubble", "size": "hecto",
+                        "header": {
+                            "type": "box", "layout": "vertical",
+                            "contents": [
+                                {"type": "text", "text": f"{item['name']} ({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff"},
+                                {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold"}
+                            ], "backgroundColor": header_color
+                        },
+                        "body": {
+                            "type": "box", "layout": "vertical", "spacing": "sm",
+                            "contents": [
+                                {"type": "text", "text": "📉 均線乖離率", "size": "xs", "color": "#888888", "weight": "bold"},
+                                {"type": "text", "text": f"季 {item.get('bias60', 'N/A')} | 月 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}", "size": "sm", "color": "#333333"},
+                                {"type": "separator", "margin": "md"},
+                                {"type": "text", "text": "📊 籌碼與動能", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
+                                {"type": "text", "text": f"法人連買 {item.get('buy_days', 'N/A')} 天", "size": "sm", "color": "#D84315", "weight": "bold"},
+                                {"type": "text", "text": f"量縮至均量 {item.get('vol_ratio', 'N/A')}", "size": "sm", "color": "#1976D2"},
+                                {"type": "separator", "margin": "md"},
+                                {"type": "text", "text": "💡 操作策略", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
+                                {"type": "text", "text": f"狀態：{item.get('trend_status', '築底中')}", "size": "xs", "color": "#333333", "wrap": True},
+                                {"type": "text", "text": f"進場：{item.get('entry_price', 'N/A')} 元分批試單", "size": "xs", "color": "#2E7D32", "weight": "bold"},
+                                {"type": "text", "text": "停損：波段最低價跌破 3%", "size": "xs", "color": "#C62828", "weight": "bold"}
+                            ]
+                        }
+                    }
+                    bubbles.append(bubble)
+                    
+                line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
+                
         except Exception as e:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 左側資料讀取失敗，請確認今日爬蟲是否已執行。"))
         return
 
+   # ==========================================
+    # 🌟 新增功能 4：召喚【存股雷達】(分類大選單)
     # ==========================================
-    # 🌟 新增功能 4：召喚【存股加碼雷達】
+    if msg == "存股":
+        stock_menu_flex = {
+            "type": "bubble",
+            "body": {
+                "type": "box", "layout": "vertical", "spacing": "md",
+                "contents": [
+                    {"type": "text", "text": "🏦 存股打折加碼雷達", "weight": "bold", "size": "lg", "color": "#1E88E5"},
+                    {"type": "text", "text": "存股家族大集合！\n為維持版面清爽，請點選下方按鈕查看類別👇", "wrap": True, "size": "sm", "color": "#666666"},
+                    {"type": "separator", "margin": "md"},
+                    {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🏦 金融控股", "text": "金融股"}, "margin": "md"},
+                    {"type": "button", "style": "primary", "color": "#00897B", "action": {"type": "message", "label": "📈 國民 ETF", "text": "存股 ETF"}, "margin": "sm"},
+                    {"type": "button", "style": "primary", "color": "#8E24AA", "action": {"type": "message", "label": "🚀 權值龍頭", "text": "存股 龍頭"}, "margin": "sm"}
+                ]
+            }
+        }
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="存股分類選單", contents=stock_menu_flex))
+        return
+
     # ==========================================
-    if msg in ["存股", "金融股"]:
+    # 🌟 新增功能 4-1：處理存股【子分類】查詢
+    # ==========================================
+    if msg in ["金融股", "存股 ETF", "存股 龍頭"]:
         try:
             with open('deposit_stocks.json', 'r', encoding='utf-8') as f:
                 deposit_data = json.load(f)
             
-            if not deposit_data:
-                reply_text = "⚠️ 目前無存股名單資料，請稍後再試。"
-            else:
-                reply_text = "🏦 【存股打折加碼雷達】\n" + "═" * 18 + "\n"
-                for item in deposit_data:
-                    reply_text += f"{item['signal']} {item['name']} ({item['code']})\n"
-                    reply_text += f"現價 {item['price']} | 乖離率 {item['bias_20']}%\n"
-                    reply_text += f"👉 {item['action']}\n"
-                    reply_text += "─" * 18 + "\n"
+            filtered_data = []
+            category_name = ""
+            for item in deposit_data:
+                code = item['code']
+                if msg == "金融股" and (code.startswith('28') or code.startswith('58')):
+                    filtered_data.append(item); category_name = "金融控股"
+                elif msg == "存股 ETF" and code.startswith('00'):
+                    filtered_data.append(item); category_name = "國民 ETF"
+                elif msg == "存股 龍頭" and not code.startswith('00') and not (code.startswith('28') or code.startswith('58')):
+                    filtered_data.append(item); category_name = "權值龍頭"
                     
+            if not filtered_data:
+                reply_text = f"⚠️ 目前沒有符合【{category_name}】的存股資料。"
+            else:
+                reply_text = f"🏦 【存股雷達：{category_name}】\n\n"
+                for item in filtered_data:
+                    reply_text += f"{item['signal']} {item['name']} ({item['code']})\n"
+                    reply_text += "────────────────\n"
+                    reply_text += f"💰 現價：{item['price']} ｜ 月乖離：{item['bias_20']}%\n"
+                    reply_text += f"💡 {item['action']}\n"
+                    reply_text += "════════════════\n\n"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         except Exception as e:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 存股資料讀取失敗，請確認今日爬蟲是否已執行。"))
-        return    
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 存股資料讀取失敗，請確認今日爬蟲是否已執行。"))
+        return
     #=================3/17==========================
     # [功能 2] 個股/ETF 診斷 (優化版)
     stock_id = get_stock_id(msg)
@@ -730,8 +799,8 @@ def handle_message(event):
                     
                     # --- 個股與進階查詢區 (灰色次要按鈕) ---
                     {"type": "separator", "margin": "lg"},
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 個股評估 (輸入代號)", "text": "台積電"}, "margin": "md"},
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 持股診斷 (帶成本)", "text": "2330 成本 1800"}, "margin": "sm"},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 個股評估 (輸入代號)", "text": "如何評估"}, "margin": "md"},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 持股診斷 (帶成本)", "text": "如何診斷"}, "margin": "sm"},
                     {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖券商名單", "text": "隔日沖"}, "margin": "sm"},
 
                     # --- 說明區 (雙按鈕並排) ---
