@@ -672,56 +672,32 @@ def handle_message(event):
     # ================3/17==========================
     # 🌟 新增功能 3：召喚【左側黃金坑】
     # ==========================================
-    # 🔥 6. 左側黃金坑 (全面升級：Flex 輪播卡片 + 掃描時間)
     if msg == "左側":
         try:
-            # 取得檔案最後修改時間，作為資料快照日期
-            file_path = 'left_side_value.json'
-            if os.path.exists(file_path):
-                file_mtime = os.path.getmtime(file_path)
-                dt_mtime = datetime.fromtimestamp(file_mtime, tz=timezone.utc) + timedelta(hours=8)
-                update_str = dt_mtime.strftime('%Y-%m-%d %H:%M')
-            else:
-                update_str = "最新資料"
-
-            with open(file_path, 'r', encoding='utf-8') as f: 
+            with open('left_side_value.json', 'r', encoding='utf-8') as f:
                 left_data = json.load(f)
-                
+            
             if not left_data:
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"))
+                reply_text = "🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"
             else:
                 bubbles = []
-                # 先做一張「導覽與時間卡片」放在最前面
-                info_bubble = {
-                    "type": "bubble",
-                    "size": "kilo",
-                    "body": {
-                        "type": "box", "layout": "vertical", "spacing": "sm", "alignItems": "center", "justifyContent": "center",
-                        "contents": [
-                            {"type": "text", "text": "🛡️ 左側黃金坑", "weight": "bold", "size": "xl", "color": "#1E88E5", "align": "center"},
-                            {"type": "text", "text": f"雷達掃描時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
-                            {"type": "separator", "margin": "lg"},
-                            {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"}
-                        ]
-                    }
-                }
-                bubbles.append(info_bubble)
-
                 for item in left_data[:5]:
-                    # 顏色邏輯：分數越高越偏向熱情的紅色，否則偏穩重的深綠
+                    # 顏色邏輯：分數越高越偏向熱情的紅色，否則偏穩重的深灰
                     score = int(item.get('score', 50))
-                    header_color = "#D32F2F" if score >= 80 else "#00897B"
+                    header_color = "#D32F2F" if score >= 80 else "#455A64"
                     
                     bubble = {
                         "type": "bubble", "size": "hecto",
                         "header": {
-                            "type": "box", "layout": "vertical", "contents": [
+                            "type": "box", "layout": "vertical",
+                            "contents": [
                                 {"type": "text", "text": f"{item['name']} ({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff"},
                                 {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold"}
                             ], "backgroundColor": header_color
                         },
                         "body": {
-                            "type": "box", "layout": "vertical", "spacing": "sm", "contents": [
+                            "type": "box", "layout": "vertical", "spacing": "sm",
+                            "contents": [
                                 {"type": "text", "text": "📉 均線乖離率", "size": "xs", "color": "#888888", "weight": "bold"},
                                 {"type": "text", "text": f"季 {item.get('bias60', 'N/A')} | 月 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}", "size": "sm", "color": "#333333"},
                                 {"type": "separator", "margin": "md"},
@@ -729,7 +705,7 @@ def handle_message(event):
                                 {"type": "text", "text": f"法人連買 {item.get('buy_days', 'N/A')} 天", "size": "sm", "color": "#D84315", "weight": "bold"},
                                 {"type": "text", "text": f"量縮至均量 {item.get('vol_ratio', 'N/A')}", "size": "sm", "color": "#1976D2"},
                                 {"type": "separator", "margin": "md"},
-                                {"type": "text", "text": "💡 實戰策略", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
+                                {"type": "text", "text": "💡 操作策略", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
                                 {"type": "text", "text": f"狀態：{item.get('trend_status', '築底中')}", "size": "xs", "color": "#333333", "wrap": True},
                                 {"type": "text", "text": f"進場：{item.get('entry_price', 'N/A')} 元分批試單", "size": "xs", "color": "#2E7D32", "weight": "bold"},
                                 {"type": "text", "text": "停損：波段最低價跌破 3%", "size": "xs", "color": "#C62828", "weight": "bold"}
@@ -737,10 +713,11 @@ def handle_message(event):
                         }
                     }
                     bubbles.append(bubble)
+                    
                 line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
+                
         except Exception as e:
-            print(f"左側雷達錯誤: {e}")
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 左側資料讀取失敗，請確認今日爬蟲是否已執行。"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 左側資料讀取失敗，請確認今日爬蟲是否已執行。"))
         return
 
    # ==========================================
