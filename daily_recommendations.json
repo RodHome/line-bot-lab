@@ -67,8 +67,8 @@
         "sector": "電子零組件業",
         "price": 1465.0,
         "turnover": 16794443081.0,
-        "chips_display": "3648張 (53.4億)",
-        "buy_value": 5344320000.0,
+        "chips_display": "3626張 (53.1億)",
+        "buy_value": 5312090000.0,
         "yoy": 31.0,
         "tag": "外資大買",
         "debug_info": {
@@ -207,8 +207,8 @@
         "sector": "AI伺服器",
         "price": 293.0,
         "turnover": 5480542523.0,
-        "chips_display": "4752張 (13.9億)",
-        "buy_value": 1392336000.0,
+        "chips_display": "4749張 (13.9億)",
+        "buy_value": 1391457000.0,
         "yoy": 43.18,
         "tag": "外資大買",
         "debug_info": {
