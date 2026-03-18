@@ -39,4 +39,4 @@ jobs:
         
         # 🔥 請機器人把四大天王通通打包帶走！
         git add stock_list.json daily_recommendations.json left_side_value.json deposit_stocks.json
-        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update all stock JSONs" && git push)
+        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update all stock JSONs" && git pull --rebase origin main && git push)
