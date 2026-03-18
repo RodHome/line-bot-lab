@@ -844,7 +844,7 @@ def handle_message(event):
                             b60 = item.get('bias_60', 'N/A')
                             yld = item.get('yield_rate', 'N/A')
                             
-                            stats_str = f"季{b60}% | 月{b24}% | 12日{b12}% | 6日{b6}%"
+                            stats_str = f"月{b24}% | 6日{b6}%"
                             
                             group_box["contents"].append({
                                 "type": "box", "layout": "vertical", "margin": "xs",
