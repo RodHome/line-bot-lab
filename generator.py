@@ -113,6 +113,8 @@ def get_finmind_chips_history(code, days=3):
 def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     eps_latest = 0.0
     yield_rate = 0.0
+    estimated_annual_dividend = 0.0 # 🔥 新增：初始化分子(預估全年配息)
+    
     start = (datetime.now() - timedelta(days=800)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     
@@ -189,7 +191,7 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     except Exception as e: 
         print(f"❌ [{code}] 殖利率處理發生錯誤: {e}")
         
-    return eps_latest, yield_rate
+    return eps_latest, yield_rate, estimated_annual_dividend
 #==========3/17==================================
 # ========================================================
 
@@ -713,7 +715,9 @@ def generate_left_side_value():
     
     for item in layer2_candidates:
         code = item['code']
-        eps, yield_rate = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
+        # 🔥 加上 , _ 接住第三個變數
+        eps, yield_rate, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
+
         if eps <= 0: continue # 🔴 淘汰虧損股
         
         yoy_data = get_finmind_revenue_yoy(code)
@@ -885,7 +889,7 @@ def generate_deposit_stocks():
             bias_5 = (close_today - ma5) / ma5 * 100
 
             # 🔥 抓取殖利率 (利用你寫好的函式)
-            eps, yield_rate = get_finmind_fundamentals(code, close_today)
+            eps, yield_rate, annual_div = get_finmind_fundamentals(code, close_today)
 
             # 🧠 核心大腦：5 段式燈號與防飛刀邏輯
             signal = ""
@@ -917,16 +921,19 @@ def generate_deposit_stocks():
             action += anti_knife_warning
 
             meta_info = stock_meta.get(code, {})
+            meta_info = stock_meta.get(code, {})
             deposit_list.append({
                 "code": code,
                 "name": meta_info.get('name', '未知名稱'),
                 "price": round(close_today, 2),
-                "bias_6": round(bias_6, 2),   # 🔥 新增
-                "bias_12": round(bias_12, 2), # 🔥 新增
-                "bias_24": round(bias_24, 2), # 🔥 新增
+                "bias_6": round(bias_6, 2),   
+                "bias_12": round(bias_12, 2), 
+                "bias_24": round(bias_24, 2), 
                 "bias_20": round(bias_20, 2),
-                "bias_60": round(bias_60, 2), # 🔥 新增
-                "yield_rate": yield_rate,     # 🔥 新增
+                "bias_60": round(bias_60, 2), 
+                "yield_rate": yield_rate,
+                # 🔥 新增這行：將分子(預估配息)與分母(今日收盤價)寫入 JSON，方便核對
+                "yield_formula": f"預估配息 {annual_div:.3f} / 股價 {close_today:.2f}",
                 "signal": signal,
                 "action": action
             })
