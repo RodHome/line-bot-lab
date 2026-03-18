@@ -106,6 +106,10 @@ def get_finmind_chips_history(code, days=3):
     except: return [0]*days
 
 # 🔥 [為左側/存股雷達新增] 查詢單季 EPS 與 殖利率 (動態頻率推算版)
+# ==========================================
+# 區塊：FinMind 基本面與殖利率查詢 (除錯日誌與動態頻率版)
+# 用途：精準計算 EPS 與殖利率，並在終端機印出詳細的 API 狀態與資料擷取情形
+# ==========================================
 def get_finmind_fundamentals(code, current_price):
     eps_latest = 0.0
     yield_rate = 0.0
@@ -113,74 +117,101 @@ def get_finmind_fundamentals(code, current_price):
     start = (datetime.now() - timedelta(days=800)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     
+    # 檢查 Token 是否有成功載入環境變數 (保護隱私，僅印出狀態)
+    token_status = "🟢 已掛載" if FINMIND_TOKEN else "🔴 未掛載 (使用訪客額度)"
+
     # 1. 抓取最新 EPS (保留原有功能)
     try:
         res = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=5)
-        data = res.json().get('data', [])
-        eps_data = [d for d in data if d['type'] == 'EPS']
-        if eps_data: eps_latest = float(eps_data[-1].get('value', 0))
-    except: pass
+        if res.status_code == 200:
+            data = res.json().get('data', [])
+            eps_data = [d for d in data if d['type'] == 'EPS']
+            if eps_data: eps_latest = float(eps_data[-1].get('value', 0))
+    except Exception as e: 
+        print(f"⚠️ [{code}] EPS 請求失敗: {e}")
     
-    # 2. 抓取殖利率 (導入動態配息頻率推算邏輯)
+    # 2. 抓取殖利率 (動態配息頻率推算邏輯 + 強固除錯機制)
     try:
         res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
-        data_div = res_div.json().get('data', [])
         
-        if data_div:
-            # 確保資料依照日期由舊到新排序
-            data_div = sorted(data_div, key=lambda x: x.get('date', ''))
-            valid_cash_records = []
+        # 🛑 攔截 1：HTTP 狀態異常 (例如 403 阻擋、500 伺服器錯誤)
+        if res_div.status_code != 200:
+            print(f"❌ [{code}] API 連線失敗！狀態碼: {res_div.status_code} | Token狀態: {token_status}")
+            return eps_latest, yield_rate
             
-            for d in data_div:
-                year = str(d.get('year', ''))
-                if not year: continue
-                
-                # 防呆：處理 None 值，並將空字串過濾
-                val1 = d.get('CashEarningsDistribution')
-                val2 = d.get('CashStatutorySurplus')
-                val3 = d.get('CashCapitalReserve')
-                
-                total_cash = 0.0
-                for v in [val1, val2, val3]:
-                    if v is not None and v != "":
-                        try: total_cash += float(v)
-                        except ValueError: pass
-                
-                # 紀錄有效配息
-                if total_cash > 0:
-                    record_date = d.get('CashExDividendTradingDate') or d.get('date')
+        json_data = res_div.json()
+        msg = json_data.get('msg', '')
+        data_div = json_data.get('data', [])
+        
+        # 🛑 攔截 2：API 回傳成功，但沒有資料 (可能是額度耗盡或無此代號)
+        if not data_div:
+            print(f"⚠️ [{code}] 查無股息資料 | API 訊息: {msg} | Token狀態: {token_status}")
+            return eps_latest, yield_rate
+            
+        print(f"✅ [{code}] 成功取得 {len(data_div)} 筆歷史股息紀錄。")
+        
+        # 開始清洗資料：確保依照日期由舊到新排序
+        data_div = sorted(data_div, key=lambda x: x.get('date', ''))
+        valid_cash_records = []
+        
+        for d in data_div:
+            # 防呆：處理 None 值，並將空字串過濾
+            val1 = d.get('CashEarningsDistribution')
+            val2 = d.get('CashStatutorySurplus')
+            val3 = d.get('CashCapitalReserve')
+            
+            total_cash = 0.0
+            for v in [val1, val2, val3]:
+                if v is not None and str(v).strip() != "":
+                    try: total_cash += float(v)
+                    except ValueError: pass
+            
+            # 紀錄有效配息 (捨棄有缺陷的 year 欄位，改以 date 為主)
+            if total_cash > 0:
+                record_date = d.get('CashExDividendTradingDate') or d.get('date')
+                if record_date:
                     valid_cash_records.append({
                         'date': record_date,
-                        'cash': total_cash,
-                        'year': year
+                        'cash': total_cash
                     })
+        
+        if valid_cash_records:
+            # 依照日期由新到舊排序有效紀錄
+            valid_cash_records = sorted(valid_cash_records, key=lambda x: x['date'], reverse=True)
+            latest_cash = valid_cash_records[0]['cash']
             
-            if valid_cash_records:
-                # 依照日期由新到舊排序有效紀錄
-                valid_cash_records = sorted(valid_cash_records, key=lambda x: x['date'], reverse=True)
-                latest_cash = valid_cash_records[0]['cash']
-                
-                multiplier = 1
-                # 透過日期差推算配息頻率
-                if len(valid_cash_records) >= 2:
-                    try:
-                        date_new = datetime.strptime(valid_cash_records[0]['date'], '%Y-%m-%d')
-                        date_old = datetime.strptime(valid_cash_records[1]['date'], '%Y-%m-%d')
-                        days_diff = (date_new - date_old).days
-                        
-                        if days_diff <= 45: multiplier = 12       # 月配息
-                        elif days_diff <= 120: multiplier = 4     # 季配息
-                        elif days_diff <= 240: multiplier = 2     # 半年配
-                        else: multiplier = 1                      # 年配息
-                    except: pass
-                
-                # 計算預估殖利率
-                estimated_annual_dividend = latest_cash * multiplier
-                if current_price > 0:
-                    yield_rate = round((estimated_annual_dividend / current_price) * 100, 2)
+            multiplier = 1
+            freq_str = "年配息"
+            
+            # 透過日期差推算配息頻率
+            if len(valid_cash_records) >= 2:
+                try:
+                    date_new = datetime.strptime(valid_cash_records[0]['date'], '%Y-%m-%d')
+                    date_old = datetime.strptime(valid_cash_records[1]['date'], '%Y-%m-%d')
+                    days_diff = (date_new - date_old).days
                     
+                    if days_diff <= 45: 
+                        multiplier = 12
+                        freq_str = "月配息"
+                    elif days_diff <= 120: 
+                        multiplier = 4
+                        freq_str = "季配息"
+                    elif days_diff <= 240: 
+                        multiplier = 2
+                        freq_str = "半年配"
+                except: pass
+            
+            # 計算預估殖利率
+            estimated_annual_dividend = latest_cash * multiplier
+            if current_price > 0:
+                yield_rate = round((estimated_annual_dividend / current_price) * 100, 2)
+            
+            print(f"   👉 [{code}] 判定為 {freq_str}，最新配息 {latest_cash}，預估殖利率: {yield_rate}%")
+        else:
+            print(f"⚠️ [{code}] 資料庫中有紀錄，但查無大於 0 的現金配息。")
+                
     except Exception as e: 
-        print(f"殖利率計算錯誤 ({code}): {e}")
+        print(f"❌ [{code}] 殖利率處理發生例外錯誤: {e}")
         
     return eps_latest, yield_rate
 #==========3/17==================================
