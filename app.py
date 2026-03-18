@@ -665,18 +665,20 @@ def handle_message(event):
             if not left_data:
                 reply_text = "🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"
             else:
-                reply_text = "📊 【左側標的掃描報告】\n" + "═" * 18 + "\n"
-                # 只取分數最高的前 5 名
+                reply_text = "📊 【每日左側黃金坑掃描】\n\n"
                 for item in left_data[:5]:
-                    reply_text += f"🔥 左側標的：{item['name']} ({item['code']})\n"
-                    reply_text += f"🌟 推薦評分：{item.get('score', 'N/A')} 分\n"
-                    reply_text += f"📍 乖離率：季線 {item['bias60']} | 月線 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}\n"
-                    reply_text += f"📊 籌碼動能：法人連買 {item.get('buy_days', 'N/A')} 天 (量縮至 {item.get('vol_ratio', 'N/A')})\n"
-                    reply_text += f"💡 操作建議：\n【{item.get('trend_status', '築底中')}】\n建議 {item.get('entry_price', 'N/A')} 元附近分批佈局。\n"
-                    reply_text += "─" * 18 + "\n"
+                    reply_text += f"🔥 {item['name']} ({item['code']}) ｜ 🎯 {item.get('score', 'N/A')} 分\n"
+                    reply_text += "────────────────\n"
+                    reply_text += f"📉 乖離：季 {item.get('bias60', 'N/A')} | 月 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}\n"
+                    reply_text += f"📊 籌碼：法人連買 {item.get('buy_days', 'N/A')} 天 (量縮至 {item.get('vol_ratio', 'N/A')})\n"
+                    reply_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
+                    reply_text += f"💡 狀態：【{item.get('trend_status', '築底中')}】\n"
+                    reply_text += f"💰 進場：{item.get('entry_price', 'N/A')} 元附近分批試單\n"
+                    reply_text += f"🛑 停損：波段最低價再往下 3%\n"
+                    reply_text += "════════════════\n\n"
                 
                 if len(left_data) > 5:
-                    reply_text += f"*(還有 {len(left_data)-5} 檔符合條件，僅顯示前五名最高分)*\n"
+                    reply_text += f"*(還有 {len(left_data)-5} 檔符合條件，僅顯示前五名)*"
                     
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         except Exception as e:
@@ -684,27 +686,52 @@ def handle_message(event):
         return
 
     # ==========================================
-    # 🌟 新增功能 4：召喚【存股加碼雷達】
+    # 🌟 新增功能 4：召喚【存股雷達】(大選單)
     # ==========================================
-    if msg in ["存股", "金融股"]:
+    if msg == "存股":
+        quick_reply = QuickReply(items=[
+            QuickReplyButton(action=MessageAction(label="🏦 金融控股", text="金融股")),
+            QuickReplyButton(action=MessageAction(label="📈 國民 ETF", text="存股 ETF")),
+            QuickReplyButton(action=MessageAction(label="🚀 權值龍頭", text="存股 龍頭"))
+        ])
+        reply_text = "🏦 【存股打折加碼雷達】\n\n存股家族大集合！為了不洗版，請點擊下方按鈕選擇您今天想查看的類別👇"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text, quick_reply=quick_reply))
+        return
+
+    # ==========================================
+    # 🌟 新增功能 4-1：處理存股【子分類】查詢
+    # ==========================================
+    if msg in ["金融股", "存股 ETF", "存股 龍頭"]:
         try:
             with open('deposit_stocks.json', 'r', encoding='utf-8') as f:
                 deposit_data = json.load(f)
             
-            if not deposit_data:
-                reply_text = "⚠️ 目前無存股名單資料，請稍後再試。"
-            else:
-                reply_text = "🏦 【存股打折加碼雷達】\n" + "═" * 18 + "\n"
-                for item in deposit_data:
-                    reply_text += f"{item['signal']} {item['name']} ({item['code']})\n"
-                    reply_text += f"現價 {item['price']} | 乖離率 {item['bias_20']}%\n"
-                    reply_text += f"👉 {item['action']}\n"
-                    reply_text += "─" * 18 + "\n"
+            filtered_data = []
+            category_name = ""
+            for item in deposit_data:
+                code = item['code']
+                # 自動分類邏輯
+                if msg == "金融股" and (code.startswith('28') or code.startswith('58')):
+                    filtered_data.append(item); category_name = "金融控股"
+                elif msg == "存股 ETF" and code.startswith('00'):
+                    filtered_data.append(item); category_name = "國民 ETF"
+                elif msg == "存股 龍頭" and not code.startswith('00') and not (code.startswith('28') or code.startswith('58')):
+                    filtered_data.append(item); category_name = "權值龍頭"
                     
+            if not filtered_data:
+                reply_text = f"⚠️ 目前沒有符合【{category_name}】的存股資料。"
+            else:
+                reply_text = f"🏦 【存股雷達：{category_name}】\n\n"
+                for item in filtered_data:
+                    reply_text += f"{item['signal']} {item['name']} ({item['code']})\n"
+                    reply_text += "────────────────\n"
+                    reply_text += f"💰 現價：{item['price']} ｜ 月乖離：{item['bias_20']}%\n"
+                    reply_text += f"💡 {item['action']}\n"
+                    reply_text += "════════════════\n\n"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         except Exception as e:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 存股資料讀取失敗，請確認今日爬蟲是否已執行。"))
-        return    
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 存股資料讀取失敗，請確認今日爬蟲是否已執行。"))
+        return
     #=================3/17==========================
     # [功能 2] 個股/ETF 診斷 (優化版)
     stock_id = get_stock_id(msg)
