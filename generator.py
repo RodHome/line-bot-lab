@@ -8,8 +8,8 @@ from datetime import datetime, timedelta, timezone
 from io import StringIO
 import yfinance as yf
 
-# ================= 新增：FinMind 查詢區域 =================
-FINMIND_TOKEN = os.environ.get('FINMIND_TOKEN', '')
+# 🔥 強制寫死專屬金鑰，解鎖每小時 600 次額度 (測試成功後請注意資安，勿外流)
+FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
 
 def get_finmind_chips(code):
     """查詢近 5 日法人買超張數 (抗長假 30 天版)"""
