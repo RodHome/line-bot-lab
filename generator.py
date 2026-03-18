@@ -797,24 +797,35 @@ def generate_deposit_stocks():
         try:
             # 判斷上市或上櫃 (ETF通常是上市 TW)
             ticker_tw = yf.Ticker(f"{code}.TW")
-            df = ticker_tw.history(period="3mo")
+            df = ticker_tw.history(period="6mo") # 🔥 改為 6mo 以涵蓋季線
             if df.empty:
                 ticker_two = yf.Ticker(f"{code}.TWO")
-                df = ticker_two.history(period="3mo")
+                df = ticker_two.history(period="6mo")
             
-            if len(df) < 20:
+            if len(df) < 60: # 🔥 確保資料夠算 60MA
                 print("資料不足，跳過。")
                 continue
 
             closes = df['Close'].tolist()
             close_today = closes[-1]
             
-            # 計算 20MA(月線) 與 5MA(週線，用來防飛刀)
+            # 🔥 計算多週期均線與乖離率
+            ma60 = sum(closes[-60:]) / 60
+            ma24 = sum(closes[-24:]) / 24
             ma20 = sum(closes[-20:]) / 20
+            ma12 = sum(closes[-12:]) / 12
+            ma6 = sum(closes[-6:]) / 6
             ma5 = sum(closes[-5:]) / 5
             
+            bias_60 = (close_today - ma60) / ma60 * 100
+            bias_24 = (close_today - ma24) / ma24 * 100
             bias_20 = (close_today - ma20) / ma20 * 100
+            bias_12 = (close_today - ma12) / ma12 * 100
+            bias_6 = (close_today - ma6) / ma6 * 100
             bias_5 = (close_today - ma5) / ma5 * 100
+
+            # 🔥 抓取殖利率 (利用你寫好的函式)
+            eps, yield_rate = get_finmind_fundamentals(code, close_today)
 
             # 🧠 核心大腦：5 段式燈號與防飛刀邏輯
             signal = ""
@@ -850,11 +861,16 @@ def generate_deposit_stocks():
                 "code": code,
                 "name": meta_info.get('name', '未知名稱'),
                 "price": round(close_today, 2),
+                "bias_6": round(bias_6, 2),   # 🔥 新增
+                "bias_12": round(bias_12, 2), # 🔥 新增
+                "bias_24": round(bias_24, 2), # 🔥 新增
                 "bias_20": round(bias_20, 2),
+                "bias_60": round(bias_60, 2), # 🔥 新增
+                "yield_rate": yield_rate,     # 🔥 新增
                 "signal": signal,
                 "action": action
             })
-            print(f"完成 (乖離 {bias_20:.2f}%)")
+            print(f"完成 (乖離 {bias_20:.2f}%, 殖利率 {yield_rate}%)")
 
         except Exception as e:
             print(f"錯誤: {e}")
