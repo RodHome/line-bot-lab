@@ -509,7 +509,7 @@ def handle_message(event):
     msg = event.message.text.strip()
 
     # 🔥 [新增功能] 選股邏輯說明
-    if msg in ["選股邏輯", "推薦說明", "篩選條件"]:
+    if msg in ["選股邏輯", "推薦說明", "篩選條件","右側邏輯"]:
         logic_text = (
             "🤖【AI 選股雷達：篩選邏輯說明】\n"
             "—— 結合「大數據動能」與「基本面趨勢」的雙重防線 ——\n"
