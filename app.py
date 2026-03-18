@@ -730,7 +730,7 @@ def handle_message(event):
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
                     {"type": "text", "text": "🏦 存股打折加碼雷達", "weight": "bold", "size": "lg", "color": "#1E88E5"},
-                    {"type": "text", "text": "存股家族大集合！\n為維持版面清爽，請點選下方按鈕查看類別👇", "wrap": True, "size": "sm", "color": "#666666"},
+                    {"type": "text", "text": "這是開發者的存股名單\n點選下方類別👇", "wrap": True, "size": "sm", "color": "#666666"},
                     {"type": "separator", "margin": "md"},
                     {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🏦 金融控股", "text": "金融股"}, "margin": "md"},
                     {"type": "button", "style": "primary", "color": "#00897B", "action": {"type": "message", "label": "📈 國民 ETF", "text": "存股 ETF"}, "margin": "sm"},
@@ -740,40 +740,79 @@ def handle_message(event):
         }
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="存股分類選單", contents=stock_menu_flex))
         return
-
     # ==========================================
-    # 🌟 新增功能 4-1：處理存股【子分類】查詢
+    # 🌟 新增功能 4-1：處理存股【子分類】查詢 (智能濃縮排版)
     # ==========================================
     if msg in ["金融股", "存股 ETF", "存股 龍頭"]:
         try:
             with open('deposit_stocks.json', 'r', encoding='utf-8') as f:
                 deposit_data = json.load(f)
             
-            filtered_data = []
             category_name = ""
+            buy_list = []
+            hold_list = []
+            warn_list = []
+
             for item in deposit_data:
                 code = item['code']
+                # 自動分類邏輯
+                match = False
                 if msg == "金融股" and (code.startswith('28') or code.startswith('58')):
-                    filtered_data.append(item); category_name = "金融控股"
+                    category_name = "金融控股"; match = True
                 elif msg == "存股 ETF" and code.startswith('00'):
-                    filtered_data.append(item); category_name = "國民 ETF"
+                    category_name = "國民 ETF"; match = True
                 elif msg == "存股 龍頭" and not code.startswith('00') and not (code.startswith('28') or code.startswith('58')):
-                    filtered_data.append(item); category_name = "權值龍頭"
+                    category_name = "權值龍頭"; match = True
+                
+                # 若符合該分類，則依據「訊號」分發到不同陣列
+                if match:
+                    signal_str = item.get('signal', '')
+                    if '加碼' in signal_str:
+                        buy_list.append(item)
+                    elif '過熱' in signal_str:
+                        warn_list.append(item)
+                    else:
+                        hold_list.append(item)
                     
-            if not filtered_data:
+            if not (buy_list or hold_list or warn_list):
                 reply_text = f"⚠️ 目前沒有符合【{category_name}】的存股資料。"
             else:
                 reply_text = f"🏦 【存股雷達：{category_name}】\n\n"
-                for item in filtered_data:
-                    reply_text += f"{item['signal']} {item['name']} ({item['code']})\n"
-                    reply_text += "────────────────\n"
-                    reply_text += f"💰 現價：{item['price']} ｜ 月乖離：{item['bias_20']}%\n"
-                    reply_text += f"💡 {item['action']}\n"
-                    reply_text += "════════════════\n\n"
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+                
+                # --- 1. 重點顯示：打折加碼區 (保留詳細資訊) ---
+                reply_text += "🛒 📉 【打折加碼區】\n"
+                if buy_list:
+                    for item in buy_list:
+                        reply_text += f"▪️ {item['name']} ({item['code']})\n"
+                        reply_text += f"   現價: {item['price']} | 月乖離: {item['bias_20']}%\n"
+                        reply_text += f"   💡 {item['action']}\n"
+                        reply_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
+                else:
+                    reply_text += "   (目前無跌深打折標的，請保持耐心)\n\n"
+                
+                # --- 2. 輕量顯示：平穩定額區 (合併為一行) ---
+                reply_text += "🟢 ⚖️ 【平穩定額區】(維持紀律)\n"
+                reply_text += "   *(括號內為月線乖離率，越負代表越有打折)*\n"
+                if hold_list:
+                    hold_strs = [f"{x['name']}({x['bias_20']}%)" for x in hold_list]
+                    reply_text += "   " + "、".join(hold_strs) + "\n\n"
+                else:
+                    reply_text += "   (無)\n\n"
+                
+                # --- 3. 輕量顯示：過熱觀察區 (合併為一行) ---
+                reply_text += "🚨 🔥 【過熱觀察區】(暫緩扣款)\n"
+                reply_text += "   *(月乖離過高代表短線漲多，建議暫存現金)*\n"
+                if warn_list:
+                    warn_strs = [f"{x['name']}({x['bias_20']}%)" for x in warn_list]
+                    reply_text += "   " + "、".join(warn_strs) + "\n"
+                else:
+                    reply_text += "   (無)\n"
+                    
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text.strip()))
         except Exception as e:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 存股資料讀取失敗，請確認今日爬蟲是否已執行。"))
         return
+    
     #=================3/17==========================
     # [功能 2] 個股/ETF 診斷 (優化版)
     stock_id = get_stock_id(msg)
