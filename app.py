@@ -669,35 +669,54 @@ def handle_message(event):
         
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         return
-    # ================3/17==========================
-    # 🌟 新增功能 3：召喚【左側黃金坑】
+    # ==========================================
+    # 🌟 新增功能 3：召喚【左側黃金坑】(加入時間卡片)
     # ==========================================
     if msg == "左側":
         try:
-            with open('left_side_value.json', 'r', encoding='utf-8') as f:
+            file_path = 'left_side_value.json'
+            update_str = "最新資料"
+            if os.path.exists(file_path):
+                file_mtime = os.path.getmtime(file_path)
+                dt_mtime = datetime.fromtimestamp(file_mtime, tz=timezone.utc) + timedelta(hours=8)
+                update_str = dt_mtime.strftime('%Y-%m-%d %H:%M')
+
+            with open(file_path, 'r', encoding='utf-8') as f:
                 left_data = json.load(f)
             
             if not left_data:
-                reply_text = "🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"))
             else:
                 bubbles = []
+                # 🛡️ 首張導覽與時間卡片
+                info_bubble = {
+                    "type": "bubble", "size": "kilo",
+                    "body": {
+                        "type": "box", "layout": "vertical", "spacing": "sm", "alignItems": "center", "justifyContent": "center",
+                        "contents": [
+                            {"type": "text", "text": "🛡️ 左側黃金坑", "weight": "bold", "size": "xl", "color": "#1E88E5", "align": "center"},
+                            {"type": "text", "text": f"雷達掃描時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
+                            {"type": "separator", "margin": "lg"},
+                            {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"}
+                        ]
+                    }
+                }
+                bubbles.append(info_bubble)
+
                 for item in left_data[:5]:
-                    # 顏色邏輯：分數越高越偏向熱情的紅色，否則偏穩重的深灰
                     score = int(item.get('score', 50))
-                    header_color = "#D32F2F" if score >= 80 else "#455A64"
+                    header_color = "#D32F2F" if score >= 80 else "#00897B"
                     
                     bubble = {
                         "type": "bubble", "size": "hecto",
                         "header": {
-                            "type": "box", "layout": "vertical",
-                            "contents": [
+                            "type": "box", "layout": "vertical", "contents": [
                                 {"type": "text", "text": f"{item['name']} ({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff"},
                                 {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold"}
                             ], "backgroundColor": header_color
                         },
                         "body": {
-                            "type": "box", "layout": "vertical", "spacing": "sm",
-                            "contents": [
+                            "type": "box", "layout": "vertical", "spacing": "sm", "contents": [
                                 {"type": "text", "text": "📉 均線乖離率", "size": "xs", "color": "#888888", "weight": "bold"},
                                 {"type": "text", "text": f"季 {item.get('bias60', 'N/A')} | 月 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}", "size": "sm", "color": "#333333"},
                                 {"type": "separator", "margin": "md"},
@@ -705,7 +724,7 @@ def handle_message(event):
                                 {"type": "text", "text": f"法人連買 {item.get('buy_days', 'N/A')} 天", "size": "sm", "color": "#D84315", "weight": "bold"},
                                 {"type": "text", "text": f"量縮至均量 {item.get('vol_ratio', 'N/A')}", "size": "sm", "color": "#1976D2"},
                                 {"type": "separator", "margin": "md"},
-                                {"type": "text", "text": "💡 操作策略", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
+                                {"type": "text", "text": "💡 實戰策略", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
                                 {"type": "text", "text": f"狀態：{item.get('trend_status', '築底中')}", "size": "xs", "color": "#333333", "wrap": True},
                                 {"type": "text", "text": f"進場：{item.get('entry_price', 'N/A')} 元分批試單", "size": "xs", "color": "#2E7D32", "weight": "bold"},
                                 {"type": "text", "text": "停損：波段最低價跌破 3%", "size": "xs", "color": "#C62828", "weight": "bold"}
@@ -741,15 +760,16 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="存股分類選單", contents=stock_menu_flex))
         return
     # ==========================================
-    # 🌟 新增功能 4-1：處理存股【子分類】查詢 (進階群組 Flex 卡片 + 資料時間)
+    # 🌟 新增功能 4-1：處理存股【子分類】查詢 (同類聚合排版 + 豐富數據)
     # ==========================================
     if msg in ["金融股", "存股 ETF", "存股 龍頭"]:
         try:
-            # 取得檔案最後修改時間，作為資料快照日期
             file_path = 'deposit_stocks.json'
-            file_mtime = os.path.getmtime(file_path)
-            dt_mtime = datetime.fromtimestamp(file_mtime, tz=timezone.utc) + timedelta(hours=8)
-            update_str = dt_mtime.strftime('%Y-%m-%d %H:%M')
+            update_str = "最新資料"
+            if os.path.exists(file_path):
+                file_mtime = os.path.getmtime(file_path)
+                dt_mtime = datetime.fromtimestamp(file_mtime, tz=timezone.utc) + timedelta(hours=8)
+                update_str = dt_mtime.strftime('%Y-%m-%d %H:%M')
 
             with open(file_path, 'r', encoding='utf-8') as f:
                 deposit_data = json.load(f)
@@ -766,8 +786,8 @@ def handle_message(event):
                 
                 if match:
                     signal_str = item.get('signal', '')
-                    if '加碼' in signal_str: buy_list.append(item)
-                    elif '過熱' in signal_str: warn_list.append(item)
+                    if '加碼' in signal_str or '重壓' in signal_str: buy_list.append(item)
+                    elif '警示' in signal_str: warn_list.append(item)
                     else: hold_list.append(item)
                     
             if not (buy_list or hold_list or warn_list):
@@ -775,62 +795,69 @@ def handle_message(event):
             else:
                 flex_contents = [
                     {"type": "text", "text": f"🏦 存股雷達：{category_name}", "weight": "bold", "size": "lg", "color": "#1E88E5", "align": "center"},
-                    {"type": "text", "text": f"資料時間：{update_str}\n*(括號內為月線乖離率)*", "size": "xxs", "color": "#9E9E9E", "align": "center", "wrap": True},
+                    {"type": "text", "text": f"資料時間：{update_str}", "size": "xxs", "color": "#9E9E9E", "align": "center"},
                     {"type": "separator", "margin": "md"}
                 ]
 
-                # --- 1. 打折加碼區 (群組化排版) ---
+                # --- 1. 🛒 📉 打折加碼區 (智慧同類聚合) ---
                 flex_contents.append({"type": "text", "text": "🛒 📉 【打折加碼區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"})
                 
                 if buy_list:
                     grouped_buys = {}
                     common_main_action = ""
                     
-                    # 將股票依據「括號內的獨特訊號」進行分組
                     for item in buy_list:
                         action_text = item.get('action', '')
-                        # 抓取括號前的共通字串 (例如：【小幅加碼】股價委屈...)
                         main_match = re.match(r'^(.*?)(?:\(|（)', action_text)
                         if main_match and not common_main_action:
                             common_main_action = main_match.group(1).strip()
 
-                        # 抓取括號內的獨特訊號
                         sig_match = re.search(r'[\(（](.*?)[）\)]', action_text)
                         sig = sig_match.group(1).strip() if sig_match else "分批建倉"
                         
-                        if sig not in grouped_buys:
-                            grouped_buys[sig] = []
+                        if sig not in grouped_buys: grouped_buys[sig] = []
                         grouped_buys[sig].append(item)
 
-                    # 顯示共通副標題
                     if common_main_action:
                         flex_contents.append({"type": "text", "text": common_main_action, "size": "xs", "color": "#FF8F00", "wrap": True, "weight": "bold"})
 
-                    # 排序邏輯：讓「週線翻正」優先排在最上面
                     def sort_groups(k):
                         if "翻正" in k: return 0
                         if "跌勢未止" in k: return 1
                         return 2
                     sorted_sigs = sorted(grouped_buys.keys(), key=sort_groups)
 
-                    # 畫出分組的股票清單
                     for sig in sorted_sigs:
                         stocks = grouped_buys[sig]
                         sig_color = "#2E7D32" if "翻正" in sig else ("#C62828" if "跌勢" in sig else "#FF8F00")
                         
                         group_box = {
                             "type": "box", "layout": "vertical", "margin": "sm", "spacing": "xs",
-                            "contents": [
-                                {"type": "text", "text": f"🌟 {sig}" if "翻正" in sig else f"⚠️ {sig}", "weight": "bold", "size": "xs", "color": sig_color, "wrap": True}
-                            ]
+                            "contents": [{"type": "text", "text": f"🌟 {sig}" if "翻正" in sig else f"⚠️ {sig}", "weight": "bold", "size": "xs", "color": sig_color, "wrap": True}]
                         }
+                        
                         for item in stocks:
+                            # 讀取後台算好的新數據
+                            b6 = item.get('bias_6', 'N/A')
+                            b12 = item.get('bias_12', 'N/A')
+                            b24 = item.get('bias_24', 'N/A')
+                            b60 = item.get('bias_60', 'N/A')
+                            yld = item.get('yield_rate', 'N/A')
+                            
+                            stats_str = f"季{b60}% | 月{b24}% | 12日{b12}% | 6日{b6}%"
+                            
                             group_box["contents"].append({
-                                "type": "box", "layout": "horizontal", "margin": "xs",
+                                "type": "box", "layout": "vertical", "margin": "xs",
                                 "contents": [
-                                    {"type": "text", "text": f"▪️ {item['name']}({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 5},
-                                    {"type": "text", "text": str(item['price']), "weight": "bold", "size": "sm", "color": "#D32F2F", "align": "end", "flex": 2},
-                                    {"type": "text", "text": f"({item['bias_20']}%)", "size": "xs", "color": "#1976D2", "align": "end", "flex": 2}
+                                    {
+                                        "type": "box", "layout": "horizontal",
+                                        "contents": [
+                                            {"type": "text", "text": f"▪️ {item['name']}({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 5},
+                                            {"type": "text", "text": f"殖利率 {yld}%", "size": "xxs", "color": "#E65100", "align": "end", "flex": 3},
+                                            {"type": "text", "text": str(item['price']), "weight": "bold", "size": "sm", "color": "#D32F2F", "align": "end", "flex": 2}
+                                        ]
+                                    },
+                                    {"type": "text", "text": stats_str, "size": "xxs", "color": "#1976D2", "align": "start"}
                                 ]
                             })
                         flex_contents.append(group_box)
@@ -840,8 +867,9 @@ def handle_message(event):
                 # --- 2. 平穩定額區 ---
                 flex_contents.append({"type": "separator", "margin": "lg"})
                 flex_contents.append({"type": "text", "text": "🟢 ⚖️ 【平穩定額區】(維持紀律)", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
+                flex_contents.append({"type": "text", "text": "*(括號內為月線乖離率)*", "size": "xxs", "color": "#9E9E9E", "wrap": True})
                 if hold_list:
-                    hold_strs = [f"{x['name']}({x['bias_20']}%)" for x in hold_list]
+                    hold_strs = [f"{x['name']}({x.get('bias_24', x.get('bias_20', 'N/A'))}%)" for x in hold_list]
                     flex_contents.append({"type": "text", "text": "、".join(hold_strs), "size": "xs", "color": "#666666", "wrap": True, "margin": "sm"})
                 else:
                     flex_contents.append({"type": "text", "text": "(無)", "size": "xs", "color": "#9E9E9E", "margin": "sm"})
@@ -849,8 +877,9 @@ def handle_message(event):
                 # --- 3. 過熱觀察區 ---
                 flex_contents.append({"type": "separator", "margin": "md"})
                 flex_contents.append({"type": "text", "text": "🚨 🔥 【過熱觀察區】(暫緩扣款)", "weight": "bold", "size": "sm", "color": "#C62828", "margin": "md"})
+                flex_contents.append({"type": "text", "text": "*(月乖離過高，建議暫存現金)*", "size": "xxs", "color": "#9E9E9E", "wrap": True})
                 if warn_list:
-                    warn_strs = [f"{x['name']}({x['bias_20']}%)" for x in warn_list]
+                    warn_strs = [f"{x['name']}({x.get('bias_24', x.get('bias_20', 'N/A'))}%)" for x in warn_list]
                     flex_contents.append({"type": "text", "text": "、".join(warn_strs), "size": "xs", "color": "#666666", "wrap": True, "margin": "sm"})
                 else:
                     flex_contents.append({"type": "text", "text": "(無)", "size": "xs", "color": "#9E9E9E", "margin": "sm"})
@@ -858,7 +887,6 @@ def handle_message(event):
                 final_flex = {"type": "bubble", "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": flex_contents}}
                 line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text=f"存股雷達：{category_name}", contents=final_flex))
         except Exception as e:
-            print(f"存股錯誤: {e}")
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 存股資料讀取失敗，請確認今日爬蟲是否已執行。"))
         return
     
