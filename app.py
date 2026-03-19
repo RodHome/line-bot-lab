@@ -9,6 +9,7 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
 
+#---restart
 app = Flask(__name__)
 
 # 🤖 [版本號] v18.1 
