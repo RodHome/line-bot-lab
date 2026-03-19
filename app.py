@@ -686,6 +686,7 @@ def handle_message(event):
             
             if not left_data:
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"))
+                return # 🔥 必須加上這行：回覆後立刻中斷函式
             else:
                 bubbles = []
                 # 🛡️ 首張導覽與時間卡片
@@ -734,6 +735,7 @@ def handle_message(event):
                     bubbles.append(bubble)
                     
                 line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
+                return # 🔥 必須加上這行：確保程式在此停住，不會觸發二次回覆報錯
                 
         except Exception as e:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 左側資料讀取失敗，請確認今日爬蟲是否已執行。"))
