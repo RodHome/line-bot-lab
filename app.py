@@ -237,7 +237,7 @@ def call_gemini_json(prompt, system_instruction=None):
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     if text: return clean_json_string(text), model # 👈 修改 1：同時回傳模型名稱
-            else:
+                else:
                     # 🔥 加入這行：如果 Google 拒絕，把原因印在伺服器 Log 裡
                 print(f"[AI 拒絕] {model} 狀態碼: {response.status_code} - {response.text}")
             except Exception as e: 
