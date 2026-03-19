@@ -679,7 +679,7 @@ def handle_message(event):
             if os.path.exists(file_path):
                 file_mtime = os.path.getmtime(file_path)
                 dt_mtime = datetime.fromtimestamp(file_mtime, tz=timezone.utc) + timedelta(hours=8)
-                update_str = dt_mtime.strftime('%Y-%m-%d %H:%M')
+                update_str = dt_mtime.strftime('%Y-%m-%d')
 
             with open(file_path, 'r', encoding='utf-8') as f:
                 left_data = json.load(f)
@@ -823,11 +823,16 @@ def handle_message(event):
                     {
                         "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center",
                         "contents": [
-                            {"type": "text", "text": f"資料時間：{update_str}", "size": "xxs", "color": "#9E9E9E", "flex": 1},
+                            {"type": "text", "text": f"資料時間：{update_str}", "size": "xxs", "color": "#9E9E9E", "flex": ０},
+                            # 💡 修正 2：透明推桿 (flex: 1)，佔滿中間空間，強制把紅框推到最右邊
+                            {"type": "box", "layout": "vertical", "flex": 1},
                             {
                                 # 加入你畫的紅色外框提示
-                                "type": "box", "layout": "vertical", "flex": 1, "borderColor": "#E57373", "borderWidth": "1px", "cornerRadius": "4px", "paddingAll": "2px",
-                                "contents": [{"type": "text", "text": "*(月線乖離率)*", "size": "xxs", "color": "#D32F2F", "align": "center"}]
+                                "type": "box", "layout": "vertical", 
+                                "width": "72px",
+                                "borderColor": "#E57373", "borderWidth": "1px", "cornerRadius": "4px", "paddingAll": "2px",
+                                "contents": [
+                                    {"type": "text", "text": "*(月線乖離率)*", "size": "xxs", "color": "#D32F2F", "align": "center"}]
                             }
                         ]
                     },
