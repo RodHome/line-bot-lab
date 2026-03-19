@@ -874,25 +874,25 @@ def generate_deposit_stocks():
 
             if bias_20 > 8.0:
                 signal = "🔴 警示"
-                action = "【停扣 / 獲利了結】短線過熱，暫緩加碼。"
+                action = "【停扣 / 獲利了結】短線過熱，可先獲利了結，回檔後再接。"
             elif 3.0 < bias_20 <= 8.0:
                 signal = "🟡 觀望"
-                action = "【維持現狀】穩定上漲中，不急著動作。"
+                action = "【維持現狀】穩定上漲中。"
             elif -2.0 <= bias_20 <= 3.0:
                 signal = "🟢 平穩"
-                action = "【定期定額】價值平衡區，適合無腦累積張數。"
+                action = "【定期定額】價值平衡。"
             elif -8.0 <= bias_20 < -2.0:
                 signal = "🛒 加碼"
-                action = "【小幅加碼】股價委屈，預估殖利率上升，分批撿便宜。"
+                action = "【小幅加碼】股價委屈，預估殖利率上升，可撿便宜。"
             else: # bias_20 < -8.0
                 signal = "🚨 重壓"
-                action = "【大舉進場】市場恐慌超跌，長線極佳買點浮現！"
+                action = "【大舉進場】市場恐慌超跌，長線買點浮現！"
 
             # 🛡️ 防飛刀濾網 (當月線大跌，但週線還在跌，代表還沒見底)
             if bias_20 < -2.0 and bias_5 < 0:
-                anti_knife_warning = " ⚠️ (跌勢未止，刀子還在掉，請分批慢接)"
+                anti_knife_warning = " ⚠️ (跌勢未止，請分批慢接)"
             elif bias_20 < -2.0 and bias_5 > 0:
-                anti_knife_warning = " ⭐ (週線翻正，跌勢止穩，黃金加碼點！)"
+                anti_knife_warning = " ⭐ (週線翻正，跌勢止穩，建議加碼！)"
 
             action += anti_knife_warning
 
