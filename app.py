@@ -233,12 +233,12 @@ def call_gemini_json(prompt, system_instruction=None):
                     "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
-                if response.status_code == 200:
+               if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                    if text: return clean_json_string(text)
+                    if text: return clean_json_string(text), model # 👈 修改 1：同時回傳模型名稱
             except: continue
-    return None
+    return None, "無可用模型" # 👈 修改 2：防呆對齊
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 def fetch_data_light(stock_id):
@@ -594,7 +594,8 @@ def handle_message(event):
             "規則：必須結合『產業趨勢』或『技術突破』，語氣專業，不要只寫籌碼集中。"
             "例如：AI伺服器需求爆發，量價齊揚突破前高。"
         )
-        ai_json_str = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
+        # 👈 前面加上 used_model 變數來接住它
+        ai_json_str, used_model = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
         
         reasons_map = {}
         try:
@@ -1023,10 +1024,11 @@ def handle_message(event):
             )
             # 餵給 AI 產業資訊
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
-            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
-                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}"
+                # 👈 在字串最後面加上 (🤖 模型: {used_model})
+                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}\n(🤖 模型: {used_model})"
             except: reply = "AI 數據解析失敗 (請檢查 Key)。"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return    
@@ -1054,12 +1056,12 @@ def handle_message(event):
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             
-            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
                 advice_str = f"【綜合建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
-                # 🔥 將 AI 產出的兩個欄位組合起來顯示
-                ai_reply_text = f"【基本面】{res.get('macro', '無資料')}\n【技術面】{res.get('technical', '無資料')}\n{advice_str}"
+                # 👈 在 ai_reply_text 尾端加上換行與機器人名稱
+                ai_reply_text = f"【基本面】{res.get('macro', '無資料')}\n【技術面】{res.get('technical', '無資料')}\n{advice_str}\n(🤖 {used_model})"
             except: 
                 ai_reply_text = "AI 數據解析失敗 (連線異常)。"
                 
