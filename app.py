@@ -766,14 +766,14 @@ def handle_message(event):
         }
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="存股分類選單", contents=stock_menu_flex))
         return
+   
     # ==========================================
-    # 🌟 [完全取代] 存股子分類：GitHub 遠端讀取 + 雙欄排版 + 縮小紅框
+    # 🌟 [終極整合版] 存股子分類：遠端讀取 + 雙欄排版 + 加碼區完整邏輯
     # ==========================================
     if msg in ["金融股", "存股 ETF", "存股 龍頭"]:
         try:
-            # 🔥 修正 1：改為 GitHub 遠端連結
+            # 1. 改為 GitHub 遠端連結讀取
             DEPOSIT_URL = "https://raw.githubusercontent.com/RodHome/line-bot-lab/main/deposit_stocks.json"
-            
             headers = {'Cache-Control': 'no-cache'}
             res = requests.get(DEPOSIT_URL, headers=headers, timeout=10)
             
@@ -782,10 +782,12 @@ def handle_message(event):
                 return
 
             deposit_data = res.json()
-            # 💡 修正 2：簡化日期格式，避免遮擋
-            update_str = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d')
             
-            # --- 分類邏輯 ---
+            # 2. 修正時間語法 (解決當機問題)
+            tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+            update_str = tw_now.strftime('%Y-%m-%d')
+            
+            # 3. 分類邏輯
             category_name = ""
             buy_list = []; hold_list = []; warn_list = []
             for item in deposit_data:
@@ -801,20 +803,25 @@ def handle_message(event):
                     elif '警示' in signal_str: warn_list.append(item)
                     else: hold_list.append(item)
 
-            # 建立雙欄排版輔助函式
+            # 4. 建立雙欄排版輔助函式 (💡加入 wrap: True 防止長檔名被切斷)
             def build_two_columns_grid(stock_list):
                 grid_contents = []
                 for i in range(0, len(stock_list), 2):
                     row_contents = []
-                    item1 = stock_list[i]
-                    val1 = item1.get('bias_24', item1.get('bias_20', 'N/A'))
-                    row_contents.append({"type": "text", "text": f"▪️ {item1['name']}({val1}%)", "size": "xs", "color": "#666666", "flex": 1})
-                    if i + 1 < len(stock_list):
-                        item2 = stock_list[i+1]
-                        val2 = item2.get('bias_24', item2.get('bias_20', 'N/A'))
-                        row_contents.append({"type": "text", "text": f"▪️ {item2['name']}({val2}%)", "size": "xs", "color": "#666666", "flex": 1})
-                    else:
-                        row_contents.append({"type": "text", "text": " ", "size": "xs", "flex": 1})
+                    for j in range(2):
+                        if i + j < len(stock_list):
+                            item = stock_list[i + j]
+                            val = item.get('bias_24', item.get('bias_20', 'N/A'))
+                            row_contents.append({
+                                "type": "text", 
+                                "text": f"▪️ {item['name']}({val}%)", 
+                                "size": "xxs", 
+                                "color": "#666666", 
+                                "flex": 1,
+                                "wrap": True
+                            })
+                        else:
+                            row_contents.append({"type": "text", "text": " ", "size": "xxs", "flex": 1})
                     grid_contents.append({"type": "box", "layout": "horizontal", "contents": row_contents, "margin": "sm"})
                 return grid_contents
 
@@ -824,11 +831,10 @@ def handle_message(event):
                 {
                     "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center",
                     "contents": [
-                        # 💡 修正 3：使用 flex: 0 確保日期不被壓縮
                         {"type": "text", "text": f"資料日期：{update_str}", "size": "xxs", "color": "#9E9E9E", "flex": 0},
                         {"type": "box", "layout": "vertical", "flex": 1}, # 透明推桿
                         {
-                            "type": "box", "layout": "vertical", "width": "72px", # 💡 修正 4：固定寬度紅框
+                            "type": "box", "layout": "vertical", "width": "72px", # 固定寬度紅框
                             "borderColor": "#E57373", "borderWidth": "1px", "cornerRadius": "4px", "paddingAll": "1px",
                             "contents": [{"type": "text", "text": "*(月線乖離)*", "size": "xxs", "color": "#D32F2F", "align": "center"}]
                         }
@@ -837,26 +843,85 @@ def handle_message(event):
                 {"type": "separator", "margin": "md"}
             ]
 
-            # 1. 🛒 打折加碼區 (單欄顯示)
-            flex_contents.append({"type": "text", "text": "🛒 📉 【打折加碼區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"})
-            # ... (此處保留原本 buy_list 轉為 group_box 的單欄處理邏輯) ...
+            # --- 1. 🛒 打折加碼區 (🔥 還原遺落的迴圈代碼) ---
+            if buy_list:
+                flex_contents.append({"type": "text", "text": "🛒 📉 【打折加碼區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"})
+                grouped_buys = {}
+                common_main_action = ""
+                
+                for item in buy_list:
+                    action_text = item.get('action', '')
+                    main_match = re.match(r'^(.*?)(?:\(|（)', action_text)
+                    if main_match and not common_main_action:
+                        common_main_action = main_match.group(1).strip()
 
-            # 2. 🟢 平穩定額區 (雙欄顯示)
+                    sig_match = re.search(r'[\(（](.*?)[）\)]', action_text)
+                    sig = sig_match.group(1).strip() if sig_match else "分批建倉"
+                    
+                    if sig not in grouped_buys: grouped_buys[sig] = []
+                    grouped_buys[sig].append(item)
+
+                if common_main_action:
+                    flex_contents.append({"type": "text", "text": common_main_action, "size": "xs", "color": "#FF8F00", "wrap": True, "weight": "bold"})
+
+                def sort_groups(k):
+                    if "翻正" in k: return 0
+                    if "跌勢未止" in k: return 1
+                    return 2
+                sorted_sigs = sorted(grouped_buys.keys(), key=sort_groups)
+
+                for sig in sorted_sigs:
+                    stocks = grouped_buys[sig]
+                    sig_color = "#2E7D32" if "翻正" in sig else ("#C62828" if "跌勢" in sig else "#FF8F00")
+                    
+                    group_box = {
+                        "type": "box", "layout": "vertical", "margin": "sm", "spacing": "xs",
+                        "contents": [{"type": "text", "text": f"🌟 {sig}" if "翻正" in sig else f"⚠️ {sig}", "weight": "bold", "size": "xs", "color": sig_color, "wrap": True}]
+                    }
+                    
+                    for item in stocks:
+                        b6 = item.get('bias_6', 'N/A')
+                        b24 = item.get('bias_24', 'N/A')
+                        yld = item.get('yield_rate', 'N/A')
+                        
+                        stats_str = f"月{b24}% | 6日{b6}%"
+                        
+                        group_box["contents"].append({
+                            "type": "box", "layout": "vertical", "margin": "xs",
+                            "contents": [
+                                {
+                                    "type": "box", "layout": "horizontal",
+                                    "contents": [
+                                        {"type": "text", "text": f"▪️ {item['name']}({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 5},
+                                        {"type": "text", "text": f"殖利率 {yld}%", "size": "xxs", "color": "#E65100", "align": "end", "flex": 3},
+                                        {"type": "text", "text": str(item['price']), "weight": "bold", "size": "sm", "color": "#D32F2F", "align": "end", "flex": 2}
+                                    ]
+                                },
+                                {"type": "text", "text": stats_str, "size": "xxs", "color": "#1976D2", "align": "start"}
+                            ]
+                        })
+                    flex_contents.append(group_box)
+
+            # --- 2. 🟢 平穩定額區 (雙欄顯示) ---
             flex_contents.append({"type": "separator", "margin": "lg"})
             flex_contents.append({"type": "text", "text": "🟢 ⚖️ 【平穩定額區】(維持紀律)", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
             if hold_list:
                 flex_contents.extend(build_two_columns_grid(hold_list))
+            else:
+                flex_contents.append({"type": "text", "text": "(無)", "size": "xs", "color": "#9E9E9E", "margin": "sm", "align": "center"})
 
-            # 3. 🚨 過熱觀察區 (雙欄顯示 + 建議)
+            # --- 3. 🚨 過熱觀察區 (雙欄顯示 + 建議) ---
             flex_contents.append({"type": "separator", "margin": "md"})
             flex_contents.append({"type": "text", "text": "🚨 🔥 【過熱觀察區】(調節賺價差)", "weight": "bold", "size": "sm", "color": "#C62828", "margin": "md"})
             flex_contents.append({"type": "text", "text": "*(建議分批獲利了結，待回穩再接回)*", "size": "xxs", "color": "#D32F2F", "wrap": True, "margin": "xs"})
             if warn_list:
                 flex_contents.extend(build_two_columns_grid(warn_list))
+            else:
+                flex_contents.append({"type": "text", "text": "(無)", "size": "xs", "color": "#9E9E9E", "margin": "sm", "align": "center"})
 
             final_flex = {"type": "bubble", "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": flex_contents}}
             line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text=f"存股雷達：{category_name}", contents=final_flex))
-            return # 🔥 加上 return 確保不重複回覆
+            return
 
         except Exception as e:
             print(f"Error in GitHub deposit fetch: {e}")
