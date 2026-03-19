@@ -691,7 +691,7 @@ def handle_message(event):
                 bubbles = []
                 # 🛡️ 首張導覽與時間卡片
                 info_bubble = {
-                    "type": "bubble", "size": "kilo",
+                    "type": "bubble", "size": "hecto",
                     "body": {
                         "type": "box", "layout": "vertical", "spacing": "sm", "alignItems": "center", "justifyContent": "center",
                         "contents": [
