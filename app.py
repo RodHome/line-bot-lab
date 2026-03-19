@@ -211,7 +211,7 @@ def clean_json_string(text):
 def call_gemini_json(prompt, system_instruction=None):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
-    if not keys: return None
+    if not keys: return None, "無 API Key"
     random.shuffle(keys)
     
     target_models = ["gemini-2.5-pro","gemini-3.1-pro-preview", "gemini-2.5-flash"]  # "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"
@@ -237,8 +237,14 @@ def call_gemini_json(prompt, system_instruction=None):
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     if text: return clean_json_string(text), model # 👈 修改 1：同時回傳模型名稱
-            except: continue
-    return None, "無可用模型" # 👈 修改 2：防呆對齊
+            else:
+                    # 🔥 加入這行：如果 Google 拒絕，把原因印在伺服器 Log 裡
+                    print(f"[AI 拒絕] {model} 狀態碼: {response.status_code} - {response.text}")
+            except Exception as e: 
+                # 🔥 加入這行：如果是逾時或連線失敗，也印出來
+                print(f"[AI 連線異常] {model}: {e}")
+                continue
+    return None, "無可用模型"
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 def fetch_data_light(stock_id):
