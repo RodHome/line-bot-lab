@@ -841,6 +841,10 @@ def generate_deposit_stocks():
             if df.empty:
                 ticker_two = yf.Ticker(f"{code}.TWO")
                 df = ticker_two.history(period="6mo")
+
+            # 🌟 [新增防呆機制] 清除 Yahoo Finance 的異常空值(NaN)
+            if not df.empty:
+                df = df.dropna(subset=['Close'])
             
             if len(df) < 60: # 🔥 確保資料夠算 60MA
                 print("資料不足，跳過。")
