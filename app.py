@@ -214,7 +214,7 @@ def call_gemini_json(prompt, system_instruction=None):
     if not keys: return None
     random.shuffle(keys)
     
-    target_models = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+    target_models = ["gemini-2.5-pro","gemini-3.1-pro-preview", "gemini-2.5-flash"]  # "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
     
     for model in target_models:
