@@ -739,7 +739,7 @@ def handle_message(event):
                     }
                     bubbles.append(bubble)
                     
-                line_bot_api.reply_message(event.reply_token, SendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
+                line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
                 return # 🔥 必須加上這行：確保程式在此停住，不會觸發二次回覆報錯
                 
         except Exception as e:
@@ -750,7 +750,7 @@ def handle_message(event):
     # 🌟 新增功能 4：召喚【存股雷達】(分類大選單)
     # ==========================================
     if msg == "存股":
-        stock_menu_ = {
+        stock_menu_flex = {
             "type": "bubble",
             "body": {
                 "type": "box", "layout": "vertical", "spacing": "md",
@@ -783,7 +783,7 @@ def handle_message(event):
 
             deposit_data = res.json()
             # 💡 修正 2：簡化日期格式，避免遮擋
-            update_str = datetime.now(timezone.utc).plus(hours=8).strftime('%Y-%m-%d')
+            update_str = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d')
             
             # --- 分類邏輯 ---
             category_name = ""
