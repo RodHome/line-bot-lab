@@ -734,7 +734,7 @@ def handle_message(event):
                     }
                     bubbles.append(bubble)
                     
-                line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
+                line_bot_api.reply_message(event.reply_token, SendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
                 return # 🔥 必須加上這行：確保程式在此停住，不會觸發二次回覆報錯
                 
         except Exception as e:
@@ -745,7 +745,7 @@ def handle_message(event):
     # 🌟 新增功能 4：召喚【存股雷達】(分類大選單)
     # ==========================================
     if msg == "存股":
-        stock_menu_flex = {
+        stock_menu_ = {
             "type": "bubble",
             "body": {
                 "type": "box", "layout": "vertical", "spacing": "md",
@@ -823,7 +823,7 @@ def handle_message(event):
                     {
                         "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center",
                         "contents": [
-                            {"type": "text", "text": f"資料時間：{update_str}", "size": "xxs", "color": "#9E9E9E", "flex": ０},
+                            {"type": "text", "text": f"資料時間：{update_str}", "size": "xxs", "color": "#9E9E9E", "flex": 0},
                             # 💡 修正 2：透明推桿 (flex: 1)，佔滿中間空間，強制把紅框推到最右邊
                             {"type": "box", "layout": "vertical", "flex": 1},
                             {
