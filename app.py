@@ -903,12 +903,12 @@ def handle_message(event):
                     flex_contents.append(group_box)
 
             # --- 2. 🟢 平穩定額區 (雙欄顯示) ---
-            flex_contents.append({"type": "separator", "margin": "lg"})
-            flex_contents.append({"type": "text", "text": "🟢 ⚖️ 【平穩定額區】(維持紀律)", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
+            # 💡 將分隔線與標題全部縮進 if hold_list: 條件內
             if hold_list:
+                flex_contents.append({"type": "separator", "margin": "lg"})
+                flex_contents.append({"type": "text", "text": "🟢 ⚖️ 【平穩定額區】(維持紀律)", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
                 flex_contents.extend(build_two_columns_grid(hold_list))
-            else:
-                flex_contents.append({"type": "text", "text": "(無)", "size": "xs", "color": "#9E9E9E", "margin": "sm", "align": "center"})
+            # 💡 刪除原本的 else 區塊
 
             # --- 3. 🚨 過熱觀察區 (雙欄顯示 + 建議) ---
             # 💡 將分隔線與標題全部縮進 if warn_list: 條件內
