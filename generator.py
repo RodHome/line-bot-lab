@@ -8,15 +8,16 @@ from datetime import datetime, timedelta, timezone
 from io import StringIO
 import yfinance as yf
 
-# 🔥 強制寫死專屬金鑰，解鎖每小時 600 次額度 (測試成功後請注意資安，勿外流)
-FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
+# 🔥 雙鑰匙負載平衡系統：合併訪客與會員額度 (總計 900次/小時)
+GUEST_TOKEN = "" # 訪客鑰匙 (消耗 IP 免費 300 次)
+VIP_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
 
 def get_finmind_chips(code):
     """查詢近 5 日法人買超張數 (抗長假 30 天版)"""
     start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=10)
         data = res.json().get('data', [])
         if not data: return 0, 0
         unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
@@ -42,7 +43,7 @@ def get_finmind_revenue_yoy(code):
     }
     
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=10)
         data = res.json().get('data', [])
         
         if not data: return default_res
@@ -86,7 +87,7 @@ def get_finmind_chips_history(code, days=3):
     url = "https://api.finmindtrade.com/api/v4/data"
     history = []
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=10)
         data = res.json().get('data', [])
         if not data: return [0]*days
         
@@ -107,92 +108,66 @@ def get_finmind_chips_history(code, days=3):
 
 # 🔥 [為左側/存股雷達新增] 查詢單季 EPS 與 殖利率 (動態頻率推算版)
 # ==========================================
-# 區塊：FinMind 基本面與殖利率查詢 (加入開關省額度版)
-# 用途：精準計算 EPS 與殖利率，並可透過 fetch_yield 決定是否耗費 API 查股息
+# ==========================================
+# 區塊：FinMind 基本面與殖利率查詢 (雙軌分流版)
+# 用途：EPS 扣訪客額度，殖利率扣 VIP 額度，極大化 API 使用率
 # ==========================================
 def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     eps_latest = 0.0
     yield_rate = 0.0
-    estimated_annual_dividend = 0.0 # 🔥 新增：初始化分子(預估全年配息)
+    annual_div = 0.0
     
     start = (datetime.now() - timedelta(days=800)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     
-    token_status = "🟢 已掛載" if FINMIND_TOKEN else "🔴 未掛載 (使用訪客額度)"
-
-    # 1. 抓取最新 EPS (維持必查，用來防護虧損股)
+    # 1. 抓取最新 EPS (🔥 分流：消耗 GUEST_TOKEN 免費額度)
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=5)
+        res = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
         if res.status_code == 200:
             data = res.json().get('data', [])
             eps_data = [d for d in data if d['type'] == 'EPS']
             if eps_data: eps_latest = float(eps_data[-1].get('value', 0))
-    except Exception as e: 
-        print(f"⚠️ [{code}] EPS 請求失敗: {e}")
+    except: pass
     
-    # 🌟 額度防護機制：如果不需要查殖利率 (如 Task 3)，直接在這裡 return，省下一次 API！
+    # 🌟 額度防護機制：Task 3 到此為止，回傳 3 個變數
     if not fetch_yield:
-        # 🔥 修復解包錯誤：無論如何都必須回傳 3 個變數
-        return eps_latest, yield_rate, estimated_annual_dividend
+        return eps_latest, yield_rate, annual_div
 
-    # 2. 抓取殖利率 (Task 4 存股專用)
+    # 2. 抓取殖利率 (🔥 分流：只有 Task 4 會走到這，消耗 VIP_TOKEN 額度)
     try:
-        res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
-        
-        if res_div.status_code != 200:
-            print(f"❌ [{code}] 殖利率連線失敗！狀態碼: {res_div.status_code} | Token狀態: {token_status}")
-            return eps_latest, yield_rate
-            
-        json_data = res_div.json()
-        data_div = json_data.get('data', [])
-        
-        if not data_div:
-            msg = json_data.get('msg', '')
-            print(f"⚠️ [{code}] 查無股息資料 | 訊息: {msg}")
-            return eps_latest, yield_rate
-            
-        data_div = sorted(data_div, key=lambda x: x.get('date', ''))
-        valid_cash_records = []
-        
-        for d in data_div:
-            val1 = d.get('CashEarningsDistribution')
-            val2 = d.get('CashStatutorySurplus')
-            val3 = d.get('CashCapitalReserve')
-            total_cash = 0.0
-            for v in [val1, val2, val3]:
-                if v is not None and str(v).strip() != "":
-                    try: total_cash += float(v)
-                    except ValueError: pass
-            
-            if total_cash > 0:
-                record_date = d.get('CashExDividendTradingDate') or d.get('date')
-                if record_date:
-                    valid_cash_records.append({'date': record_date, 'cash': total_cash})
-        
-        if valid_cash_records:
-            valid_cash_records = sorted(valid_cash_records, key=lambda x: x['date'], reverse=True)
-            latest_cash = valid_cash_records[0]['cash']
-            multiplier = 1
-            freq_str = "年配息"
-            
-            if len(valid_cash_records) >= 2:
-                try:
-                    d_new = datetime.strptime(valid_cash_records[0]['date'], '%Y-%m-%d')
-                    d_old = datetime.strptime(valid_cash_records[1]['date'], '%Y-%m-%d')
-                    days_diff = (d_new - d_old).days
-                    if days_diff <= 45: multiplier, freq_str = 12, "月配息"
-                    elif days_diff <= 120: multiplier, freq_str = 4, "季配息"
-                    elif days_diff <= 240: multiplier, freq_str = 2, "半年配"
-                except: pass
-            
-            if current_price > 0:
-                yield_rate = round((latest_cash * multiplier / current_price) * 100, 2)
-            print(f"   👉 [{code}] {freq_str} 最新配息 {latest_cash}，殖利率: {yield_rate}%")
+        res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": VIP_TOKEN}, timeout=10)
+        if res_div.status_code == 200:
+            data_div = res_div.json().get('data', [])
+            if data_div:
+                data_div = sorted(data_div, key=lambda x: x.get('date', ''))
+                valid_cash_records = []
+                for d in data_div:
+                    v1 = d.get('CashEarningsDistribution') or 0
+                    v2 = d.get('CashStatutorySurplus') or 0
+                    v3 = d.get('CashCapitalReserve') or 0
+                    total = float(v1) + float(v2) + float(v3)
+                    if total > 0:
+                        valid_cash_records.append({'date': d.get('date'), 'cash': total})
                 
-    except Exception as e: 
-        print(f"❌ [{code}] 殖利率處理發生錯誤: {e}")
+                if valid_cash_records:
+                    valid_cash_records = sorted(valid_cash_records, key=lambda x: x['date'], reverse=True)
+                    latest_cash = valid_cash_records[0]['cash']
+                    multiplier = 1
+                    if len(valid_cash_records) >= 2:
+                        d_new = datetime.strptime(valid_cash_records[0]['date'], '%Y-%m-%d')
+                        d_old = datetime.strptime(valid_cash_records[1]['date'], '%Y-%m-%d')
+                        days_diff = (d_new - d_old).days
+                        if days_diff <= 45: multiplier = 12
+                        elif days_diff <= 120: multiplier = 4
+                        elif days_diff <= 240: multiplier = 2
+                    
+                    # 🔥 計算分子並回傳
+                    annual_div = round(latest_cash * multiplier, 3)
+                    if current_price > 0:
+                        yield_rate = round((annual_div / current_price) * 100, 2)
+    except: pass
         
-    return eps_latest, yield_rate, estimated_annual_dividend
+    return eps_latest, yield_rate, annual_div
 #==========3/17==================================
 # ========================================================
 
