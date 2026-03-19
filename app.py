@@ -724,7 +724,7 @@ def handle_message(event):
                         "body": {
                             "type": "box", "layout": "vertical", "spacing": "sm", "contents": [
                                 {"type": "text", "text": "📉 均線乖離率", "size": "xs", "color": "#888888", "weight": "bold"},
-                                {"type": "text", "text": f"季 {item.get('bias60', 'N/A')} | 月 {item.get('bias24', 'N/A')} | 6日 {item.get('bias6', 'N/A')}", "size": "sm", "color": "#333333"},
+                                {"type": "text", "text": f"季 {item.get('bias60', 'N/A')} | 月 {item.get('bias24', 'N/A')} | 週 {item.get('bias6', 'N/A')}", "size": "sm", "color": "#333333"},
                                 {"type": "separator", "margin": "md"},
                                 {"type": "text", "text": "📊 籌碼與動能", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
                                 {"type": "text", "text": f"法人連買 {item.get('buy_days', 'N/A')} 天", "size": "sm", "color": "#D84315", "weight": "bold"},
@@ -836,7 +836,7 @@ def handle_message(event):
                         {
                             "type": "box", "layout": "vertical", "width": "72px", # 固定寬度紅框
                             "borderColor": "#E57373", "borderWidth": "1px", "cornerRadius": "4px", "paddingAll": "1px",
-                            "contents": [{"type": "text", "text": "*(月線乖離)*", "size": "xxs", "color": "#D32F2F", "align": "center"}]
+                            "contents": [{"type": "text", "text": "*(括弧內為月線乖離率)*", "size": "xxs", "color": "#D32F2F", "align": "center"}]
                         }
                     ]
                 },
@@ -884,7 +884,7 @@ def handle_message(event):
                         b24 = item.get('bias_24', 'N/A')
                         yld = item.get('yield_rate', 'N/A')
                         
-                        stats_str = f"月{b24}% | 6日{b6}%"
+                        stats_str = f"月{b24}% | 週{b6}%"
                         
                         group_box["contents"].append({
                             "type": "box", "layout": "vertical", "margin": "xs",
@@ -893,7 +893,7 @@ def handle_message(event):
                                     "type": "box", "layout": "horizontal",
                                     "contents": [
                                         {"type": "text", "text": f"▪️ {item['name']}({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 5},
-                                        {"type": "text", "text": f"殖利率 {yld}%", "size": "xxs", "color": "#E65100", "align": "end", "flex": 3},
+                                        {"type": "text", "text": f"殖利率≒{yld}%", "size": "xxs", "color": "#E65100", "align": "end", "flex": 3},
                                         {"type": "text", "text": str(item['price']), "weight": "bold", "size": "sm", "color": "#D32F2F", "align": "end", "flex": 2}
                                     ]
                                 },
