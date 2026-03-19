@@ -733,7 +733,8 @@ def handle_message(event):
                                 {"type": "text", "text": "💡 實戰策略", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
                                 {"type": "text", "text": f"狀態：{item.get('trend_status', '築底中')}", "size": "xs", "color": "#333333", "wrap": True},
                                 {"type": "text", "text": f"進場：{item.get('entry_price', 'N/A')} 元分批試單", "size": "xs", "color": "#2E7D32", "weight": "bold"},
-                                {"type": "text", "text": "停損：波段最低價跌破 3%", "size": "xs", "color": "#C62828", "weight": "bold"}
+                                {"type": "text", "text": "停損：波段最低價跌破 3%", "size": "xs", "color": "#C62828", "weight": "bold"},
+                                {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": item['code']}, "style": "link", "margin": "md"}
                             ]
                         }
                     }
@@ -1034,22 +1035,36 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            # 🧠 升級：雙刀流 + 市場宏觀產業分析
+            # 🧠 終極升級：用 JSON 欄位強迫 AI 分開撰寫「產業基本面」與「籌碼技術面」
             sys_prompt = (
-                "你是資深雙向操盤手與產業研究員。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫避開), target_price, stop_loss。"
-                "【嚴格規則】：1. 若站上均線且帶量，視為右側動能強勢。"
-                "2. 若嚴重破線(負乖離大)但『法人買超』或『量縮』，請切換為『左側價值投資』角度，給予分批撿便宜之建議。"
-                "3. 【最重要】：分析內容『絕對不可』只單純複述均線和籌碼數字！你必須運用你的知識，寫出這家公司或該產業近期的『市場題材、基本面展望或總經環境』(如AI伺服器需求、半導體復甦、降息受惠等) 來佐證你的結論。"
+                "你是資深雙向操盤手與產業研究員。請嚴格依照以下 JSON 格式回傳（不可省略欄位）：\n"
+                "{\n"
+                "  \"macro\": \"產業題材與基本面展望(如AI伺服器、降息等，限40字)\",\n"
+                "  \"technical\": \"線型與籌碼狀態分析(限40字)\",\n"
+                "  \"advice\": \"🔴分批進場 / 🟡觀望等待 / ⚫避開風險\",\n"
+                "  \"target_price\": \"預估數字\",\n"
+                "  \"stop_loss\": \"防守數字\"\n"
+                "}\n"
+                "【嚴格規則】：\n"
+                "1. 若站上均線且帶量，視為右側強勢。\n"
+                "2. 若嚴重破線但『法人買超』或『量縮』，請切換為『左側價值投資』視角，建議分批進場。\n"
+                "3. 只有『破線且法人連續大賣』時，才給予⚫避開示警。"
             )
-            # 餵給 AI 產業資訊
+            # 確保有把 sector 餵進去
+            sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
+            
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
-                advice_str = f"【建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
-                ai_reply_text = f"【分析】{res['analysis']}\n{advice_str}"
-            except: ai_reply_text = "AI 數據解析失敗 (連線異常)。"
-            if "解析失敗" not in ai_reply_text: set_cached_ai_response(cache_key, ai_reply_text)
+                advice_str = f"【綜合建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
+                # 🔥 將 AI 產出的兩個欄位組合起來顯示
+                ai_reply_text = f"【基本面】{res.get('macro', '無資料')}\n【技術面】{res.get('technical', '無資料')}\n{advice_str}"
+            except: 
+                ai_reply_text = "AI 數據解析失敗 (連線異常)。"
+                
+            if "解析失敗" not in ai_reply_text: 
+                set_cached_ai_response(cache_key, ai_reply_text)
 
         indicator_line = f"💎 殖利率: {yield_rate}" if is_etf else f"💎 EPS: {eps}"
         
