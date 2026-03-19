@@ -834,9 +834,9 @@ def handle_message(event):
                         {"type": "text", "text": f"資料日期：{update_str}", "size": "xxs", "color": "#9E9E9E", "flex": 0},
                         {"type": "box", "layout": "vertical", "flex": 1}, # 透明推桿
                         {
-                            "type": "box", "layout": "vertical", "width": "72px", # 固定寬度紅框
+                            "type": "box", "layout": "vertical", "width": "110px", # 固定寬度紅框
                             "borderColor": "#E57373", "borderWidth": "1px", "cornerRadius": "4px", "paddingAll": "1px",
-                            "contents": [{"type": "text", "text": "*(括弧內為月線乖離率)*", "size": "xxs", "color": "#D32F2F", "align": "center"}]
+                            "contents": [{"type": "text", "text": "*(括弧為月線乖離率)*", "size": "xxs", "color": "#D32F2F", "align": "center"}]
                         }
                     ]
                 },
@@ -911,13 +911,13 @@ def handle_message(event):
                 flex_contents.append({"type": "text", "text": "(無)", "size": "xs", "color": "#9E9E9E", "margin": "sm", "align": "center"})
 
             # --- 3. 🚨 過熱觀察區 (雙欄顯示 + 建議) ---
-            flex_contents.append({"type": "separator", "margin": "md"})
-            flex_contents.append({"type": "text", "text": "🚨 🔥 【過熱觀察區】(調節賺價差)", "weight": "bold", "size": "sm", "color": "#C62828", "margin": "md"})
-            flex_contents.append({"type": "text", "text": "*(建議分批獲利了結，待回穩再接回)*", "size": "xxs", "color": "#D32F2F", "wrap": True, "margin": "xs"})
+            # 💡 將分隔線與標題全部縮進 if warn_list: 條件內
             if warn_list:
+                flex_contents.append({"type": "separator", "margin": "md"})
+                flex_contents.append({"type": "text", "text": "🚨 🔥 【過熱觀察區】(調節賺價差)", "weight": "bold", "size": "sm", "color": "#C62828", "margin": "md"})
+                flex_contents.append({"type": "text", "text": "*(建議分批獲利了結，待回穩再接回)*", "size": "xxs", "color": "#D32F2F", "wrap": True, "margin": "xs"})
                 flex_contents.extend(build_two_columns_grid(warn_list))
-            else:
-                flex_contents.append({"type": "text", "text": "(無)", "size": "xs", "color": "#9E9E9E", "margin": "sm", "align": "center"})
+            # 💡 刪除原本的 else 區塊 (這樣沒資料就不會印出任何東西)
 
             final_flex = {"type": "bubble", "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": flex_contents}}
             line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text=f"存股雷達：{category_name}", contents=final_flex))
