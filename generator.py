@@ -132,7 +132,8 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     
     # 🌟 額度防護機制：如果不需要查殖利率 (如 Task 3)，直接在這裡 return，省下一次 API！
     if not fetch_yield:
-        return eps_latest, yield_rate
+        # 🔥 修復解包錯誤：無論如何都必須回傳 3 個變數
+        return eps_latest, yield_rate, estimated_annual_dividend
 
     # 2. 抓取殖利率 (Task 4 存股專用)
     try:
