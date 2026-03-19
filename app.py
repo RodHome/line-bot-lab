@@ -238,11 +238,11 @@ def call_gemini_json(prompt, system_instruction=None):
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     if text: return clean_json_string(text), model # 👈 修改 1：同時回傳模型名稱
                 else:
-                    # 🔥 加入這行：如果 Google 拒絕，把原因印在伺服器 Log 裡
-                    print(f"[AI 拒絕] {model} 狀態碼: {response.status_code} - {response.text}")
+                    # 🔥 加上 flush=True，強制字串立刻送出到 Zeabur 的 Log
+                    print(f"[AI 拒絕] {model} 狀態碼: {response.status_code} - {response.text}", flush=True)
             except Exception as e: 
-                # 🔥 加入這行：如果是逾時或連線失敗，也印出來
-                print(f"[AI 連線異常] {model}: {e}")
+                # 🔥 加上 flush=True
+                print(f"[AI 連線異常] {model}: {e}", flush=True)
                 continue
     return None, "無可用模型"
 
