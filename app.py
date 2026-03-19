@@ -233,7 +233,7 @@ def call_gemini_json(prompt, system_instruction=None):
                     "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
-               if response.status_code == 200:
+                if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     if text: return clean_json_string(text), model # 👈 修改 1：同時回傳模型名稱
