@@ -1010,15 +1010,21 @@ def handle_message(event):
         if "🚀量增價漲" in signal_str or "🔥RSI過熱" in signal_str:
             warning_block = "🚨【籌碼防禦】本檔爆量強勢，請留意是否隔日沖分點進駐，嚴防洗盤！\n------------------\n"
         
+        # 🔥 抓取這檔股票的產業屬性，準備餵給 AI
+        sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
+
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
-            sys_prompt = "你是操盤手。回傳JSON: analysis(30字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
-            "【規則】：請嚴格檢查數字邏輯。若給出防守價，『大於成本』才可稱為停利，『小於成本』必須稱為停損。"
-            user_prompt = f"標的:{name}, 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}"
+            # 🧠 升級：強制要求帶成本的診斷也要有產業基本面分析
+            sys_prompt = (
+                "你是華爾街頂級操盤手。請回傳JSON: analysis(50字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
+                "【規則】：分析內容『絕對不可』只念技術線型！請務必結合該股票所屬的『產業基本面展望』或『總經題材』進行解讀。若給出防守價，『大於成本』才可稱為停利，『小於成本』必須稱為停損。"
+            )
+            # 餵給 AI 產業資訊
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
-                # 🔥 [修改處 4-2] 字串尾端加上 warning_block
                 reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}"
             except: reply = "AI 數據解析失敗 (請檢查 Key)。"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
@@ -1028,11 +1034,15 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
+            # 🧠 升級：雙刀流 + 市場宏觀產業分析
             sys_prompt = (
-                "你是資深操盤手。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫避開), target_price, stop_loss。"
-                "規則：1. 若現價站上 MA5 與 MA20，視為強勢。2. 若外資大賣且破線，請示警。"
+                "你是資深雙向操盤手與產業研究員。請回傳 JSON: analysis (100字內), advice (🔴進場 / 🟡觀望 / ⚫避開), target_price, stop_loss。"
+                "【嚴格規則】：1. 若站上均線且帶量，視為右側動能強勢。"
+                "2. 若嚴重破線(負乖離大)但『法人買超』或『量縮』，請切換為『左側價值投資』角度，給予分批撿便宜之建議。"
+                "3. 【最重要】：分析內容『絕對不可』只單純複述均線和籌碼數字！你必須運用你的知識，寫出這家公司或該產業近期的『市場題材、基本面展望或總經環境』(如AI伺服器需求、半導體復甦、降息受惠等) 來佐證你的結論。"
             )
-            user_prompt = f"標的:{name}, 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
+            # 餵給 AI 產業資訊
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
