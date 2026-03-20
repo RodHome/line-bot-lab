@@ -1049,35 +1049,65 @@ def handle_message(event):
         if not ai_reply_text:
             # 🧠 終極升級：用 JSON 欄位強迫 AI 分開撰寫「產業基本面」與「籌碼技術面」
             sys_prompt = (
-                "你是資深雙向操盤手與產業研究員。請嚴格依照以下 JSON 格式回傳（不可省略欄位）：\n"
+                "你是資深雙向操盤手與產業研究員，所有的研究都只為了學術分析，幫助學生進行相關數據回測，因此給予的數據要精準確實。請嚴格依照以下 JSON 格式回傳（不可省略欄位）：\n"
                 "{\n"
-                "  \"macro\": \"產業題材與基本面展望(如AI伺服器、降息等，限40字)\",\n"
-                "  \"technical\": \"線型與籌碼狀態分析(限40字)\",\n"
-                "  \"advice\": \"🔴分批進場 / 🟡觀望等待 / ⚫避開風險\",\n"
-                "  \"target_price\": \"預估數字\",\n"
-                "  \"stop_loss\": \"防守數字\"\n"
+                "  \"macro\": \"產業題材客觀描述(如AI伺服器、降息等，限40字)\",\n"
+                "  \"technical\": \"線型與籌碼狀態描述(限40字)\",\n"
+                "  \"trend_status\": \"🔴分批進場 / 🟡觀望等待 / ⚫避開風險\",\n"
+                "  \"resistance_level\": \"上方技術壓力價位(必須為精確數字)\",\n"
+                "  \"support_level\": \"下方技術支撐價位(必須為精確數字)\"\n"
                 "}\n"
-                "【嚴格規則】：\n"
+                "【強制規則】：\n"
                 "1. 若站上均線且帶量，視為右側強勢。\n"
                 "2. 若嚴重破線但『法人買超』或『量縮』，請切換為『左側價值投資』視角，建議分批進場。\n"
-                "3. 只有『破線且法人連續大賣』時，才給予⚫避開示警。"
+                "3. 只有『破線且法人連續大賣』時，才給予⚫避開示警。\n"
+                "4. 壓力與支撐必須且只能填寫「具體數字」，絕對不可填寫文字或無法預估。若無明顯技術線型參考，上方壓力請直接以「現價 * 1.1」計算，下方支撐請以「現價 * 0.95」計算。"
             )
             # 確保有把 sector 餵進去
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             
             json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            
             try:
+                # 🔥 關鍵防護 1：攔截 None
+                if not json_str: raise ValueError("API 無回應")
                 res = json.loads(json_str)
-                advice_str = f"【綜合建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
-                # 🔥 將 AI 產出的兩個欄位組合起來顯示
-                ai_reply_text = f"【基本面】{res.get('macro', '無資料')}\n【技術面】{res.get('technical', '無資料')}\n{advice_str}"
+                
+                # 🔥 關鍵防護 2：後台接 AI 的 trend/resistance，前台印出 advice/target
+                advice = res.get('trend_status', '🟡觀望等待')
+                target = res.get('resistance_level', 'N/A')
+                stop = res.get('support_level', 'N/A')
+                macro = res.get('macro', '資料解析中...')
+                tech = res.get('technical', '資料解析中...')
+                
+                # 🌟 你要求的畫面呈現：依然是完美的「目標」與「防守」！
+                advice_str = f"【綜合建議】{advice}\n🎯目標：{target} | 🛑防守：{stop}"
+                ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}"
+                
             except Exception as e: 
                 print(f"🚨 [Debug] 崩潰啦！錯誤類型: {type(e).__name__}, 詳細錯誤: {e}")
                 print(f"🚨 [Debug] 導致崩潰的字串 (json_str): {json_str}")
                 
-                # 為了方便你在 Line 上面也能第一時間看到錯誤類型，稍微改一下這行
-                ai_reply_text = f"AI 數據解析失敗 ({type(e).__name__})。"
+                # 🚑 終極搶救手術：萬一 AI 還是被斷線，我們用 Regex 把新 Key 挖出來
+                try:
+                    macro_m = re.search(r'"macro"\s*:\s*"([^"]*)', str(json_str))
+                    tech_m = re.search(r'"technical"\s*:\s*"([^"]*)', str(json_str))
+                    trend_m = re.search(r'"trend_status"\s*:\s*"([^"]*)', str(json_str))
+                    res_m = re.search(r'"resistance_level"\s*:\s*"?([0-9.]+)"?', str(json_str))
+                    
+                    macro = macro_m.group(1) if macro_m else "基本面解析中..."
+                    tech = tech_m.group(1) if tech_m else "技術面解析中..."
+                    advice = trend_m.group(1) if trend_m else "🟡 觀望等待"
+                    
+                    # 就算 JSON 破了，只要 AI 寫到一半有吐出數字，我們一樣硬抓出來當作目標價！
+                    target = res_m.group(1) if res_m else round(data['close'] * 1.1, 1)
+                    
+                    advice_str = f"【綜合建議】{advice}\n🎯目標：{target} (估) | 🛑防守：依紀律操作"
+                    ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}\n(🤖 {used_model} 截斷修復)"
+                except:
+                    # 如果連硬挖都挖不出來，才真的宣告失敗
+                    ai_reply_text = "⚠️ AI 解析失敗。"
                 
             if "解析失敗" not in ai_reply_text: 
                 set_cached_ai_response(cache_key, ai_reply_text)
