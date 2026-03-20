@@ -1035,7 +1035,7 @@ def handle_message(event):
             )
             # 餵給 AI 產業資訊
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
-            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
                 reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}"
@@ -1066,7 +1066,7 @@ def handle_message(event):
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             
-            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
                 advice_str = f"【綜合建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
