@@ -12,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v18.1 
-BOT_VERSION = "v18.1 (使用介面優化)"
+# 🤖 [版本號] v18.2 
+BOT_VERSION = "v18.2 (左側標的增加詳細診斷按鈕)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -208,56 +208,37 @@ def clean_json_string(text):
     text = re.sub(r'```\s*', '', text)
     return text.strip()
 
-def call_gemini_json(prompt, system_instruction=None, max_retries=2):
+def call_gemini_json(prompt, system_instruction=None):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
+    if not keys: return None
+    random.shuffle(keys)
     
-    # 🛡️ 終極保底 JSON：就算天塌下來，也要給使用者看這個，絕對不當機
-    fallback_json = '{"macro":"目前 AI 伺服器壅塞，請參考技術數據。","technical":"技術面資料解析中。","advice":"🟡 觀望等待","target_price":"N/A","stop_loss":"N/A"}'
-    
-    if not keys: return fallback_json, "無 API Key"
-    
-    # 🔥 決策落實：拔除 2.0，專注使用速度最快、審查較寬鬆的 2.5 雙星
-    target_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] 
+    target_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
     final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
     
-    # ⚡ 不死鳥極速重試機制
-    for attempt in range(max_retries):
-        random.shuffle(keys)
-        for model in target_models:
-            for key in keys:
-                try:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-                    headers = {'Content-Type': 'application/json'}
-                    params = {'key': key}
-                    
-                    contents = [{"parts": [{"text": final_prompt}]}]
-                    if system_instruction:
-                        contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
-                    
-                    payload = {
-                        "contents": contents,
-                        "generationConfig": {
-                            "maxOutputTokens": 600,   # 降低字數上限，加快生成速度
-                            "temperature": 0.1,       # 降溫到 0.1，讓 AI 回答更死板、格式更穩定
-                            "responseMimeType": "application/json"
-                        }
-                    }
-                    
-                    # ⏱️ 嚴格熔斷：8 秒沒算完直接切斷，換下一把鑰匙！(不使用 time.sleep)
-                    response = requests.post(url, headers=headers, params=params, json=payload, timeout=8)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                        if text: return clean_json_string(text), model 
-                    
-                except Exception as e:
-                    # 遇到逾時或斷線，不浪費時間印錯，直接迴圈換下一把鑰匙
-                    continue
-                    
-    # 如果試了 2 輪 (大約 15 秒內) 全軍覆沒，回傳保底 JSON 保護 Line Bot 體驗
-    return fallback_json, "API 重試耗盡"
+    for model in target_models:
+        for key in keys:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+                headers = {'Content-Type': 'application/json'}
+                params = {'key': key}
+                
+                contents = [{"parts": [{"text": final_prompt}]}]
+                if system_instruction:
+                    contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
+                
+                payload = {
+                    "contents": contents,
+                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
+                }
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
+                if response.status_code == 200:
+                    data = response.json()
+                    text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+                    if text: return clean_json_string(text)
+            except: continue
+    return None
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 def fetch_data_light(stock_id):
@@ -573,7 +554,7 @@ def handle_message(event):
             "—— 嚴守「不接刀、只撿鑽石」的逆勢價值投資 ——\n"
             "每日盤後從全市場尋找「被錯殺、量縮打底、法人偷吃貨」的潛伏股：\n\n"
             "1️⃣ 第一關：流動性降維 (尋找無人問津區)\n"
-            " ‧ 股價 > 10 元，剔除仙股風險。\n"
+            " ‧ 股價 > 10 元，剔除雞蛋水餃股。\n"
             " ‧ 成交額 1000萬~3億：避開當沖熱門，鎖定冷門潛伏區。\n\n"
             "2️⃣ 第二關：技術面尋底 (確認賣壓竭盡)\n"
             " ‧ 跌深委屈：季線負乖離達 -3% 以下 (均線引力空間大)。\n"
@@ -613,8 +594,7 @@ def handle_message(event):
             "規則：必須結合『產業趨勢』或『技術突破』，語氣專業，不要只寫籌碼集中。"
             "例如：AI伺服器需求爆發，量價齊揚突破前高。"
         )
-        # 👈 前面加上 used_model 變數來接住它
-        ai_json_str, used_model = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
+        ai_json_str = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt)
         
         reasons_map = {}
         try:
@@ -1043,11 +1023,10 @@ def handle_message(event):
             )
             # 餵給 AI 產業資訊
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
-            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
-                # 👈 在字串最後面加上 (🤖 模型: {used_model})
-                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}\n(🤖 模型: {used_model})"
+                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}"
             except: reply = "AI 數據解析失敗 (請檢查 Key)。"
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return    
@@ -1056,6 +1035,7 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
+            # 🧠 終極升級：用 JSON 欄位強迫 AI 分開撰寫「產業基本面」與「籌碼技術面」
             sys_prompt = (
                 "你是資深雙向操盤手與產業研究員。請嚴格依照以下 JSON 格式回傳（不可省略欄位）：\n"
                 "{\n"
@@ -1070,32 +1050,21 @@ def handle_message(event):
                 "2. 若嚴重破線但『法人買超』或『量縮』，請切換為『左側價值投資』視角，建議分批進場。\n"
                 "3. 只有『破線且法人連續大賣』時，才給予⚫避開示警。"
             )
+            # 確保有把 sector 餵進去
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
             
-            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
-            
+            json_str = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             try:
                 res = json.loads(json_str)
+                advice_str = f"【綜合建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
+                # 🔥 將 AI 產出的兩個欄位組合起來顯示
+                ai_reply_text = f"【基本面】{res.get('macro', '無資料')}\n【技術面】{res.get('technical', '無資料')}\n{advice_str}"
+            except: 
+                ai_reply_text = "AI 數據解析失敗 (連線異常)。"
                 
-                # 🛡️ 安全取值防護網：AI 只要少給，我們就自己塞預設值！
-                advice = res.get('advice', '🟡 觀望等待')
-                target = res.get('target_price', '暫不預估')
-                stop = res.get('stop_loss', '依紀律防守')
-                macro = res.get('macro', '產業基本面資料解析中...')
-                tech = res.get('technical', '技術面籌碼資料解析中...')
-                
-                advice_str = f"【綜合建議】{advice}\n🎯目標：{target} | 🛑防守：{stop}"
-                ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}\n(🤖 {used_model})"
-                
-                # 若不是因為全滅而觸發的保底，才將正確分析寫入快取
-                if used_model != "API 重試耗盡":
-                    set_cached_ai_response(cache_key, ai_reply_text)
-                    
-            except Exception as e: 
-                # 🚑 最終搶救：如果 AI 發瘋回傳了非 JSON 格式的純文字，我們強行拔出前 100 字印出來
-                clean_raw_text = str(json_str).replace('{', '').replace('}', '').replace('"', '').replace('\n', ' ')
-                ai_reply_text = f"【AI 觀點總結】\n{clean_raw_text[:100]}...\n(🤖 格式保護，強制作答)"
+            if "解析失敗" not in ai_reply_text: 
+                set_cached_ai_response(cache_key, ai_reply_text)
 
         indicator_line = f"💎 殖利率: {yield_rate}" if is_etf else f"💎 EPS: {eps}"
         
@@ -1116,7 +1085,7 @@ def handle_message(event):
         f"------------------\n"
         f"{ai_reply_text}\n"
         f"------------------\n"    
-        f"{warning_block}"  
+        f"{warning_block}"  # 🔥 [修改處 4-3] 插入警示區塊變數
         f"(版本: {BOT_VERSION})"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
