@@ -233,11 +233,23 @@ def call_gemini_json(prompt, system_instruction=None):
                     "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
+                
+                # 👇 新增 Log：看看 API 到底回傳什麼狀態
+                if response.status_code != 200:
+                    print(f"❌ [Debug] API 失敗! 模型: {model}, 狀態碼: {response.status_code}, 訊息: {response.text}")
+                
                 if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                    if text: return clean_json_string(text)
-            except: continue
+                    
+                    # 👇 新增 Log：看看 AI 吐出了什麼字串
+                    print(f"✅ [Debug] API 成功! 模型: {model}, 原始回傳長度: {len(text)}, 內容截取: {text[:100]}...")
+                    
+                    if text: return clean_json_string(text), model 
+            except Exception as e: 
+                # 👇 新增 Log：看看是不是 Timeout 逾時斷線
+                print(f"⚠️ [Debug] 請求發生 Exception: {e}")
+                continue
     return None
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
@@ -1060,8 +1072,12 @@ def handle_message(event):
                 advice_str = f"【綜合建議】{res['advice']}\n🎯目標：{res.get('target_price','N/A')} | 🛑防守：{res.get('stop_loss','N/A')}"
                 # 🔥 將 AI 產出的兩個欄位組合起來顯示
                 ai_reply_text = f"【基本面】{res.get('macro', '無資料')}\n【技術面】{res.get('technical', '無資料')}\n{advice_str}"
-            except: 
-                ai_reply_text = "AI 數據解析失敗 (連線異常)。"
+            except Exception as e: 
+                print(f"🚨 [Debug] 崩潰啦！錯誤類型: {type(e).__name__}, 詳細錯誤: {e}")
+                print(f"🚨 [Debug] 導致崩潰的字串 (json_str): {json_str}")
+                
+                # 為了方便你在 Line 上面也能第一時間看到錯誤類型，稍微改一下這行
+                ai_reply_text = f"AI 數據解析失敗 ({type(e).__name__})。"
                 
             if "解析失敗" not in ai_reply_text: 
                 set_cached_ai_response(cache_key, ai_reply_text)
