@@ -842,9 +842,9 @@ def generate_deposit_stocks():
             ma6 = sum(closes[-6:]) / 6
             ma5 = sum(closes[-5:]) / 5
             
-            bias_60 = ( - ma60) / ma60 * 100
-            bias_24 = ( - ma24) / ma24 * 100
-            bias_20 = ( - ma20) / ma20 * 100
+            bias_60 = (close_today - ma60) / ma60 * 100
+            bias_24 = (close_today - ma24) / ma24 * 100
+            bias_20 = (close_today - ma20) / ma20 * 100
             bias_12 = (close_today - ma12) / ma12 * 100
             bias_6 = (close_today - ma6) / ma6 * 100
             bias_5 = (close_today - ma5) / ma5 * 100
