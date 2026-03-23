@@ -789,6 +789,10 @@ def generate_left_side_value():
 # ========================================================
 def generate_deposit_stocks():
     print("\n🏦 [Task 4] 啟動存股打折加碼雷達 (均線乖離策略)...")
+
+    # 👇 1. 新增這兩行：取得台灣時間的今天日期
+    tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+    today_str = tw_now.strftime('%Y-%m-%d')
     
     # 📝 你專屬的存股口袋名單 (未來要新增/刪除，只需改這行！)
     DEPOSIT_WATCHLIST = [
@@ -903,6 +907,7 @@ def generate_deposit_stocks():
             meta_info = stock_meta.get(code, {})
             meta_info = stock_meta.get(code, {})
             deposit_list.append({
+                "date": today_str,  # 👈 2. 新增這行！把剛剛取得的日期塞進每一檔股票裡
                 "code": code,
                 "name": meta_info.get('name', '未知名稱'),
                 "price": round(close_today, 2),
