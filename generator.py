@@ -267,14 +267,6 @@ def update_stock_list_json():
 def generate_daily_recommendations():
     print("\n🚀 [Task 2] 開始分析每日熱門飆股...")
     
-    stock_meta = {}
-    try:
-        if os.path.exists('stock_list.json'):
-            with open('stock_list.json', 'r', encoding='utf-8') as f:
-                stock_meta = json.load(f)
-    except Exception as e:
-        print(f"⚠️ 讀取 stock_list.json 失敗: {e}")
-   
     # 🔥 [新增] 讀取剛剛產生的 stock_list.json，用來查詢名稱與產業別
     stock_meta = {}
     try:
@@ -645,6 +637,8 @@ def generate_left_side_value():
             highs = df['High'].tolist()
             volumes = df['Volume'].tolist()
 
+            item['real_date'] = df.index[-1].strftime('%Y-%m-%d')
+            
             close_today = closes[-1]
             ma60 = sum(closes[-60:]) / 60
             ma24 = sum(closes[-24:]) / 24 # 🔥 新增月線
@@ -735,7 +729,7 @@ def generate_left_side_value():
 
             # 🏆 封裝入庫
             final_list.append({
-                "date": datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                "date": item['real_date'],
                 "code": code,
                 "name": stock_meta[code]['name'],
                 "price": item['price'],
@@ -763,37 +757,17 @@ def generate_left_side_value():
     else:
         print("⚠️ 本次掃描無股票通過三層漏斗。")
 
-    with open('left_side_value.json', 'w', encoding='utf-8') as f:
-        json.dump(final_list, f, ensure_ascii=False, indent=4)
-        print("💾 已強制更新 left_side_value.json (確保 Line Bot 不會讀到過期資料)")
-
-   # ---------------------------------------------------------
-    # 📦 結算與獨立強制存檔 (修復「殭屍舊檔案」問題)
-    # ---------------------------------------------------------
-    if final_list:
-        # 依照負乖離率由深到淺排序
-        final_list.sort(key=lambda x: float(x['bias60'].replace('%', '')))
-        print(f"✅ 任務完成！共 {len(final_list)} 檔無敵黃金坑達標。")
-    else:
-        print("⚠️ 本次掃描無股票通過三層漏斗 (名單為空)。")
-
     # 🔥 關鍵防呆：無論名單是不是空的，都「強制覆寫」檔案！
-    # 這樣一來，如果今天沒標的，檔案裡面就會是一個乾淨的空陣列 []
     with open('left_side_value.json', 'w', encoding='utf-8') as f:
         json.dump(final_list, f, ensure_ascii=False, indent=4)
         print("💾 已強制更新 left_side_value.json (確保 Line Bot 不會讀到過期資料)")
-
-# ========================================================
+  
 # ========================================================
 # 🔥 新增功能 4: 【金剛不壞：存股打折加碼雷達】(獨立產線)
 # ========================================================
 def generate_deposit_stocks():
     print("\n🏦 [Task 4] 啟動存股打折加碼雷達 (均線乖離策略)...")
-
-    # 👇 1. 新增這兩行：取得台灣時間的今天日期
-    tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
-    today_str = tw_now.strftime('%Y-%m-%d')
-    
+  
     # 📝 你專屬的存股口袋名單 (未來要新增/刪除，只需改這行！)
     DEPOSIT_WATCHLIST = [
     # --- 官股金控 (獲利穩健，存股首選) ---
@@ -856,6 +830,9 @@ def generate_deposit_stocks():
 
             closes = df['Close'].tolist()
             close_today = closes[-1]
+
+            # 👇 確保有加這行，挖出真實 K 線最後交易日
+            data_date_str = df.index[-1].strftime('%Y-%m-%d')
             
             # 🔥 計算多週期均線與乖離率
             ma60 = sum(closes[-60:]) / 60
@@ -865,9 +842,9 @@ def generate_deposit_stocks():
             ma6 = sum(closes[-6:]) / 6
             ma5 = sum(closes[-5:]) / 5
             
-            bias_60 = (close_today - ma60) / ma60 * 100
-            bias_24 = (close_today - ma24) / ma24 * 100
-            bias_20 = (close_today - ma20) / ma20 * 100
+            bias_60 = ( - ma60) / ma60 * 100
+            bias_24 = ( - ma24) / ma24 * 100
+            bias_20 = ( - ma20) / ma20 * 100
             bias_12 = (close_today - ma12) / ma12 * 100
             bias_6 = (close_today - ma6) / ma6 * 100
             bias_5 = (close_today - ma5) / ma5 * 100
@@ -903,11 +880,10 @@ def generate_deposit_stocks():
                 anti_knife_warning = " ⭐ (週線翻正，跌勢止穩，建議加碼！)"
 
             action += anti_knife_warning
-
-            meta_info = stock_meta.get(code, {})
+            
             meta_info = stock_meta.get(code, {})
             deposit_list.append({
-                "date": today_str,  # 👈 2. 新增這行！把剛剛取得的日期塞進每一檔股票裡
+                "date": data_date_str,  # 👈 2. 新增這行！把剛剛取得的日期塞進每一檔股票裡
                 "code": code,
                 "name": meta_info.get('name', '未知名稱'),
                 "price": round(close_today, 2),
