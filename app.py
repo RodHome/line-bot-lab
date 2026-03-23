@@ -12,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v18.2 
-BOT_VERSION = "v18.2 (左側標的增加詳細診斷按鈕)"
+# 🤖 [版本號] v18.3 
+BOT_VERSION = "v18.3 (修訂資料真實日期與AI防當機)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -699,7 +699,11 @@ def handle_message(event):
                 return
 
             left_data = res.json()
-            update_str = "最新資料" # 因為是遠端讀取，若要精確時間需從 JSON 內部讀取，或保留原本邏輯
+            
+            tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+            update_str = tw_now.strftime('%Y-%m-%d') # 保底
+            if left_data and isinstance(left_data, list):
+                update_str = left_data[0].get('date', update_str)
             
             if not left_data:
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"))
@@ -799,6 +803,9 @@ def handle_message(event):
             # 2. 修正時間語法 (解決當機問題)
             tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
             update_str = tw_now.strftime('%Y-%m-%d')
+
+            if deposit_data and isinstance(deposit_data, list):
+                update_str = deposit_data[0].get('date', update_str)
             
             # 3. 分類邏輯
             category_name = ""
@@ -1036,10 +1043,33 @@ def handle_message(event):
             # 餵給 AI 產業資訊
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
             json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            
             try:
+                # 🔥 關鍵防護 1：攔截 None 避免崩潰
+                if not json_str: raise ValueError("API 無回應")
                 res = json.loads(json_str)
-                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{res['action']}\n【分析】{res['analysis']}\n【策略】{res['strategy']}\n------------------\n{warning_block.strip()}"
-            except: reply = "AI 數據解析失敗 (請檢查 Key)。"
+                
+                # 🔥 關鍵防呆：使用 .get 取值
+                action = res.get('action', '🟡觀望')
+                analysis = res.get('analysis', '產業數據解析中...')
+                strategy = res.get('strategy', '依紀律操作。')
+                
+                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{warning_block.strip()}\n(🤖 {used_model})"
+            except Exception as e: 
+                # 🚑 終極搶救手術：帶成本診斷斷線時的 Regex 搶救
+                try:
+                    analysis_m = re.search(r'"analysis"\s*:\s*"([^"]*)', str(json_str))
+                    action_m = re.search(r'"action"\s*:\s*"([^"]*)', str(json_str))
+                    strategy_m = re.search(r'"strategy"\s*:\s*"([^"]*)', str(json_str))
+                    
+                    analysis = analysis_m.group(1) if analysis_m else "基本面解析中..."
+                    action = action_m.group(1) if action_m else "🟡 觀望"
+                    strategy = strategy_m.group(1) if strategy_m else "依紀律操作。"
+                    
+                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{warning_block.strip()}\n(🤖 {used_model} 截斷修復)"
+                except:
+                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n⚠️ AI 解析失敗，請參考上方指標。\n------------------\n{warning_block.strip()}"
+                    
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return    
                 
