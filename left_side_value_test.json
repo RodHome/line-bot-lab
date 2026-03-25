@@ -15,7 +15,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-19"
+        "first_entry_date": "2026-03-19",
+        "first_entry_price": 51.1
     },
     {
         "date": "2026-03-23",
@@ -33,7 +34,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-21"
+        "first_entry_date": "2026-03-21",
+        "first_entry_price": 13.9
     },
     {
         "date": "2026-03-23",
@@ -51,7 +53,8 @@
         "yield_rate": 0.0,
         "buy_days": 5,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 15.5
     },
     {
         "date": "2026-03-23",
@@ -69,7 +72,27 @@
         "yield_rate": 0.0,
         "buy_days": 5,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 70.3
+    },
+    {
+        "date": "2026-03-25",
+        "code": "2328",
+        "name": "廣宇",
+        "price": 45.55,
+        "score": 90,
+        "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
+        "entry_price": 45.09,
+        "bias60": "-6.9%",
+        "bias24": "-3.7%",
+        "bias6": "-0.1%",
+        "vol_ratio": "46.7%",
+        "eps": 0.34,
+        "yield_rate": 0.0,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 45.55
     },
     {
         "date": "2026-03-19",
@@ -87,7 +110,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-19"
+        "first_entry_date": "2026-03-19",
+        "first_entry_price": 131.0
     },
     {
         "date": "2026-03-23",
@@ -105,7 +129,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 48.5
     },
     {
         "date": "2026-03-23",
@@ -123,7 +148,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 104.5
     },
     {
         "date": "2026-03-23",
@@ -141,7 +167,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 19.55
     },
     {
         "date": "2026-03-23",
@@ -159,7 +186,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 132.5
     },
     {
         "date": "2026-03-23",
@@ -177,7 +205,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 50.4
     },
     {
         "date": "2026-03-23",
@@ -195,7 +224,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 246.5
     },
     {
         "date": "2026-03-24",
@@ -213,7 +243,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-24"
+        "first_entry_date": "2026-03-24",
+        "first_entry_price": 20.6
     },
     {
         "date": "2026-03-24",
@@ -231,7 +262,8 @@
         "yield_rate": 0.0,
         "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-24"
+        "first_entry_date": "2026-03-24",
+        "first_entry_price": 69.6
     },
     {
         "date": "2026-03-22",
@@ -249,7 +281,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-20"
+        "first_entry_date": "2026-03-20",
+        "first_entry_price": 56.5
     },
     {
         "date": "2026-03-23",
@@ -267,7 +300,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-20"
+        "first_entry_date": "2026-03-20",
+        "first_entry_price": 33.25
     },
     {
         "date": "2026-03-24",
@@ -285,7 +319,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-24"
+        "first_entry_date": "2026-03-24",
+        "first_entry_price": 51.1
     },
     {
         "date": "2026-03-25",
@@ -307,6 +342,63 @@
         "first_entry_price": 27.75
     },
     {
+        "date": "2026-03-25",
+        "code": "2439",
+        "name": "美律",
+        "price": 85.1,
+        "score": 78,
+        "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
+        "entry_price": 84.25,
+        "bias60": "-11.0%",
+        "bias24": "-2.8%",
+        "bias6": "0.6%",
+        "vol_ratio": "35.5%",
+        "eps": 1.59,
+        "yield_rate": 0.0,
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 85.1
+    },
+    {
+        "date": "2026-03-25",
+        "code": "3059",
+        "name": "華晶科",
+        "price": 37.4,
+        "score": 78,
+        "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
+        "entry_price": 37.03,
+        "bias60": "-5.5%",
+        "bias24": "-2.1%",
+        "bias6": "-0.5%",
+        "vol_ratio": "52.9%",
+        "eps": 0.26,
+        "yield_rate": 0.0,
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 37.4
+    },
+    {
+        "date": "2026-03-25",
+        "code": "3617",
+        "name": "碩天",
+        "price": 174.0,
+        "score": 78,
+        "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
+        "entry_price": 172.26,
+        "bias60": "-9.2%",
+        "bias24": "-5.1%",
+        "bias6": "-0.1%",
+        "vol_ratio": "41.5%",
+        "eps": 2.87,
+        "yield_rate": 0.0,
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 174.0
+    },
+    {
         "date": "2026-03-23",
         "code": "3141",
         "name": "晶宏",
@@ -322,7 +414,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 43.75
     },
     {
         "date": "2026-03-23",
@@ -340,7 +433,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 35.5
     },
     {
         "date": "2026-03-23",
@@ -358,7 +452,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 140.5
     },
     {
         "date": "2026-03-21",
@@ -376,7 +471,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-19"
+        "first_entry_date": "2026-03-19",
+        "first_entry_price": 21.4
     },
     {
         "date": "2026-03-23",
@@ -394,7 +490,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 21.6
     },
     {
         "date": "2026-03-23",
@@ -412,7 +509,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 100.5
     },
     {
         "date": "2026-03-25",
@@ -449,7 +547,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-24"
+        "first_entry_date": "2026-03-24",
+        "first_entry_price": 48.9
     },
     {
         "date": "2026-03-25",
@@ -486,7 +585,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-23"
+        "first_entry_date": "2026-03-23",
+        "first_entry_price": 124.0
     },
     {
         "date": "2026-03-24",
@@ -504,7 +604,8 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-24"
+        "first_entry_date": "2026-03-24",
+        "first_entry_price": 44.1
     },
     {
         "date": "2026-03-22",
@@ -522,7 +623,27 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-20"
+        "first_entry_date": "2026-03-20",
+        "first_entry_price": 35.5
+    },
+    {
+        "date": "2026-03-25",
+        "code": "2228",
+        "name": "劍麟",
+        "price": 88.9,
+        "score": 68,
+        "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
+        "entry_price": 88.01,
+        "bias60": "-10.3%",
+        "bias24": "-3.1%",
+        "bias6": "0.4%",
+        "vol_ratio": "75.7%",
+        "eps": 1.19,
+        "yield_rate": 0.0,
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 88.9
     },
     {
         "date": "2026-03-22",
@@ -540,6 +661,7 @@
         "yield_rate": 0.0,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-20"
+        "first_entry_date": "2026-03-20",
+        "first_entry_price": 61.0
     }
 ]
