@@ -761,18 +761,41 @@ def handle_message(event):
                     score = int(item.get('score', 50))
                     header_color = "#D32F2F" if score >= 80 else "#00897B"
                     
+                    # 🔥 新增：計算左側黃金坑的累積戰績
+                    first_date = item.get('first_entry_date', 'N/A')
+                    first_price = item.get('first_entry_price', 'N/A')
+                    current_price = item.get('price', 'N/A')
+                    
+                    period_profit = "N/A"
+                    if first_price and isinstance(first_price, (int, float)) and first_price > 0 and isinstance(current_price, (int, float)):
+                        profit_pct = round((current_price - first_price) / first_price * 100, 1)
+                        sign = "+" if profit_pct > 0 else ""
+                        period_profit = f"{sign}{profit_pct}%"
+                    
                     bubble = {
                         "type": "bubble", "size": "hecto",
                         "header": {
                             "type": "box", "layout": "vertical", "contents": [
-                                {"type": "text", "text": f"{item['name']} ({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff"},
-                                {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold"}
+                                # 🌟 把現價放在標題列右側，與名稱水平並排
+                                {
+                                    "type": "box", "layout": "horizontal", "contents": [
+                                        {"type": "text", "text": f"{item['name']} ({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff", "flex": 1},
+                                        {"type": "text", "text": f"現價 {current_price}", "weight": "bold", "size": "md", "color": "#ffffff", "align": "end", "flex": 1}
+                                    ]
+                                },
+                                {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold", "margin": "sm"}
                             ], "backgroundColor": header_color
                         },
                         "body": {
                             "type": "box", "layout": "vertical", "spacing": "sm", "contents": [
                                 {"type": "text", "text": "📉 均線乖離率", "size": "xs", "color": "#888888", "weight": "bold"},
                                 {"type": "text", "text": f"季 {item.get('bias60', 'N/A')} | 月 {item.get('bias24', 'N/A')} | 週 {item.get('bias6', 'N/A')}", "size": "sm", "color": "#333333"},
+                                {"type": "separator", "margin": "md"},
+                                
+                                # 🌟 新增：潛伏戰績與進榜日區塊
+                                {"type": "text", "text": "🎯 潛伏戰績", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
+                                {"type": "text", "text": f"進榜: {first_date} (價 {first_price})", "size": "xs", "color": "#333333"},
+                                {"type": "text", "text": f"累積報酬: {period_profit}", "size": "sm", "weight": "bold", "color": "#D32F2F" if "+" in period_profit else "#2E7D32"},
                                 {"type": "separator", "margin": "md"},
                                 {"type": "text", "text": "📊 籌碼與動能", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
                                 {"type": "text", "text": f"法人連買 {item.get('buy_days', 'N/A')} 天", "size": "sm", "color": "#D84315", "weight": "bold"},
