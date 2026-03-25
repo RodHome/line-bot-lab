@@ -1164,25 +1164,35 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            # 🧠 終極升級：用 JSON 欄位強迫 AI 分開撰寫「產業基本面」與「籌碼技術面」
+            # 🧠 終極升級：導入技術分析理論定價 (CDP、均線回歸、黃金分割)
             sys_prompt = (
-                "你是資深雙向操盤手與產業研究員，所有的研究都只為了學術分析，幫助學生進行相關數據回測，因此給予的數據要精準確實。請嚴格依照以下 JSON 格式回傳（不可省略欄位）：\n"
+                "你是資深雙向操盤手與產業研究員，所有的研究都只為了學術分析，幫助學生進行相關數據回測。請嚴格依照以下 JSON 格式回傳（不可省略欄位）：\n"
                 "{\n"
                 "  \"macro\": \"產業題材客觀描述(如AI伺服器、降息等，限40字)\",\n"
                 "  \"technical\": \"線型與籌碼狀態描述(限40字)\",\n"
                 "  \"trend_status\": \"🔴分批進場 / 🟡觀望等待 / ⚫避開風險\",\n"
-                "  \"resistance_level\": \"上方技術壓力價位(必須為精確數字)\",\n"
+                "  \"resistance_level\": \"波段獲利目標價位(必須為精確數字)\",\n"
                 "  \"support_level\": \"下方技術支撐價位(必須為精確數字)\"\n"
                 "}\n"
-                "【強制規則】：\n"
-                "1. 若站上均線且帶量，視為右側強勢。\n"
-                "2. 若嚴重破線但『法人買超』或『量縮』，請切換為『左側價值投資』視角，建議分批進場。\n"
-                "3. 只有『破線且法人連續大賣』時，才給予⚫避開示警。\n"
-                "4. 壓力與支撐必須且只能填寫「具體數字」，絕對不可填寫文字或無法預估。若無明顯技術線型參考，上方壓力請直接以「現價 * 1.1」計算，下方支撐請以「現價 * 0.95」計算。"
+                "【理論定價規則】(極重要，請依據提供的數據與技術理論推算，嚴禁瞎掰)：\n"
+                "1. 壓力與支撐必須且只能填寫「具體數字」(小數點後兩位)，絕對不可填寫文字。\n"
+                "2. 若為『右側多頭』(現價>=MA20)：請運用『CDP壓力位』或『近半年高點』作為上檔目標價。若股價已創半年新高，請以「測幅滿足點」或「風險報酬比 1:2」理論向上推算；防守價設為 MA5 或 MA20。\n"
+                "3. 若為『左側空頭』(現價<MA20)：請運用『均線回歸理論』，以季線(MA60)為首要目標；若季線太近無利潤，請運用『黃金分割率(Fibonacci)』，計算(半年高點-半年低點)之 0.382 或 0.5 反彈位作為目標價；防守價設為『半年低點』或『CDP支撐位』。\n"
+                "4. 只有『破線且法人連續大賣』時，才給予⚫避開示警。"
             )
+            
+            # 🔥 新增提取 AI 計算所需的「理論素材庫」
+            raw_highs = data.get('raw_highs', [])
+            raw_lows = data.get('raw_lows', [])
+            six_m_high = max(raw_highs) if raw_highs else data['close']
+            six_m_low = min(raw_lows) if raw_lows else data['close']
+            cdp_res = data.get('resistance', data['close'])
+            cdp_sup = data.get('support', data['close'])
+            
             # 確保有把 sector 餵進去
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, 訊號:{signal_str}, 外資:{f_str}"
+            # 餵給 AI 最完整的技術面大數據
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
             
             json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             
