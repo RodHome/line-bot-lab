@@ -808,11 +808,12 @@ def handle_message(event):
                                         {"type": "text", "text": f"現價 {current_price}", "weight": "bold", "size": "md", "color": "#ffffff", "align": "end", "flex": 1}
                                     ]
                                 },
-                                # 🌟 第二排：產業別 與 評分 (完美水平並排)
+                                # 🌟 第二排：產業別 與 評分 (完美水平並排，防止被切斷)
                                 {
                                     "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center", "contents": [
                                         {"type": "text", "text": f"🏷️ {sector}", "size": "xs", "color": "#eeeeee", "flex": 1},
-                                        {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold", "align": "end", "flex": 1}
+                                        # 👇 把 flex 改為 0 (強制保留完整寬度)，並稍微精簡字串避免小螢幕折行
+                                        {"type": "text", "text": f"🏆 評分: {score}分", "size": "xs", "color": "#FFD54F", "weight": "bold", "align": "end", "flex": 0}
                                     ]
                                 }
                             ], "backgroundColor": header_color
