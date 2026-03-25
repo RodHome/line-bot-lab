@@ -32,7 +32,7 @@ jobs:
     - name: Run generator (執行爬蟲)
       run: |
         python generator.py
-        python generator_test.py
+        # python generator_test.py
 
     - name: Commit and Push if changed (更新資料庫)
       run: |
@@ -40,5 +40,5 @@ jobs:
         git config --global user.email 'action@github.com'
         
         # 🔥 請機器人把正式版(四大天王)與測試版(兩大特務)通通打包帶走！
-        git add stock_list.json daily_recommendations.json left_side_value.json deposit_stocks.json daily_recommendations_test.json left_side_value_test.json
-        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update all stock JSONs including test files" && git pull --rebase origin main && git push)
+        git add stock_list.json daily_recommendations.json left_side_value.json deposit_stocks.json
+        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update all stock JSONs " && git pull --rebase origin main && git push)
