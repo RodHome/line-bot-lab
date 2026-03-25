@@ -32,22 +32,27 @@ def process_history_data(official_file, test_file, sort_key):
         # 提取官方名單上的日期，若無則用今天
         item_date = item.get('date', today_date_str)
         
-        # 尋找歷史初次入榜日，若無則代表是今天剛進榜
+        # 🔥 尋找歷史初次入榜日
         first_date = history_dict.get(code, {}).get('first_entry_date', item_date)
         
-        # 複製今日最新數據，並加上初次入榜日標籤
+        # 🌟 【關鍵修改】尋找歷史初次入榜價格！
+        # 如果舊字典裡有這個欄位，就嚴格保留；如果沒有（代表是全新進榜，或是舊資料還沒這欄位），就鎖定為「今天的價格」
+        first_price = history_dict.get(code, {}).get('first_entry_price', item.get('price', 0.0))
+        
+        # 複製今日最新數據，並加上初次入榜的標籤與價格
         new_item = item.copy()
         new_item['first_entry_date'] = first_date
+        new_item['first_entry_price'] = first_price # 👈 完美鎖定初始價格！
         
         # 覆寫進入字典
         history_dict[code] = new_item
         
-    # 4. 五日獨立交易日過濾法
-    # 抓出字典內所有的日期，去重並由新到舊排序，只取前 5 個
+    # 4. 長線交易日過濾法 (放大保留天數)
+    # 抓出字典內所有的日期，去重並由新到舊排序，取前 30 個交易日 (約一個半月)
     all_dates = set(v.get('date') for v in history_dict.values() if v.get('date'))
-    allowed_dates = sorted(list(all_dates), reverse=True)[:5]
+    allowed_dates = sorted(list(all_dates), reverse=True)[:30] # 👈 從 5 改成 30
     
-    # 只保留最後觸發日落在這 5 天內的標的
+    # 只保留最後觸發日落在這 30 天內的標的
     final_list = [v for v in history_dict.values() if v.get('date') in allowed_dates]
     
     # 5. 排序並寫入檔案
