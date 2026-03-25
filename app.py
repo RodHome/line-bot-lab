@@ -637,10 +637,32 @@ def handle_message(event):
         except: pass
 
         bubbles = []
+        
+        # 🔥 新增：右側動能飆股的首張導覽卡片
+        tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+        update_str = tw_now.strftime('%Y-%m-%d')
+        # 嘗試從快取中抓取真實的 JSON 產出日期
+        global TWSE_CACHE
+        if TWSE_CACHE.get('data') and isinstance(TWSE_CACHE['data'], list) and len(TWSE_CACHE['data']) > 0:
+            update_str = TWSE_CACHE['data'][0].get('date', update_str)
+            
+        info_bubble = {
+            "type": "bubble", "size": "hecto",
+            "body": {
+                "type": "box", "layout": "vertical", "spacing": "sm", "alignItems": "center", "justifyContent": "center",
+                "contents": [
+                    {"type": "text", "text": "🚀 右側動能飆股", "weight": "bold", "size": "xl", "color": "#D32F2F", "align": "center"},
+                    {"type": "text", "text": f"雷達掃描時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
+                    {"type": "separator", "margin": "lg"},
+                    {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"}
+                ]
+            }
+        }
+        bubbles.append(info_bubble)
+
         for stock in good_stocks:
             default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
             reason = reasons_map.get(stock['code'], default_reason)
-
             # 🔥 [修改處 1] 被動防禦提醒 (推薦卡片)：若帶量突破，短評後方附加警語
             if "量增價漲" in stock['signal_str'] or "RSI過熱" in stock['signal_str']:
                 reason += "\n🚨 留意隔日沖倒貨風險"
@@ -772,18 +794,27 @@ def handle_message(event):
                         sign = "+" if profit_pct > 0 else ""
                         period_profit = f"{sign}{profit_pct}%"
                     
+                    # 🔥 新增：從全域變數 STOCK_META 抓取這檔股票的產業別
+                    sector = STOCK_META.get(item['code'], {}).get('sector', '台股市場')
+
                     bubble = {
                         "type": "bubble", "size": "hecto",
                         "header": {
                             "type": "box", "layout": "vertical", "contents": [
-                                # 🌟 把現價放在標題列右側，與名稱水平並排
+                                # 🌟 第一排：名稱與現價
                                 {
                                     "type": "box", "layout": "horizontal", "contents": [
                                         {"type": "text", "text": f"{item['name']} ({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff", "flex": 1},
                                         {"type": "text", "text": f"現價 {current_price}", "weight": "bold", "size": "md", "color": "#ffffff", "align": "end", "flex": 1}
                                     ]
                                 },
-                                {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold", "margin": "sm"}
+                                # 🌟 第二排：產業別 與 評分 (完美水平並排)
+                                {
+                                    "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center", "contents": [
+                                        {"type": "text", "text": f"🏷️ {sector}", "size": "xs", "color": "#eeeeee", "flex": 1},
+                                        {"type": "text", "text": f"🏆 信心評分: {score} 分", "size": "sm", "color": "#FFD54F", "weight": "bold", "align": "end", "flex": 1}
+                                    ]
+                                }
                             ], "backgroundColor": header_color
                         },
                         "body": {
