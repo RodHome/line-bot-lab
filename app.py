@@ -103,10 +103,17 @@ def fetch_twse_candidates():
             
             # 簡單驗證一下資料格式
             if isinstance(stock_list, list) and len(stock_list) > 0:
-                # 更新快取
-                TWSE_CACHE = {"date": today_str, "data": stock_list}
-                print(f"[System] 成功載入 {len(stock_list)} 檔推薦股")
-                return stock_list
+                # 🔥 關鍵過濾器：找出所有日期並排序，只保留最新 5 個交易日的資料
+                all_dates = sorted(list(set([item.get('date') for item in stock_list if item.get('date')])), reverse=True)
+                recent_5_dates = all_dates[:5]
+                
+                # 過濾出在這 5 天內的推薦股
+                recent_stocks = [item for item in stock_list if item.get('date') in recent_5_dates]
+                
+                # 更新快取 (只把這 5 天的存進去)
+                TWSE_CACHE = {"date": today_str, "data": recent_stocks}
+                print(f"[System] 成功載入 {len(recent_stocks)} 檔近期推薦股 (過濾自 30 天長線庫)")
+                return recent_stocks
             else:
                 print("[Warn] GitHub 回傳的資料格式為空或錯誤")
         else:
@@ -445,6 +452,16 @@ def check_stock_worker_turbo(item):
 
         # 格式化 YoY 顯示字串
         yoy_display = f"+{yoy}%" if isinstance(yoy, (int, float)) and yoy > 0 else f"{yoy}%"
+        
+        # 🔥 新增：提取初始推薦日與價格，並計算「推薦至今累積漲幅」
+        first_date = item_data.get('first_entry_date', 'N/A')
+        first_price = item_data.get('first_entry_price')
+        
+        period_profit = "N/A"
+        if first_price and isinstance(first_price, (int, float)) and first_price > 0:
+            profit_pct = round((data['close'] - first_price) / first_price * 100, 1)
+            sign = "+" if profit_pct > 0 else ""
+            period_profit = f"{sign}{profit_pct}%"
 
         return {
             "code": code, "name": name, "sector": sector,
@@ -453,7 +470,10 @@ def check_stock_worker_turbo(item):
             "buy_value": buy_value,
             "yoy_display": yoy_display, 
             "signal_str": signal_str,
-            "tag": tag
+            "tag": tag,
+            "first_date": first_date,           
+            "first_price": first_price,         
+            "period_profit": period_profit      
         }
     except Exception as e: 
         print(f"Worker Error: {e}")
@@ -644,6 +664,10 @@ def handle_message(event):
                     # 🔥 營收 YoY (從 JSON 讀取的新武器！)
                     {"type": "text", "text": f"📈 營收 YoY: {stock.get('yoy_display', 'N/A')}", "size": "sm", "weight": "bold", "color": "#1976D2", "align": "center", "margin": "sm"},
                     
+                    # 👇 新增這兩行：歷史回測戰績展示！
+                    {"type": "text", "text": f"🎯 {stock.get('first_date', '')} 推薦價: {stock.get('first_price', 'N/A')}", "size": "xs", "color": "#888888", "align": "center", "margin": "md"},
+                    {"type": "text", "text": f"累積戰績: {stock.get('period_profit', 'N/A')}", "size": "sm", "weight": "bold", "color": "#D32F2F" if "+" in stock.get('period_profit', '') else "#2E7D32", "align": "center"},
+                    
                     {"type": "separator", "margin": "md"},
                     {"type": "text", "text": reason, "size": "xs", "color": "#333333", "wrap": True, "margin": "md"},
                     {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": stock['code']}, "style": "link", "margin": "md"}
@@ -698,15 +722,23 @@ def handle_message(event):
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 無法連線至 GitHub 取得左側資料。"))
                 return
 
-            left_data = res.json()
+            left_data_raw = res.json()
             
             tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
             update_str = tw_now.strftime('%Y-%m-%d') # 保底
-            if left_data and isinstance(left_data, list):
-                update_str = left_data[0].get('date', update_str)
+            
+            left_data = []
+            if left_data_raw and isinstance(left_data_raw, list):
+                # 🔥 關鍵過濾器：只保留最新 5 個交易日的資料
+                all_dates = sorted(list(set([item.get('date') for item in left_data_raw if item.get('date')])), reverse=True)
+                recent_5_dates = all_dates[:5]
+                left_data = [item for item in left_data_raw if item.get('date') in recent_5_dates]
+                
+                if left_data:
+                    update_str = left_data[0].get('date', update_str)
             
             if not left_data:
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="🛡️ 報告！今日大盤強勢，無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"))
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="🛡️ 報告！近期無符合嚴格超跌標準之錯殺股，請保留資金，耐心等待黃金坑出現！"))
                 return # 🔥 必須加上這行：回覆後立刻中斷函式
             else:
                 bubbles = []
