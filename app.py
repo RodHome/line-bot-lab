@@ -1069,8 +1069,8 @@ def handle_message(event):
 
                     # --- 說明區 (雙按鈕並排) ---
                     {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "md", "contents": [
-                        {"type": "button", "style": "secondary", "color": "#1E88E5", "action": {"type": "message", "label": "🧠 右側邏輯", "text": "右側邏輯"}},
-                        {"type": "button", "style": "secondary", "color": "#00897B", "action": {"type": "message", "label": "🧠 左側邏輯", "text": "左側邏輯"}}
+                        {"type": "button", "style": "secondary", "color": "#00897B", "action": {"type": "message", "label": "🧠 左側邏輯", "text": "左側邏輯"}},
+                        {"type": "button", "style": "secondary", "color": "#1E88E5", "action": {"type": "message", "label": "🧠 右側邏輯", "text": "右側邏輯"}}
                     ]}
                 ]
             }
