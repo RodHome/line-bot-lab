@@ -12,6 +12,46 @@ import yfinance as yf
 GUEST_TOKEN = "" # 訪客鑰匙 (消耗 IP 免費 300 次)
 VIP_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
 
+# 🔥 [新增模組] 長線記憶融合大腦 (30天回測水庫與初始價格鎖定)
+def merge_history_data(today_data, file_name, sort_key):
+    history_dict = {}
+    # 1. 嘗試讀取現有的舊檔案
+    if os.path.exists(file_name):
+        try:
+            with open(file_name, 'r', encoding='utf-8') as f:
+                old_data = json.load(f)
+                if isinstance(old_data, list):
+                    for item in old_data:
+                        code = item.get('code')
+                        if code: history_dict[code] = item
+        except Exception as e:
+            print(f"⚠️ 讀取 {file_name} 歷史資料失敗: {e}")
+
+    # 2. 將今日新資料與歷史資料融合 (Upsert)
+    today_date_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    for item in today_data:
+        code = item['code']
+        item_date = item.get('date', today_date_str)
+        
+        # 鎖定初次入榜日與初次價格
+        first_date = history_dict.get(code, {}).get('first_entry_date', item_date)
+        first_price = history_dict.get(code, {}).get('first_entry_price', item.get('price', 0.0))
+        
+        new_item = item.copy()
+        new_item['first_entry_date'] = first_date
+        new_item['first_entry_price'] = first_price
+        
+        history_dict[code] = new_item
+
+    # 3. 過濾出最近 30 個交易日的資料
+    all_dates = set(v.get('date') for v in history_dict.values() if v.get('date'))
+    allowed_dates = sorted(list(all_dates), reverse=True)[:30]
+    
+    final_list = [v for v in history_dict.values() if v.get('date') in allowed_dates]
+    final_list.sort(key=lambda x: x.get(sort_key, 0), reverse=True)
+    
+    return final_list
+
 def get_finmind_chips(code):
     """查詢近 5 日法人買超張數 (抗長假 30 天版)"""
     start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -515,16 +555,14 @@ def generate_daily_recommendations():
     except Exception as e:
         print(f"❌ [Task 2] 發生錯誤: {e}")
 
-    # 存檔 2
-    # 就算沒抓到(空陣列)，也要存檔，避免 LineBot 讀舊檔
-    # 或是你可以選擇：若空的就不存，沿用昨天的 (看你需求，這裡預設是覆蓋)
-    if final_list:
+    # 📦 [修改] 呼叫融合大腦，結合歷史 30 天記憶後存檔
+    merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'buy_value')
+    if merged_list:
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
-            # 🔥 加上 indent=4，讓 JSON 產生 4 個空白鍵的漂亮縮排
-            json.dump(final_list, f, ensure_ascii=False, indent=4)
-            print("💾 已儲存 daily_recommendations.json")
+            json.dump(merged_list, f, ensure_ascii=False, indent=4)
+        print(f"💾 已儲存 daily_recommendations.json (包含歷史共 {len(merged_list)} 檔)")
     else:
-        print("⚠️ 本次未產出新名單，未覆蓋檔案。")
+        print("⚠️ 歷史與今日皆無資料可存。")
 
 if __name__ == "__main__":
     # 執行兩個任務
@@ -748,19 +786,18 @@ def generate_left_side_value():
             print(f"   🏆 入選: {code} | 分數: {score} | 狀態: {trend_status}")
 
     # ---------------------------------------------------------
-    # 📦 結算與存檔
+    # 📦 結算與存檔 (融入 30 天歷史大水庫)
     # ---------------------------------------------------------
     if final_list:
-        # 依照「信心評分」由高到低排序 (最高分的排第一名！)
-        final_list.sort(key=lambda x: x['score'], reverse=True)
-        print(f"✅ 任務完成！共 {len(final_list)} 檔無敵黃金坑達標。")
+        print(f"✅ 今日掃描共 {len(final_list)} 檔無敵黃金坑達標。")
     else:
-        print("⚠️ 本次掃描無股票通過三層漏斗。")
+        print("⚠️ 今日掃描無股票通過三層漏斗。")
 
-    # 🔥 關鍵防呆：無論名單是不是空的，都「強制覆寫」檔案！
+    merged_list = merge_history_data(final_list, 'left_side_value.json', 'score')
+    
     with open('left_side_value.json', 'w', encoding='utf-8') as f:
-        json.dump(final_list, f, ensure_ascii=False, indent=4)
-        print("💾 已強制更新 left_side_value.json (確保 Line Bot 不會讀到過期資料)")
+        json.dump(merged_list, f, ensure_ascii=False, indent=4)
+        print(f"💾 已強制更新 left_side_value.json (包含歷史共 {len(merged_list)} 檔)")
   
 # ========================================================
 # 🔥 新增功能 4: 【金剛不壞：存股打折加碼雷達】(獨立產線)
