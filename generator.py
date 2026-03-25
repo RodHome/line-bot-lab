@@ -678,6 +678,8 @@ def generate_left_side_value():
             item['real_date'] = df.index[-1].strftime('%Y-%m-%d')
             
             close_today = closes[-1]
+            # 🔥 新增這行：強制用 yfinance 的精準收盤價覆寫掉第一層的粗糙價格！
+            item['price'] = round(close_today, 2)
             ma60 = sum(closes[-60:]) / 60
             ma24 = sum(closes[-24:]) / 24 # 🔥 新增月線
             ma6 = sum(closes[-6:]) / 6    # 🔥 新增週線
