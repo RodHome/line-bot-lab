@@ -673,7 +673,6 @@ def handle_message(event):
             }
         }
         bubbles.append(info_bubble)
-        bubbles.append(info_bubble)
 
         for stock in good_stocks:
             default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
