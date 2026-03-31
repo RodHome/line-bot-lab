@@ -777,7 +777,17 @@ def handle_message(event):
                             {"type": "text", "text": "🛡️ 左側黃金坑", "weight": "bold", "size": "xl", "color": "#1E88E5", "align": "center"},
                             {"type": "text", "text": f"雷達掃描時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
                             {"type": "separator", "margin": "lg"},
-                            {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"}
+                            {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"},
+                            
+                            # 🔥 新增：換一批按鈕 (紅色邊框外觀，點擊自動發送"推薦")
+                            {
+                                "type": "box", "layout": "vertical", "margin": "lg", "paddingAll": "sm",
+                                "borderColor": "#D32F2F", "borderWidth": "2px", "cornerRadius": "md",
+                                "action": {"type": "message", "label": "換一批", "text": "推薦"},
+                                "contents": [
+                                    {"type": "text", "text": "🔄 推薦飆股換一批", "color": "#D32F2F", "weight": "bold", "align": "center"}
+                                ]
+                            }
                         ]
                     }
                 }
