@@ -1308,8 +1308,9 @@ def handle_message(event):
         f"------------------\n"
         f"{ai_reply_text}\n"
         f"------------------\n"    
-        f"{history_banner}"  # 👈 這行是靈魂！有入榜就會印出來，沒入榜就默默隱藏
-        f"{warning_block}"  # 🔥 [修改處 4-3] 插入警示區塊變數
+        f"{banner_part}"         # 👈 如果有戰績，印出並自動換行
+        f"{warn_part}"           # 👈 如果有警告，印出並自動換行
+        f"(🤖 {used_model})\n"   # 👈 補回 Gemini 標籤，並自動換行
         f"(版本: {BOT_VERSION})"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
