@@ -1179,30 +1179,26 @@ def handle_message(event):
             json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             
             try:
-                # 🔥 關鍵防護 1：攔截 None 避免崩潰
                 if not json_str: raise ValueError("API 無回應")
                 res = json.loads(json_str)
-                
-                # 🔥 關鍵防呆：使用 .get 取值
                 action = res.get('action', '🟡觀望')
                 analysis = res.get('analysis', '產業數據解析中...')
                 strategy = res.get('strategy', '依紀律操作。')
                 
-                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{warning_block.strip()}\n(🤖 {used_model})"
+                # 🌟 將 history_banner 放在分隔線下方
+                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{history_banner}{warning_block.strip()}\n(🤖 {used_model})"
             except Exception as e: 
-                # 🚑 終極搶救手術：帶成本診斷斷線時的 Regex 搶救
                 try:
                     analysis_m = re.search(r'"analysis"\s*:\s*"([^"]*)', str(json_str))
                     action_m = re.search(r'"action"\s*:\s*"([^"]*)', str(json_str))
                     strategy_m = re.search(r'"strategy"\s*:\s*"([^"]*)', str(json_str))
-                    
                     analysis = analysis_m.group(1) if analysis_m else "基本面解析中..."
                     action = action_m.group(1) if action_m else "🟡 觀望"
                     strategy = strategy_m.group(1) if strategy_m else "依紀律操作。"
                     
-                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{warning_block.strip()}\n(🤖 {used_model} 截斷修復)"
+                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{history_banner}{warning_block.strip()}\n(🤖 {used_model} 截斷修復)"
                 except:
-                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n⚠️ AI 解析失敗，請參考上方指標。\n------------------\n{warning_block.strip()}"
+                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n⚠️ AI 解析失敗，請參考上方指標。\n------------------\n{history_banner}{warning_block.strip()}"
                     
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return    
@@ -1297,8 +1293,7 @@ def handle_message(event):
         )
         
         reply = (
-        f"📈 **{name}({stock_id})**\n"
-        f"{history_banner}"  # 👈 這行是靈魂！有入榜就會印出來，沒入榜就默默隱藏
+        f"📈 **{name}({stock_id})**\n"        
         f"{data_dashboard}\n"
         f"------------------\n"
         f"🚩 **指標快篩** :\n"
@@ -1306,6 +1301,7 @@ def handle_message(event):
         f"------------------\n"
         f"{ai_reply_text}\n"
         f"------------------\n"    
+        f"{history_banner}"  # 👈 這行是靈魂！有入榜就會印出來，沒入榜就默默隱藏
         f"{warning_block}"  # 🔥 [修改處 4-3] 插入警示區塊變數
         f"(版本: {BOT_VERSION})"
         )
