@@ -1299,6 +1299,11 @@ def handle_message(event):
             f"{indicator_line}"
         )
         
+        # --- 處理底部排版與斷行 ---
+        final_banner = f"{history_banner}\n" if history_banner else ""
+        final_warning = f"{warning_block}" if warning_block else ""
+        final_model = used_model if 'used_model' in locals() else "Smart Cache"
+
         reply = (
         f"📈 **{name}({stock_id})**\n"        
         f"{data_dashboard}\n"
@@ -1308,8 +1313,9 @@ def handle_message(event):
         f"------------------\n"
         f"{ai_reply_text}\n"
         f"------------------\n"    
-        f"{history_banner}"  # 👈 這行是靈魂！有入榜就會印出來，沒入榜就默默隱藏
-        f"{warning_block}"  # 🔥 [修改處 4-3] 插入警示區塊變數
+        f"{final_banner}"           # 👈 戰績說明 (自帶換行)
+        f"{final_warning}"          # 👈 警告區塊 (自帶換行)
+        f"(🤖 {final_model})\n"     # 👈 補回模型名稱 (自帶換行)
         f"(版本: {BOT_VERSION})"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
