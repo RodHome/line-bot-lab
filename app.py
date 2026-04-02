@@ -1148,7 +1148,7 @@ def handle_message(event):
                         f_price = float(item['first_entry_price'])
                         profit = round((data['close'] - f_price) / f_price * 100, 1)
                         sign = "+" if profit > 0 else ""
-                        history_banner = f"🏆 【右側推薦】{f_date} 價:{f_price} (戰績: {sign}{profit}%)\n"
+                        history_banner = f"🏆 【右側推薦】{f_date} 價:{f_price} (戰績: {sign}{profit}%)"
                         break
             
             # 2. 如果右側沒有，換查「左側黃金坑」清單！
@@ -1161,7 +1161,7 @@ def handle_message(event):
                             f_price = float(item['first_entry_price'])
                             profit = round((data['close'] - f_price) / f_price * 100, 1)
                             sign = "+" if profit > 0 else ""
-                            history_banner = f"🛡️ 【左側潛伏】{f_date} 價:{f_price} (戰績: {sign}{profit}%)\n"
+                            history_banner = f"🛡️ 【左側潛伏】{f_date} 價:{f_price} (戰績: {sign}{profit}%)"
                             break
         except Exception as e: 
             print(f"[Debug] 撈取歷史紀錄失敗: {e}")
@@ -1169,12 +1169,10 @@ def handle_message(event):
 
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
-            # 🧠 升級：強制要求帶成本的診斷也要有產業基本面分析
             sys_prompt = (
                 "你是華爾街頂級操盤手。請回傳JSON: analysis(50字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
                 "【規則】：分析內容『絕對不可』只念技術線型！請務必結合該股票所屬的『產業基本面展望』或『總經題材』進行解讀。若給出防守價，『大於成本』才可稱為停利，『小於成本』必須稱為停損。"
             )
-            # 餵給 AI 產業資訊
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
             json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             
@@ -1184,22 +1182,30 @@ def handle_message(event):
                 action = res.get('action', '🟡觀望')
                 analysis = res.get('analysis', '產業數據解析中...')
                 strategy = res.get('strategy', '依紀律操作。')
-                
-                # 🌟 將 history_banner 放在分隔線下方
-                reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{history_banner}{warning_block.strip()}\n(🤖 {used_model})"
-            except Exception as e: 
-                try:
-                    analysis_m = re.search(r'"analysis"\s*:\s*"([^"]*)', str(json_str))
-                    action_m = re.search(r'"action"\s*:\s*"([^"]*)', str(json_str))
-                    strategy_m = re.search(r'"strategy"\s*:\s*"([^"]*)', str(json_str))
-                    analysis = analysis_m.group(1) if analysis_m else "基本面解析中..."
-                    action = action_m.group(1) if action_m else "🟡 觀望"
-                    strategy = strategy_m.group(1) if strategy_m else "依紀律操作。"
-                    
-                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n【建議】{action}\n【分析】{analysis}\n【策略】{strategy}\n------------------\n{history_banner}{warning_block.strip()}\n(🤖 {used_model} 截斷修復)"
-                except:
-                    reply = f"🩺 **{name}診斷**\n💰 帳面: {profit_pct}%\n⚠️ AI 解析失敗，請參考上方指標。\n------------------\n{history_banner}{warning_block.strip()}"
-                    
+            except Exception:
+                analysis_m = re.search(r'"analysis"\s*:\s*"([^"]*)', str(json_str))
+                action_m = re.search(r'"action"\s*:\s*"([^"]*)', str(json_str))
+                strategy_m = re.search(r'"strategy"\s*:\s*"([^"]*)', str(json_str))
+                analysis = analysis_m.group(1) if analysis_m else "基本面解析中..."
+                action = action_m.group(1) if action_m else "🟡 觀望"
+                strategy = strategy_m.group(1) if strategy_m else "依紀律操作。"
+                used_model += " 截斷修復"
+
+            # 🌟 重新組裝版面：取消空行，且 Gemini 放在版本號上方
+            banner_line = f"{history_banner}\n" if history_banner else ""
+            warn_line = f"{warning_block.strip()}\n" if warning_block.strip() else ""
+            
+            reply = (
+                f"🩺 **{name}診斷**\n"
+                f"💰 帳面: {profit_pct}%\n"
+                f"【建議】{action}\n"
+                f"【分析】{analysis}\n"
+                f"【策略】{strategy}\n"
+                f"------------------\n"
+                f"{banner_line}{warn_line}"
+                f"(🤖 {used_model})\n"
+                f"(版本: {BOT_VERSION})"
+            )
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
             return    
                 
@@ -1274,7 +1280,8 @@ def handle_message(event):
                     target = res_m.group(1) if res_m else round(data['close'] * 1.1, 1)
                     
                     advice_str = f"【綜合建議】{advice}\n🎯目標：{target} (估) | 🛑防守：依紀律操作"
-                    ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}\n(🤖 {used_model} 截斷修復)"
+                    ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}"
+                    used_model += " 截斷修復" # 將修復訊息存在變數裡就好
                 except:
                     # 如果連硬挖都挖不出來，才真的宣告失敗
                     ai_reply_text = "⚠️ AI 解析失敗。"
