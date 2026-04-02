@@ -1134,6 +1134,39 @@ def handle_message(event):
         # 🔥 抓取這檔股票的產業屬性，準備餵給 AI
         sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
 
+        # ==========================================
+        # 🌟 核心升級：去大水庫 (JSON) 撈取歷史入榜紀錄
+        # ==========================================
+        history_banner = ""
+        try:
+            # 1. 先查右側動能清單 (把 timeout 拉長到 4 秒防斷線)
+            res_r = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json", headers={'Cache-Control': 'no-cache'}, timeout=4)
+            if res_r.status_code == 200:
+                for item in res_r.json():
+                    if str(item.get('code')) == str(stock_id) and item.get('first_entry_date'):
+                        f_date = item['first_entry_date']
+                        f_price = float(item['first_entry_price'])
+                        profit = round((data['close'] - f_price) / f_price * 100, 1)
+                        sign = "+" if profit > 0 else ""
+                        history_banner = f"🏆 【右側推薦】{f_date} 價:{f_price} (戰績: {sign}{profit}%)\n"
+                        break
+            
+            # 2. 如果右側沒有，換查「左側黃金坑」清單！
+            if not history_banner:
+                res_l = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/left_side_value.json", headers={'Cache-Control': 'no-cache'}, timeout=4)
+                if res_l.status_code == 200:
+                    for item in res_l.json():
+                        if str(item.get('code')) == str(stock_id) and item.get('first_entry_date'):
+                            f_date = item['first_entry_date']
+                            f_price = float(item['first_entry_price'])
+                            profit = round((data['close'] - f_price) / f_price * 100, 1)
+                            sign = "+" if profit > 0 else ""
+                            history_banner = f"🛡️ 【左側潛伏】{f_date} 價:{f_price} (戰績: {sign}{profit}%)\n"
+                            break
+        except Exception as e: 
+            print(f"[Debug] 撈取歷史紀錄失敗: {e}")
+        # ==========================================
+
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             # 🧠 升級：強制要求帶成本的診斷也要有產業基本面分析
@@ -1265,6 +1298,7 @@ def handle_message(event):
         
         reply = (
         f"📈 **{name}({stock_id})**\n"
+        f"{history_banner}"  # 👈 這行是靈魂！有入榜就會印出來，沒入榜就默默隱藏
         f"{data_dashboard}\n"
         f"------------------\n"
         f"🚩 **指標快篩** :\n"
