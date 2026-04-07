@@ -1200,20 +1200,27 @@ def handle_message(event):
                 "required": ["action", "analysis", "strategy"]
             }
             
-            # 傳入 schema
-            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=cost_schema)
+           # 🔥 1. 初始化狀態為「呼叫中」
+            used_model = "Gemini-AI" 
+            json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=cost_schema)
             
-            # 👇 程式碼大瘦身：因為一定會有完美 JSON，不再需要 Regex！
+            if ai_model != "Error" and ai_model != "No API Key":
+                used_model = ai_model
+
             try:
-                if not json_str: raise ValueError("API 無回應")
-                res = json.loads(json_str)
-                action = res.get('action', '🟡觀望')
-                analysis = res.get('analysis', '產業數據解析中...')
-                strategy = res.get('strategy', '依紀律操作。')
+                # 🔥 2. 判定是否真的連不上 Google
+                if not json_str:
+                    action, analysis, strategy = "🟡 觀望", "⚠️ 抱歉，Google API 暫時連線超時，請稍後再試。", "建議手動參考下方技術指標。"
+                    used_model += " (連線失敗)"
+                else:
+                    res = json.loads(json_str)
+                    action = res.get('action', '🟡觀望')
+                    analysis = res.get('analysis', '產業數據解析中...')
+                    strategy = res.get('strategy', '依紀律操作。')
             except Exception as e:
                 print(f"🚨 解析失敗: {e}")
-                action, analysis, strategy = "🟡 觀望", "API系統連線異常...", "依紀律操作。"
-                used_model += " (格式錯誤)"
+                action, analysis, strategy = "🟡 觀望", "數據格式解析異常，請再試一次。", "依紀律操作。"
+                used_model += " (格式解析錯誤)"
 
             banner_line = f"{history_banner}\n" if history_banner else ""
             warn_line = f"{warning_block.strip()}\n" if warning_block.strip() else ""
