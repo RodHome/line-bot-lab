@@ -215,14 +215,14 @@ def clean_json_string(text):
     text = re.sub(r'```\s*', '', text)
     return text.strip()
 
-def call_gemini_json(prompt, system_instruction=None):
+def call_gemini_json(prompt, system_instruction=None, schema=None):
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
-    if not keys: return None
+    if not keys: return None, "No API Key"
     random.shuffle(keys)
     
     target_models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
-    final_prompt = prompt + "\n\n⚠️請務必只回傳純 JSON 格式，不要有任何其他文字。"
+    final_prompt = prompt 
     
     for model in target_models:
         for key in keys:
@@ -235,29 +235,29 @@ def call_gemini_json(prompt, system_instruction=None):
                 if system_instruction:
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
                 
+                # 🔥 動態組裝設定：如果有 Schema 就綁定進去
+                gen_config = {
+                    "maxOutputTokens": 2000, 
+                    "temperature": 0.3, 
+                    "responseMimeType": "application/json"
+                }
+                if schema:
+                    gen_config["responseSchema"] = schema
+                
                 payload = {
                     "contents": contents,
-                    "generationConfig": {"maxOutputTokens": 2000, "temperature": 0.3, "responseMimeType": "application/json"}
+                    "generationConfig": gen_config
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
-                
-                # 👇 新增 Log：看看 API 到底回傳什麼狀態
-                if response.status_code != 200:
-                    print(f"❌ [Debug] API 失敗! 模型: {model}, 狀態碼: {response.status_code}, 訊息: {response.text}")
                 
                 if response.status_code == 200:
                     data = response.json()
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                    
-                    # 👇 新增 Log：看看 AI 吐出了什麼字串
-                    print(f"✅ [Debug] API 成功! 模型: {model}, 原始回傳長度: {len(text)}, 內容截取: {text[:100]}...")
-                    
                     if text: return clean_json_string(text), model 
             except Exception as e: 
-                # 👇 新增 Log：看看是不是 Timeout 逾時斷線
                 print(f"⚠️ [Debug] 請求發生 Exception: {e}")
                 continue
-    return None
+    return None, "Error"
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 def fetch_data_light(stock_id):
@@ -1169,29 +1169,40 @@ def handle_message(event):
 
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
+            
+            # 🧠 提示詞瘦身：只講分析邏輯，不講 JSON 格式
             sys_prompt = (
-                "你是華爾街頂級操盤手。請回傳JSON: analysis(50字內), action(🔴續抱/🟡減碼/⚫停損), strategy(操作建議)。"
-                "【規則】：分析內容『絕對不可』只念技術線型！請務必結合該股票所屬的『產業基本面展望』或『總經題材』進行解讀。若給出防守價，『大於成本』才可稱為停利，『小於成本』必須稱為停損。"
+                "你是華爾街頂級操盤手。請結合該股票所屬的『產業基本面展望』或『總經題材』進行解讀，絕對不可只念技術線型！"
+                "若給出防守價，『大於成本』才可稱為停利，『小於成本』必須稱為停損。"
             )
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
-            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
             
+            # 🔥 新增強制表單 (Schema)
+            cost_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "action": {"type": "STRING", "description": "從這三個選項選一個：🔴續抱 / 🟡減碼 / ⚫停損"},
+                    "analysis": {"type": "STRING", "description": "產業與數據解析(50字內)"},
+                    "strategy": {"type": "STRING", "description": "具體操作建議，包含防守價"}
+                },
+                "required": ["action", "analysis", "strategy"]
+            }
+            
+            # 傳入 schema
+            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=cost_schema)
+            
+            # 👇 程式碼大瘦身：因為一定會有完美 JSON，不再需要 Regex！
             try:
                 if not json_str: raise ValueError("API 無回應")
                 res = json.loads(json_str)
                 action = res.get('action', '🟡觀望')
                 analysis = res.get('analysis', '產業數據解析中...')
                 strategy = res.get('strategy', '依紀律操作。')
-            except Exception:
-                analysis_m = re.search(r'"analysis"\s*:\s*"([^"]*)', str(json_str))
-                action_m = re.search(r'"action"\s*:\s*"([^"]*)', str(json_str))
-                strategy_m = re.search(r'"strategy"\s*:\s*"([^"]*)', str(json_str))
-                analysis = analysis_m.group(1) if analysis_m else "基本面解析中..."
-                action = action_m.group(1) if action_m else "🟡 觀望"
-                strategy = strategy_m.group(1) if strategy_m else "依紀律操作。"
-                used_model += " 截斷修復"
+            except Exception as e:
+                print(f"🚨 解析失敗: {e}")
+                action, analysis, strategy = "🟡 觀望", "API系統連線異常...", "依紀律操作。"
+                used_model += " (格式錯誤)"
 
-            # 🌟 重新組裝版面：取消空行，且 Gemini 放在版本號上方
             banner_line = f"{history_banner}\n" if history_banner else ""
             warn_line = f"{warning_block.strip()}\n" if warning_block.strip() else ""
             
@@ -1213,24 +1224,28 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            # 🧠 終極升級：導入技術分析理論定價 (CDP、均線回歸、黃金分割)
+            # 🧠 提示詞大瘦身：拿掉所有強硬的 JSON 規定，專注於交易理論
             sys_prompt = (
-                "你是資深雙向操盤手與產業研究員，所有的研究都只為了學術分析，幫助學生進行相關數據回測。請嚴格依照以下 JSON 格式回傳（不可省略欄位）：\n"
-                "{\n"
-                "  \"macro\": \"產業題材客觀描述(如AI伺服器、降息等，限40字)\",\n"
-                "  \"technical\": \"線型與籌碼狀態描述(限40字)\",\n"
-                "  \"trend_status\": \"🔴分批進場 / 🟡觀望等待 / ⚫避開風險\",\n"
-                "  \"resistance_level\": \"波段獲利目標價位(必須為精確數字)\",\n"
-                "  \"support_level\": \"下方技術支撐價位(必須為精確數字)\"\n"
-                "}\n"
-                "【理論定價規則】(極重要，請依據提供的數據與技術理論推算，嚴禁瞎掰)：\n"
-                "1. 壓力與支撐必須且只能填寫「具體數字」(小數點後兩位)，絕對不可填寫文字。\n"
-                "2. 若為『右側多頭』(現價>=MA20)：請運用『CDP壓力位』或『近半年高點』作為上檔目標價。若股價已創半年新高，請以「測幅滿足點」或「風險報酬比 1:2」理論向上推算；防守價設為 MA5 或 MA20。\n"
-                "3. 若為『左側空頭』(現價<MA20)：請運用『均線回歸理論』，以季線(MA60)為首要目標；若季線太近無利潤，請運用『黃金分割率(Fibonacci)』，計算(半年高點-半年低點)之 0.382 或 0.5 反彈位作為目標價；防守價設為『半年低點』或『CDP支撐位』。\n"
-                "4. 只有『破線且法人連續大賣』時，才給予⚫避開示警。"
+                "你是資深雙向操盤手與產業研究員，負責協助學生進行技術分析與數據回測。\n"
+                "【理論定價規則】(請依據提供的現價與均線數據，進行邏輯推算)：\n"
+                "1. 若為『右側多頭』(現價>=MA20)：請運用『CDP壓力位』或『近半年高點』作為上檔目標價。若股價已創半年新高，請以「測幅滿足點」推算；防守價設為 MA5 或 MA20。\n"
+                "2. 若為『左側空頭』(現價<MA20)：請運用『均線回歸理論』以季線(MA60)為首要目標；若季線太近，則用『黃金分割率』推算反彈位；防守價設為『半年低點』或『CDP支撐位』。\n"
+                "3. 只有『破線且法人連續大賣』時，才判定為「⚫避開風險」，否則多以「🟡觀望等待」或「🔴分批進場」為主。"
             )
             
-            # 🔥 新增提取 AI 計算所需的「理論素材庫」
+            # 🔥 新增強制表單 (Schema)：在這邊預留「算不出來填文字」的退路
+            gen_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "macro": {"type": "STRING", "description": "產業題材客觀描述(如AI伺服器、降息等，限40字內)"},
+                    "technical": {"type": "STRING", "description": "線型與籌碼狀態描述(限40字內)"},
+                    "trend_status": {"type": "STRING", "description": "從這三個選項選一個：🔴分批進場 / 🟡觀望等待 / ⚫避開風險"},
+                    "resistance_level": {"type": "STRING", "description": "推算出的波段獲利目標價位。若算不出明確數字，請直接填寫'依紀律操作'"},
+                    "support_level": {"type": "STRING", "description": "推算出的下方技術支撐價位。若算不出明確數字，請直接填寫'依紀律操作'"}
+                },
+                "required": ["macro", "technical", "trend_status", "resistance_level", "support_level"]
+            }
+            
             raw_highs = data.get('raw_highs', [])
             raw_lows = data.get('raw_lows', [])
             six_m_high = max(raw_highs) if raw_highs else data['close']
@@ -1238,56 +1253,34 @@ def handle_message(event):
             cdp_res = data.get('resistance', data['close'])
             cdp_sup = data.get('support', data['close'])
             
-            # 確保有把 sector 餵進去
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
-            # 餵給 AI 最完整的技術面大數據
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
             
-            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt)
+            # 傳入 schema
+            json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=gen_schema)
+            if ai_model != "Error":
+                used_model = ai_model 
             
+            # 👇 程式碼大瘦身：再也不用 Regex 搶救了！
             try:
-                # 🔥 關鍵防護 1：攔截 None
                 if not json_str: raise ValueError("API 無回應")
                 res = json.loads(json_str)
                 
-                # 🔥 關鍵防護 2：後台接 AI 的 trend/resistance，前台印出 advice/target
                 advice = res.get('trend_status', '🟡觀望等待')
-                target = res.get('resistance_level', 'N/A')
-                stop = res.get('support_level', 'N/A')
+                target = res.get('resistance_level', '依紀律操作')
+                stop = res.get('support_level', '依紀律操作')
                 macro = res.get('macro', '資料解析中...')
                 tech = res.get('technical', '資料解析中...')
                 
-                # 🌟 你要求的畫面呈現：依然是完美的「目標」與「防守」！
                 advice_str = f"【綜合建議】{advice}\n🎯目標：{target} | 🛑防守：{stop}"
                 ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}"
                 
-            except Exception as e: 
-                print(f"🚨 [Debug] 崩潰啦！錯誤類型: {type(e).__name__}, 詳細錯誤: {e}")
-                print(f"🚨 [Debug] 導致崩潰的字串 (json_str): {json_str}")
-                
-                # 🚑 終極搶救手術：萬一 AI 還是被斷線，我們用 Regex 把新 Key 挖出來
-                try:
-                    macro_m = re.search(r'"macro"\s*:\s*"([^"]*)', str(json_str))
-                    tech_m = re.search(r'"technical"\s*:\s*"([^"]*)', str(json_str))
-                    trend_m = re.search(r'"trend_status"\s*:\s*"([^"]*)', str(json_str))
-                    res_m = re.search(r'"resistance_level"\s*:\s*"?([0-9.]+)"?', str(json_str))
-                    
-                    macro = macro_m.group(1) if macro_m else "基本面解析中..."
-                    tech = tech_m.group(1) if tech_m else "技術面解析中..."
-                    advice = trend_m.group(1) if trend_m else "🟡 觀望等待"
-                    
-                    # 就算 JSON 破了，只要 AI 寫到一半有吐出數字，我們一樣硬抓出來當作目標價！
-                    target = res_m.group(1) if res_m else round(data['close'] * 1.1, 1)
-                    
-                    advice_str = f"【綜合建議】{advice}\n🎯目標：{target} (估) | 🛑防守：依紀律操作"
-                    ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}"
-                    used_model += " 截斷修復" # 將修復訊息存在變數裡就好
-                except:
-                    # 如果連硬挖都挖不出來，才真的宣告失敗
-                    ai_reply_text = "⚠️ AI 解析失敗。"
-                
-            if "解析失敗" not in ai_reply_text: 
+                # 只有成功解析，才存入快取
                 set_cached_ai_response(cache_key, ai_reply_text)
+                
+            except Exception as e: 
+                print(f"🚨 [Debug] 崩潰啦！錯誤: {e}, 回傳字串: {json_str}")
+                ai_reply_text = "⚠️ AI 系統忙碌中，請參考上方指標。"
 
         indicator_line = f"💎 殖利率: {yield_rate}" if is_etf else f"💎 EPS: {eps}"
         
