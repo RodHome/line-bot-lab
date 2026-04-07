@@ -1180,7 +1180,7 @@ def handle_message(event):
                 "1. 產業大於一切：若該股屬當前主流趨勢(如半導體、AI、重電等)，就算跌破均線也是「逢低加碼」的機會，嚴禁因帳面虧損就無腦喊停損。\n"
                 "2. 成本只是心魔：評估去留只看「距離下方強支撐(MA20/MA60)還有多遠」以及「產業未來性」。\n"
                 "【回傳 JSON 格式要求】：\n"
-                "1. analysis: 結合產業大局與當前技術線型的冷酷點評，限 30 字內。\n"
+                "1. analysis: 結合產業大局與當前技術線型的冷酷點評，限 50 字內。\n"
                 "2. action: 僅限從此選單挑一個：🔴逢低加碼 / 🟡續抱觀察 / 🟢獲利了結 / ⚫破線停損。\n"
                 "3. strategy: 直接給出具體的「防守價」或「加碼價」與行動準則，限 30 字內。"
             )
@@ -1190,9 +1190,9 @@ def handle_message(event):
             cost_schema = {
                 "type": "OBJECT",
                 "properties": {
-                    "action": {"type": "STRING", "description": "從這三個選項選一個：🔴續抱 / 🟡減碼 / ⚫停損"},
-                    "analysis": {"type": "STRING", "description": "產業與數據解析(50字內)"},
-                    "strategy": {"type": "STRING", "description": "具體操作建議，包含防守價"}
+                    "action": {"type": "STRING", "description": "必須從這四個選項選一個：🔴逢低加碼 / 🟡續抱觀察 / 🟢獲利了結 / ⚫破線停損"},
+                    "analysis": {"type": "STRING", "description": "結合產業大局與技術線型的冷酷點評(50字內)"},
+                    "strategy": {"type": "STRING", "description": "具體的防守價或加碼價與行動準則(限30字內)"}
                 },
                 "required": ["action", "analysis", "strategy"]
             }
@@ -1208,9 +1208,15 @@ def handle_message(event):
                 analysis = res.get('analysis', '產業數據解析中...')
                 strategy = res.get('strategy', '依紀律操作。')
             except Exception as e:
-                print(f"🚨 解析失敗: {e}")
-                action, analysis, strategy = "🟡 觀望", "API系統連線異常...", "依紀律操作。"
-                used_model += " (格式錯誤)"
+                print(f"🚨 解析/連線失敗: {e}")
+                action, strategy = "🟡 觀望", "依紀律操作。"
+                # 判斷是沒收到回應，還是 JSON 破掉
+                if not json_str:
+                    analysis = "⚠️ API 系統連線異常，請稍後再試。"
+                    used_model += " (連線失敗)"
+                else:
+                    analysis = "⚠️ 數據格式解析異常，請再試一次。"
+                    used_model += " (格式錯誤)"
 
             banner_line = f"{history_banner}\n" if history_banner else ""
             warn_line = f"{warning_block.strip()}\n" if warning_block.strip() else ""
