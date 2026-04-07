@@ -1170,24 +1170,12 @@ def handle_message(event):
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
             
-            # 🧠 植入專業操盤手邏輯：嚴禁看成本做股票，必須看趨勢做股票！
+            # 🧠 提示詞瘦身：只講分析邏輯，不講 JSON 格式
             sys_prompt = (
-                "你是華爾街頂級操盤手，具備深厚的技術面與基本面分析能力。\n"
-                "【核心交易邏輯】(極重要！嚴禁只看帳面虧損就建議停損)：\n"
-                "你是具備『產業大局觀』的頂級基金經理人，說話冷靜、精準，嚴禁重複用戶已知的數據。\n"
-                "【核心原則】：題材 > 位階 > 技術面。嚴禁看到帳面虧損就喊停損。\n"
-                "【診斷邏輯】：\n"
-                "1. 題材定勝負：若標的屬於當前火紅題材(如:AI、半導體復甦、HBM記憶體、電力儲能)，只要「產業上升趨勢未變」，即使技術面破位(如跌破MA60)，應優先給予【🔴續抱】或「左側分批加碼」建議。\n"
-                "2. 判斷位階與週期：像南亞科(2408)這類週期股，請判斷是否處於歷史低價區或產業復甦前夕。若屬於「錯殺」或「底部盤整」，絕對不可建議在阿呆谷砍倉。\n"
-                "3. 實戰建議：\n"
-                "   - 帳面虧損但題材正確：強調「輸時間不輸空間」，給出下方年線或波段低點作為守點。\n"
-                "   - 帳面獲利：給出「移動停利」建議，保護戰果。\n"
-                "4. 禁言規則：不要說『現價是多少』或『成本是多少』。請直接分析：這檔股票現在的『題材含金量』值不值得套牢等待。"
-               
+                "你是華爾街頂級操盤手。請結合該股票所屬的『產業基本面展望』或『總經題材』進行解讀，絕對不可只念技術線型！"
+                "若給出防守價，『大於成本』才可稱為停利，『小於成本』必須稱為停損。"
             )
-            # ⚡ 餵入當前市場最熱題材，幫 AI 定位
-            hot_themes = "當前熱點：AI伺服器、HBM記憶體、半導體設備、CPO矽光子"
-            user_prompt = f"標的:{name}(產業:{sector}), 市場環境:{hot_themes}, 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
             
             # 🔥 新增強制表單 (Schema)
             cost_schema = {
@@ -1200,27 +1188,20 @@ def handle_message(event):
                 "required": ["action", "analysis", "strategy"]
             }
             
-           # 🔥 1. 初始化狀態為「呼叫中」
-            used_model = "Gemini-AI" 
-            json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=cost_schema)
+            # 傳入 schema
+            json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=cost_schema)
             
-            if ai_model != "Error" and ai_model != "No API Key":
-                used_model = ai_model
-
+            # 👇 程式碼大瘦身：因為一定會有完美 JSON，不再需要 Regex！
             try:
-                # 🔥 2. 判定是否真的連不上 Google
-                if not json_str:
-                    action, analysis, strategy = "🟡 觀望", "⚠️ 抱歉，Google API 暫時連線超時，請稍後再試。", "建議手動參考下方技術指標。"
-                    used_model += " (連線失敗)"
-                else:
-                    res = json.loads(json_str)
-                    action = res.get('action', '🟡觀望')
-                    analysis = res.get('analysis', '產業數據解析中...')
-                    strategy = res.get('strategy', '依紀律操作。')
+                if not json_str: raise ValueError("API 無回應")
+                res = json.loads(json_str)
+                action = res.get('action', '🟡觀望')
+                analysis = res.get('analysis', '產業數據解析中...')
+                strategy = res.get('strategy', '依紀律操作。')
             except Exception as e:
                 print(f"🚨 解析失敗: {e}")
-                action, analysis, strategy = "🟡 觀望", "數據格式解析異常，請再試一次。", "依紀律操作。"
-                used_model += " (格式解析錯誤)"
+                action, analysis, strategy = "🟡 觀望", "API系統連線異常...", "依紀律操作。"
+                used_model += " (格式錯誤)"
 
             banner_line = f"{history_banner}\n" if history_banner else ""
             warn_line = f"{warning_block.strip()}\n" if warning_block.strip() else ""
