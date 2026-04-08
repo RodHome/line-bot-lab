@@ -412,6 +412,20 @@ def fetch_eps(stock_id):
         return f"{latest_year}累計{round(sum(vals), 2)}元"
     except: return "逾時"
 
+def fetch_yoy(stock_id):
+    """去 FinMind 抓取最新一個月的營收 YoY"""
+    if stock_id.startswith("00"): return 0 # ETF 沒有營收
+    token = os.environ.get('FINMIND_TOKEN', '')
+    start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
+    try:
+        res = requests.get("https://api.finmindtrade.com/api/v4/data", params={"dataset": "TaiwanStockMonthRevenue", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
+        data = res.json().get('data', [])
+        if data:
+            # 抓取最後一筆(最新一個月)的 RevenueYearOnYear
+            return float(data[-1].get('RevenueYearOnYear', 0))
+    except: pass
+    return 0
+
 def get_stock_id(text):
     text = text.strip()
     clean = re.sub(r'(成本|cost).*', '', text, flags=re.IGNORECASE).strip()
@@ -1097,13 +1111,15 @@ def handle_message(event):
         chips_res = ("0 (5日: 0)", "0 (5日: 0)", 0, 0)
         eps = "N/A"
         yield_rate = "N/A"
+        yoy_val = 0  # 🔥 新增預設變數
         
         try:
-            # Zeabur 安全設置 max_workers=3
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            # Zeabur 安全設置 max_workers=4 (多一個工位給 YoY)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
                 future_data = executor.submit(fetch_data_light, stock_id)
                 future_chips = executor.submit(fetch_chips_accumulate, stock_id)
                 future_eps = executor.submit(fetch_eps, stock_id)
+                future_yoy = executor.submit(fetch_yoy, stock_id) # 🔥 派人去抓 YoY
                 
                 # 必須先等到 data
                 data = future_data.result(timeout=8)
@@ -1114,6 +1130,7 @@ def handle_message(event):
                 
                 chips_res = future_chips.result(timeout=5)
                 eps = future_eps.result(timeout=5)
+                yoy_val = future_yoy.result(timeout=4) # 🔥 接收 YoY 結果
 
         except Exception as e:
             print(f"並行錯誤: {e}")
@@ -1122,6 +1139,24 @@ def handle_message(event):
         
         f_str, t_str, af_val, at_val = chips_res
         is_etf = stock_id.startswith("00")
+
+        # 🔥 [新增] PEG 估值計算器
+        pe_ratio = "N/A"
+        peg_val = "N/A"
+        
+        try:
+            if not is_etf and eps != "N/A" and eps != "逾時":
+                # 從 "2025累計3.5元" 裡萃取出 3.5
+                eps_match = re.search(r'[-+]?\d*\.\d+|\d+', eps)
+                if eps_match:
+                    eps_num = float(eps_match.group())
+                    if eps_num > 0:
+                        pe_ratio = round(data['close'] / eps_num, 1) # 算本益比
+                        # 若 YoY 大於 0，計算 PEG
+                        if yoy_val > 0:
+                            peg_val = round(pe_ratio / yoy_val, 2)
+        except Exception as e:
+            print(f"[Debug] PEG計算失敗: {e}")
 
         signals = get_technical_signals(data, af_val + at_val)
         signal_str = " | ".join(signals)
@@ -1177,14 +1212,15 @@ def handle_message(event):
                 "1. 絕對不准重複使用者已知的數據(如：嚴禁說出「現價為X」、「成本為Y」、「目前虧損Z%」等廢話)。\n"
                 "2. 嚴禁使用同義詞反覆湊字數，每一句話都必須提供新的資訊密度。\n"
                 "【實戰判斷邏輯】：\n"
-                "1. 產業大於一切：若該股屬當前主流趨勢(如半導體、AI、重電等)，就算跌破均線也是「逢低加碼」的機會，嚴禁因帳面虧損就無腦喊停損。\n"
+                "1. 產業大於一切：若該股屬當前主流趨勢(如半導體、AI、重電等)，就算跌破均線也是「逢低加碼」的機會。\n"
                 "2. 成本只是心魔：評估去留只看「距離下方強支撐(MA20/MA60)還有多遠」以及「產業未來性」。\n"
+                "3. 成長估值(核心)：若提供的 PEG估值 < 0.75，代表極具投資價值(錯殺低估)，應建議「🔴逢低加碼」。若 PEG > 1.5 則提醒追高風險。\n"
                 "【回傳 JSON 格式要求】：\n"
-                "1. analysis: 結合產業大局與當前技術線型的冷酷點評，限 50 字內。\n"
+                "1. analysis: 結合產業大局、PEG估值與技術線型的冷酷點評，限 50 字內。\n"
                 "2. action: 僅限從此選單挑一個：🔴逢低加碼 / 🟡續抱觀察 / 🟢獲利了結 / ⚫破線停損。\n"
                 "3. strategy: 直接給出具體的「防守價」或「加碼價」與行動準則，限 30 字內。"
             )
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 成本:{user_cost}, 本益比:{pe_ratio}, PEG:{peg_val}, 均線:{data['ma5']}/{data['ma60']}, 訊號:{signal_str}"
             
             # 🔥 新增強制表單 (Schema)
             cost_schema = {
@@ -1243,10 +1279,11 @@ def handle_message(event):
             sys_prompt = (
                 "你是資深雙向操盤手，目前在財金系擔任客座教授，負責協助學生進行『技術分析與數據回測的學術研究』。\n"
                 "【學術回測與風報比規則】(請依據數據進行客觀推算，違規將導致系統崩潰)：\n"
-                "1. 順勢突破豁免：若技術面出現『三線多頭(現價>MA5>MA20>MA60)』且籌碼面有『法人大買』，代表突破趨勢強勁，【trend_status】請積極給予「🔴分批進場」，嚴禁看空或觀望。\n"
-                "2. 理論定價：右側多頭若遇壓力區太近，請改用『測幅滿足點(現價往上推算 5%~10%)』或『整數大關』為目標價；左側空頭以季線(MA60)或反彈位為目標。\n"
-                "3. 合理評估風報比：請教導學生計算，確保 (目標價-現價) 的潛在獲利 大於 (現價-防守價) 的潛在虧損。\n"
-                "4. 拒絕無效交易：只有當『獲利空間極小(如價差不到 2%)』且『均線糾結且無法人買盤』時，才判定期望值極差，將目標價填寫為『上方壓力太近，建議觀望』。"
+                "1. 順勢突破豁免：若出現『三線多頭』且『法人大買』，代表突破強勁，【trend_status】請給予「🔴分批進場」。\n"
+                "2. 理論定價：右側多頭若遇壓力區太近，請改用『測幅滿足點(現價推算 5%~10%)』或『整數大關』為目標價；左側空頭以季線(MA60)或反彈位為目標。\n"
+                "3. 合理評估風報比：請確保 (目標價-現價) 的潛在獲利 大於 (現價-防守價) 的潛在虧損。\n"
+                "4. 拒絕無效交易：當獲利空間極小(價差不到 2%)且無法人買盤時，判定期望值極差，目標價填寫為『上方壓力太近，建議觀望』。\n"
+                "5. 成長估值法(PEG)：若數據顯示 PEG < 0.75，代表盈餘成長大於本益比擴張，請在【macro】強烈標註『🔥極具投資價值(低PEG)』；若 PEG > 1.5 則提示估值偏貴。"
             )
             
             # 🔥 新增強制表單 (Schema)：在這邊預留「算不出來填文字」的退路
@@ -1270,8 +1307,8 @@ def handle_message(event):
             cdp_sup = data.get('support', data['close'])
             
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
-            
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 本益比:{pe_ratio}, PEG:{peg_val}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
+
             # 傳入 schema
             json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=gen_schema)
             if ai_model != "Error":
