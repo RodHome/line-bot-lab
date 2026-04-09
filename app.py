@@ -1203,22 +1203,22 @@ def handle_message(event):
                 "1. 絕對不准重複報價或念出帳面虧損數字，這些使用者都知道了！你必須給出『洞察』。\n"
                 "2. 嚴禁講廢話或給出模稜兩可的建議，每一句話都必須具備決策價值。\n"
                 "【實戰判斷邏輯】：\n"
-                "1. 資金控管：依據使用者的『成本與現價差距』(判斷套牢深度或獲利水位)，結合『產業基本面(EPS/營收成長率)』進行無情診斷。\n"
-                "2. 套牢救援：若屬主流趨勢或基本面強勁(EPS高)，技術面跌深且接近季線(60MA)即是『🔴逢低加碼』攤平良機；若基本面極爛(EPS差/無殖利率)且跌破均線，直接給予『⚫破線停損』，嚴禁留戀。\n"
-                "3. 獲利操作(防賣飛機制)：若處於獲利狀態，【嚴禁】僅因技術面過熱或乖離大就直接叫人清倉！對於基本面強勁的個股，必須啟動『📈移動停利』策略（例如沿著5MA或10MA操作，未破線前抱緊處理，讓獲利奔跑）。若出現高檔爆量收黑、法人連賣或跌破關鍵均線，才給予『🟢分批停利』或『獲利了結』建議。\n"
-                "4. 具體定價：無論加碼、防守或移動停利，【strategy】中必須給出『絕對的價格數字』(參考短期均線、前低或跳空缺口)。"
+                "1. 資金控管：依據使用者的『成本與現價差距』，結合『產業基本面(EPS/殖利率/營收成長率)』進行無情診斷。\n"
+                "2. 動能加碼(防踏空)：若個股屬於極強勢多頭且基本面佳，【嚴禁】叫人死等深幅回測，如果仍有漲幅空間，應該直接給予『強勢追買』或『現價/5MA加碼』建議，以免錯失主升段。\n"
+		        "3.套牢救援：若屬主流趨勢或基本面強勁(EPS高)，技術面跌深且接近季線(60MA)即是『🔴逢低加碼』攤平良機；若基本面極爛(EPS差/無殖利率)且跌破均線，直接給予『⚫破線停損』，嚴禁留戀。\n"                
+                "4. 獲利操作(防賣飛)：若處於獲利狀態且基本面佳，必須啟動『📈移動停利』策略（如沿5MA或10MA操作，未破線前抱緊處理，讓獲利奔跑）。若出現高檔爆量收黑、法人連賣或跌破關鍵均線，才給予『🟢分批停利』或『獲利了結』建議。\n"
+                "5. 具體定價：無論加碼、防守或移動停利，【strategy】中必須給出『絕對的價格數字』(參考短期均線、前低或跳空缺口)。"
             )
 
             # 🔥 升級火力：補上 20MA(月線)，讓 AI 在設定「移動停利」時有更多均線防守點可以參考！
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 使用者成本:{user_cost} (帳面盈虧:{profit_pct}%), 基本面(EPS:{eps}/殖利率:{yield_rate}), 均線(5MA:{data['ma5']}/20MA:{data['ma20']}/60MA:{data['ma60']}), 訊號:{signal_str}"
 
-            # 🔥 重新定義 Schema：增加「移動停利」與「分批停利」的彈性
             cost_schema = {
                 "type": "OBJECT",
                 "properties": {
-                    "action": {"type": "STRING", "description": "必須精準輸出此五者之一：🔴逢低加碼 / 🟡續抱觀察 / 📈移動停利 / 🟢分批停利 / ⚫破線停損"},
-                    "analysis": {"type": "STRING", "description": "冷酷無情的綜合診斷：若為獲利狀態，需判斷是該讓獲利奔跑還是見好就收。結合基本面(EPS/殖利率)與技術面給出真實研判，請使用專業術語，精簡但具備高資訊密度。"},
-                    "strategy": {"type": "STRING", "description": "行動準則與明確點位：給出具體的「防守價(停損/停利點)」或「加碼價(攤平點)」數字。若是移動停利，需明確指出跌破哪個價位才需要獲利入袋。"}
+                    "action": {"type": "STRING", "description": "必須精準輸出此五者之一：🔴強勢加碼 / 🟡續抱觀察 / 📈移動停利 / 🟢分批停利 / ⚫破線停損"},
+                    "analysis": {"type": "STRING", "description": "冷酷無情的綜合診斷：結合基本面(EPS)與技術面給出真實研判，請使用專業術語，精簡但具備高資訊密度。"},
+                    "strategy": {"type": "STRING", "description": "行動準則與明確點位：必須給出具體的「追買/加碼價」數字(如5MA或現價)，或「防守/停利價」數字。"}
                 },
                 "required": ["action", "analysis", "strategy"]
             }
@@ -1275,6 +1275,7 @@ def handle_message(event):
                 "1. 基本面洞察：必須結合提供的 PEG、本益比與產業別，論述該股目前是『價值錯置(被錯殺)』、『盈餘動能爆發』還是『估值透支(過熱)』。\n"
                 "2. 技術面解構：必須結合 MA 乖離、CDP 與訊號，使用專業術語(如：均線糾結壓縮、突破頸線、量價背離、多/空頭排列、籌碼沉澱)。\n"
                 "3. 精準定價模型：\n"
+                "   - 進場價(實戰買點)：若為『強勢多頭(現價>5MA>20MA)』，切勿死等深幅回測，應建議『強勢追買』(貼近現價或5MA)以免踏空；若為『震盪築底』或『空頭反彈』，則建議『回測買進』(貼近20MA/60MA或支撐位)。\n"
                 "   - 目標價(波段看多)：請以提供的 CDP壓力位、半年高點，或現價往上推 7~10% 作為滿足點。\n"
                 "   - 防守價(嚴格停損)：請以 MA20(月線)、CDP支撐位，或現價往下推 5% 作為破線出場點。\n"
             )
@@ -1283,13 +1284,14 @@ def handle_message(event):
             gen_schema = {
                 "type": "OBJECT",
                 "properties": {
-                    "macro": {"type": "STRING", "description": "總經與基本面深度洞察：必須論述估值(PE/PEG)與產業資金板塊輪動，限60字"},
-                    "technical": {"type": "STRING", "description": "技術與籌碼面解構：使用專業術語解析均線型態與支撐壓力結構，限60字"},
-                    "trend_status": {"type": "STRING", "description": "從此選單挑一個並附帶10字內原因：🔴分批進場 / 🟡觀望等待 / ⚫避開風險 (例如：🔴分批進場-均線多頭發散)"},
+                    "macro": {"type": "STRING", "description": "總經與基本面深度洞察：論述估值(EPS)與產業資金輪動，限60字"},
+                    "technical": {"type": "STRING", "description": "技術與籌碼面解構：解析均線型態與籌碼結構，限60字"},
+                    "trend_status": {"type": "STRING", "description": "從此選單挑選：🔴分批進場 / 🟡觀望等待 / ⚫避開風險 (並附帶10字原因)"},
+                    "entry_strategy": {"type": "STRING", "description": "明確的進場價位(數字)與手法。強勢股標示『強勢追買:XX元』；震盪股標示『回測支撐:XX元』。"},
                     "resistance_level": {"type": "STRING", "description": "強迫推算出具體的波段獲利目標價位(數字)"},
                     "support_level": {"type": "STRING", "description": "強迫推算出下方的絕對防守停損價位(數字)"}
                 },
-                "required": ["macro", "technical", "trend_status", "resistance_level", "support_level"]
+                "required": ["macro", "technical", "trend_status", "entry_strategy", "resistance_level", "support_level"]
             }
             
             raw_highs = data.get('raw_highs', [])
@@ -1300,28 +1302,28 @@ def handle_message(event):
             cdp_sup = data.get('support', data['close'])
             
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
+            # 🔥 確保 EPS 數據也有餵給大腦三
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
             
-            # 傳入 schema
             json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=gen_schema)
             if ai_model != "Error":
                 used_model = ai_model 
             
-            # 👇 程式碼大瘦身：再也不用 Regex 搶救了！
             try:
                 if not json_str: raise ValueError("API 無回應")
                 res = json.loads(json_str)
                 
                 advice = res.get('trend_status', '🟡觀望等待')
-                target = res.get('resistance_level', '依紀律操作')
-                stop = res.get('support_level', '依紀律操作')
+                entry = res.get('entry_strategy', '現價附近')      # 👈 抓取新的進場價變數
+                target = res.get('resistance_level', '參考前高')
+                stop = res.get('support_level', '破月線停損')
                 macro = res.get('macro', '資料解析中...')
                 tech = res.get('technical', '資料解析中...')
                 
-                advice_str = f"【綜合建議】{advice}\n🎯目標：{target} | 🛑防守：{stop}"
+                # 🔥 將「進場價」優雅地整合到輸出的 UI 版面中
+                advice_str = f"【綜合建議】{advice}\n💡進場：{entry}\n🎯目標：{target} | 🛑防守：{stop}"
                 ai_reply_text = f"【基本面】{macro}\n【技術面】{tech}\n{advice_str}"
                 
-                # 只有成功解析，才存入快取
                 set_cached_ai_response(cache_key, ai_reply_text)
                 
             except Exception as e: 
