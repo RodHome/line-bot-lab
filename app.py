@@ -1296,7 +1296,11 @@ def handle_message(event):
                 
             except Exception as e: 
                 print(f"🚨 [Debug] 崩潰啦！錯誤: {e}, 回傳字串: {json_str}")
-                ai_reply_text = "⚠️ AI 系統忙碌中，請參考上方指標。"
+                # 💡 讓錯誤訊息說實話，方便你抓漏！
+                if not json_str:
+                    ai_reply_text = "⚠️ API 網路連線逾時或無回應，請稍後再試。"
+                else:
+                    ai_reply_text = "⚠️ AI 回覆文字遭遇截斷，請重新輸入一次代號。"
 
         indicator_line = f"💎 殖利率: {yield_rate}" if is_etf else f"💎 EPS: {eps}"
         
