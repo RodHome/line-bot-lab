@@ -1117,7 +1117,7 @@ def handle_message(event):
     
     if stock_id:
 		start_total_time = time.time()
-        print(f"==============\n⏱️ [效能追蹤] 🚀 開始處理: {stock_id}")  #----計時器
+		print(f"==============\n⏱️ [效能追蹤] 🚀 開始處理: {stock_id}")  #----計時器
 
         name = STOCK_META.get(stock_id, {}).get('name', CODE_TO_NAME.get(stock_id, stock_id))
 
@@ -1127,7 +1127,7 @@ def handle_message(event):
         eps = "N/A"
         yield_rate = "N/A"
 
-		t_api_start = time.time)   #----計時器
+		t_api_start = time.time()   #----計時器
         try:
             # Zeabur 安全設置 max_workers=3
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
