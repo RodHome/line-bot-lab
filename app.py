@@ -12,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v18.5 
-BOT_VERSION = "v18.5 (優化user體驗)"
+# 🤖 [版本號] v18.6 
+BOT_VERSION = "v18.6 (token放大)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
