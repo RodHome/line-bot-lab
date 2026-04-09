@@ -1293,7 +1293,7 @@ def handle_message(event):
                 "1. 基本面洞察：必須結合提供的 EPS 與產業別，論述該股目前是『價值錯置』、『盈餘動能爆發』還是『估值透支』。\n"
                 "2. 產業估值差異：若為面板、記憶體、鋼鐵等『景氣循環股』，市場看重的是『淨值比與報價轉機』，嚴禁單憑 EPS 低就看壞；若為 AI/半導體，則著重高成長本益比。\n"
                 "3. 技術與籌碼解構：必須結合 MA 乖離與訊號，使用專業術語(如：均線糾結壓縮、量價背離、籌碼沉澱)。\n"
-                "4. 🚨防套牢鐵律(抓出貨陷阱)：若技術面呈現『量增價漲/突破』，但外資或投信籌碼卻呈現『大賣(負數)』，此為標準的『拉高出貨/隔日沖陷阱』！此時【trend_status】嚴禁建議進場，必須判定為『🟡觀望等待』或『⚫避開風險』，並在【technical】中嚴厲警告『主力趁高倒貨，嚴防洗盤』。\n"
+                "4. 🚨防套牢鐵律(最高優先級)：若【訊號】出現『量增價漲/過熱』，但【今日籌碼】的外資或投信卻呈現『大賣(負數)』，這就是標準的『拉高出貨/隔日沖陷阱』！此時【絕對無視】5日累積買超或快篩的買進訊號，【trend_status】強制判定為『🟡觀望等待』或『⚫避開風險』，並在【technical】嚴厲警告『主力趁高倒貨，嚴防洗盤』。\n"
                 "5. 精準定價模型：\n"
                 "   - 進場價：若為安全多頭，給予『強勢追買或回測XX元買進』；若判定為出貨陷阱，直接填寫『嚴禁追高，觀望』。\n"
                 "   - 目標價：請以提供的 CDP壓力位、半年高點，或現價往上推 7~10% 作為波段滿足點。\n"
@@ -1304,7 +1304,7 @@ def handle_message(event):
                 "type": "OBJECT",
                 "properties": {
                     "macro": {"type": "STRING", "description": "總經與基本面深度洞察：論述估值與產業特性，限60字"},
-                    "technical": {"type": "STRING", "description": "技術與籌碼面解構：務必比對價格漲跌與外資/投信動向，抓出背離陷阱，限60字"},
+                    "technical": {"type": "STRING", "description": "技術與籌碼面解構：務必檢查【今日籌碼】是否與漲跌背離，抓出出貨陷阱，限60字"},
                     "trend_status": {"type": "STRING", "description": "從此選單挑選：🔴分批進場 / 🟡觀望等待 / ⚫避開風險 (並附帶10字原因)"},
                     "entry_strategy": {"type": "STRING", "description": "明確的進場價位(數字)與手法。若是陷阱則填寫『嚴禁追高』。"},
                     "resistance_level": {"type": "STRING", "description": "強迫推算出具體的波段獲利目標價位(數字)"},
@@ -1322,8 +1322,12 @@ def handle_message(event):
             
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             
-            # 🔥 關鍵修復：把「外資」跟「投信」的具體買賣超字串 (f_str, t_str) 餵給 AI，讓它長眼睛！
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, 籌碼(近5日外資:{f_str}/近5日投信:{t_str}), MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
+            # 🔥 關鍵修復 1：把「今日」跟「5日」的數據徹底拆開
+            today_f = f_str.split(" ")[0] # 抓出 "-14445"
+            today_t = t_str.split(" ")[0] # 抓出 "-1467"
+            
+            # 🔥 關鍵修復 2：在 Prompt 中明確標示【今日籌碼】，並補回半年高/低點！
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, 【今日籌碼】(外資:{today_f}/投信:{today_t}), 【5日累積】(外資:{af_val}/投信:{at_val}), MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
 
             # 👇 插入起點
             t_ai_start = time.time()
