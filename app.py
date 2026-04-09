@@ -1283,29 +1283,30 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            # 🧠 提示詞大升級：逼迫 AI 展現市場洞察力，嚴禁念稿！
+            # 🧠 提示詞大升級：植入「防套牢鐵律」與「產業估值差異化」
             sys_prompt = (
                 "你是華爾街頂級雙向操盤手與總體經濟學家。你的任務是給出極具深度、帶有預測性與專業術語的個股診斷。\n"
                 "【嚴禁行為 - 違者系統崩潰】：\n"
                 "1. 嚴禁只回答「XX業」或「趨勢向上/向下」這種廢話。你必須像資深分析師一樣，點出『資金輪動、籌碼換手、估值位階』。\n"
                 "2. 嚴禁填寫『依紀律操作』，目標價與防守價必須給出『絕對數字』！\n"
-                "【深度解析要求】：\n"
-                "1. 基本面洞察：必須結合提供的 PEG、本益比與產業別，論述該股目前是『價值錯置(被錯殺)』、『盈餘動能爆發』還是『估值透支(過熱)』。\n"
-                "2. 技術面解構：必須結合 MA 乖離、CDP 與訊號，使用專業術語(如：均線糾結壓縮、突破頸線、量價背離、多/空頭排列、籌碼沉澱)。\n"
-                "3. 精準定價模型：\n"
-                "   - 進場價(實戰買點)：若為『強勢多頭(現價>5MA>20MA)』，切勿死等深幅回測，應建議『強勢追買』(貼近現價或5MA)以免踏空；若為『震盪築底』或『空頭反彈』，則建議『回測買進』(貼近20MA/60MA或支撐位)。\n"
-                "   - 目標價(波段看多)：請以提供的 CDP壓力位、半年高點，或現價往上推 7~10% 作為滿足點。\n"
-                "   - 防守價(嚴格停損)：請以 MA20(月線)、CDP支撐位，或現價往下推 5% 作為破線出場點。\n"
+                "【深度解析要求與實戰鐵律】：\n"
+                "1. 基本面洞察：必須結合提供的 EPS 與產業別，論述該股目前是『價值錯置』、『盈餘動能爆發』還是『估值透支』。\n"
+                "2. 產業估值差異：若為面板、記憶體、鋼鐵等『景氣循環股』，市場看重的是『淨值比與報價轉機』，嚴禁單憑 EPS 低就看壞；若為 AI/半導體，則著重高成長本益比。\n"
+                "3. 技術與籌碼解構：必須結合 MA 乖離與訊號，使用專業術語(如：均線糾結壓縮、量價背離、籌碼沉澱)。\n"
+                "4. 🚨防套牢鐵律(抓出貨陷阱)：若技術面呈現『量增價漲/突破』，但外資或投信籌碼卻呈現『大賣(負數)』，此為標準的『拉高出貨/隔日沖陷阱』！此時【trend_status】嚴禁建議進場，必須判定為『🟡觀望等待』或『⚫避開風險』，並在【technical】中嚴厲警告『主力趁高倒貨，嚴防洗盤』。\n"
+                "5. 精準定價模型：\n"
+                "   - 進場價：若為安全多頭，給予『強勢追買或回測XX元買進』；若判定為出貨陷阱，直接填寫『嚴禁追高，觀望』。\n"
+                "   - 目標價：請以提供的 CDP壓力位、半年高點，或現價往上推 7~10% 作為波段滿足點。\n"
+                "   - 防守價：請以 MA20(月線)、CDP支撐位，或現價往下推 5% 作為破線出場點。\n"
             )
             
-            # 🔥 拿掉字數枷鎖，要求它寫出高資訊密度的內容
             gen_schema = {
                 "type": "OBJECT",
                 "properties": {
-                    "macro": {"type": "STRING", "description": "總經與基本面深度洞察：論述估值(EPS)與產業資金輪動，限60字"},
-                    "technical": {"type": "STRING", "description": "技術與籌碼面解構：解析均線型態與籌碼結構，限60字"},
+                    "macro": {"type": "STRING", "description": "總經與基本面深度洞察：論述估值與產業特性，限60字"},
+                    "technical": {"type": "STRING", "description": "技術與籌碼面解構：務必比對價格漲跌與外資/投信動向，抓出背離陷阱，限60字"},
                     "trend_status": {"type": "STRING", "description": "從此選單挑選：🔴分批進場 / 🟡觀望等待 / ⚫避開風險 (並附帶10字原因)"},
-                    "entry_strategy": {"type": "STRING", "description": "明確的進場價位(數字)與手法。強勢股標示『強勢追買:XX元』；震盪股標示『回測支撐:XX元』。"},
+                    "entry_strategy": {"type": "STRING", "description": "明確的進場價位(數字)與手法。若是陷阱則填寫『嚴禁追高』。"},
                     "resistance_level": {"type": "STRING", "description": "強迫推算出具體的波段獲利目標價位(數字)"},
                     "support_level": {"type": "STRING", "description": "強迫推算出下方的絕對防守停損價位(數字)"}
                 },
@@ -1320,10 +1321,11 @@ def handle_message(event):
             cdp_sup = data.get('support', data['close'])
             
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
-            # 🔥 確保 EPS 數據也有餵給大腦三
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
+            
+            # 🔥 關鍵修復：把「外資」跟「投信」的具體買賣超字串 (f_str, t_str) 餵給 AI，讓它長眼睛！
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, 籌碼(近5日外資:{f_str}/近5日投信:{t_str}), MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
 
-			# 👇 插入起點
+            # 👇 插入起點
             t_ai_start = time.time()
 
             json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=gen_schema)
