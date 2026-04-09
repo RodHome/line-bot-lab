@@ -261,23 +261,25 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                 
                 if response.status_code == 200:
                     data = response.json()
-                    
-                    # 🔥 [API 觀測站 1] 抓出官方中斷原因
                     finish_reason = data.get('candidates', [{}])[0].get('finishReason', 'UNKNOWN')
-                    if finish_reason != 'STOP':
-                        print(f"⚠️ [API 觀測站] 異常中止！官方原因: {finish_reason}")
-                        
-                    text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     
+                    text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     if text: 
                         cleaned_text = clean_json_string(text)
                         
-                        # 🔥 [API 觀測站 2] 如果沒完美收尾，印出斷尾長度與死前最後 50 字
-                        if finish_reason != 'STOP' or not cleaned_text.endswith('}'):
-                            print(f"⚠️ [API 觀測站] 總字數: {len(cleaned_text)} 字")
-                            print(f"⚠️ [API 觀測站] 斷尾最後 50 字: {cleaned_text[-50:]}")
+                        # 🔥 終極驗貨站：直接試著解開 JSON！
+                        try:
+                            json.loads(cleaned_text)
+                            # 如果沒報錯，代表是 100% 完美的 JSON，放行！
+                            return cleaned_text, model
+                        except json.JSONDecodeError as err:
+                            # 只要解不開，就把爛掉的內容全部印在 Log 抓凶手！
+                            print(f"⚠️ [API 觀測站] JSON 解析失敗！官方原因: {finish_reason}")
+                            print(f"⚠️ [API 觀測站] 錯誤細節: {err}")
+                            print(f"⚠️ [API 觀測站] 爛掉的字串: {cleaned_text}")
+                            # 拒絕這個瑕疵品，直接進入下一次迴圈重試！
+                            continue
                             
-                        return cleaned_text, model 
             except Exception as e: 
                 print(f"⚠️ [Debug] 請求發生 Exception: {e}")
                 continue
