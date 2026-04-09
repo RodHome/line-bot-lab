@@ -12,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v18.6 
-BOT_VERSION = "v18.6 (token放大)"
+# 🤖 [版本號] v18.7 
+BOT_VERSION = "v18.7 (+計時器)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -1116,6 +1116,9 @@ def handle_message(event):
         return
     
     if stock_id:
+		start_total_time = time.time()
+        print(f"==============\n⏱️ [效能追蹤] 🚀 開始處理: {stock_id}")  #----計時器
+
         name = STOCK_META.get(stock_id, {}).get('name', CODE_TO_NAME.get(stock_id, stock_id))
 
         # 🔥 並行抓取開始
@@ -1123,7 +1126,8 @@ def handle_message(event):
         chips_res = ("0 (5日: 0)", "0 (5日: 0)", 0, 0)
         eps = "N/A"
         yield_rate = "N/A"
-        
+
+		t_api_start = time.time)   #----計時器
         try:
             # Zeabur 安全設置 max_workers=3
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
@@ -1145,6 +1149,8 @@ def handle_message(event):
             print(f"並行錯誤: {e}")
             if not data: data = fetch_data_light(stock_id) # 補救
             if not data: return
+				
+		print(f"⏱️ [效能追蹤] 1️⃣ FinMind爬蟲耗時: {time.time() - t_api_start:.2f} 秒")
         
         f_str, t_str, af_val, at_val = chips_res
         is_etf = stock_id.startswith("00")
@@ -1164,6 +1170,7 @@ def handle_message(event):
         # 🌟 核心升級：去大水庫 (JSON) 撈取歷史入榜紀錄
         # ==========================================
         history_banner = ""
+		t_git_start = time.time()
         try:
             # 1. 先查右側動能清單 (把 timeout 拉長到 4 秒防斷線)
             res_r = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json", headers={'Cache-Control': 'no-cache'}, timeout=4)
@@ -1191,6 +1198,7 @@ def handle_message(event):
                             break
         except Exception as e: 
             print(f"[Debug] 撈取歷史紀錄失敗: {e}")
+		print(f"⏱️ [效能追蹤] 2️⃣ GitHub讀取耗時: {time.time() - t_git_start:.2f} 秒")
         # ==========================================
 
         if user_cost:
@@ -1222,10 +1230,16 @@ def handle_message(event):
                 },
                 "required": ["action", "analysis", "strategy"]
             }
-            
+
+			# 👇 插入起點
+            t_ai_start = time.time()
+
             # 傳入 schema
             json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=cost_schema)
-            
+
+			# 👇 插入終點
+            print(f"⏱️ [效能追蹤] 3️⃣ Gemini大腦二耗時: {time.time() - t_ai_start:.2f} 秒")
+
             # 👇 程式碼大瘦身：因為一定會有完美 JSON，不再需要 Regex！
             try:
                 if not json_str: raise ValueError("API 無回應")
@@ -1259,6 +1273,10 @@ def handle_message(event):
                 f"(版本: {BOT_VERSION})"
             )
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+
+			# 👇 插入這行 (總結算)
+     	   print(f"⏱️ [效能追蹤] ✅ 總執行耗時: {time.time() - start_total_time:.2f} 秒\n==============")
+
             return    
                 
         cache_key = f"{stock_id}_query"
@@ -1304,8 +1322,15 @@ def handle_message(event):
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             # 🔥 確保 EPS 數據也有餵給大腦三
             user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
-            
+
+			# 👇 插入起點
+            t_ai_start = time.time()
+
             json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=gen_schema)
+
+			# 👇 插入終點
+            print(f"⏱️ [效能追蹤] 3️⃣ Gemini大腦三耗時: {time.time() - t_ai_start:.2f} 秒")
+
             if ai_model != "Error":
                 used_model = ai_model 
             
@@ -1364,6 +1389,9 @@ def handle_message(event):
         f"(版本: {BOT_VERSION})"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+
+		# 👇 插入這行 (總結算)
+        print(f"⏱️ [效能追蹤] ✅ 總執行耗時: {time.time() - start_total_time:.2f} 秒\n==============")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
