@@ -234,24 +234,40 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                 contents = [{"parts": [{"text": final_prompt}]}]
                 if system_instruction:
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
-                
-                # 🔥 動態組裝設定：如果有 Schema 就綁定進去
+            #--4/9修改以下-----------#    
+                # 🔥 優化 1 & 2：將溫度降至 0.1，並縮緊預期輸出的 Token (讓它精簡與加速)
                 gen_config = {
-                    "maxOutputTokens": 2000, 
-                    "temperature": 0.3, 
+                    "maxOutputTokens": 800, 
+                    "temperature": 0.1, 
                     "responseMimeType": "application/json"
                 }
                 if schema:
                     gen_config["responseSchema"] = schema
                 
+                # 🔥 優化 3：關閉所有安全審查 (財經領域必備，防止被誤判為危險內容而截斷)
+                safety_settings = [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+                ]
+                
                 payload = {
                     "contents": contents,
-                    "generationConfig": gen_config
+                    "generationConfig": gen_config,
+                    "safetySettings": safety_settings # 👈 把安全設定塞進去
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
                 
                 if response.status_code == 200:
                     data = response.json()
+                    
+                    # 💡 進階 Debug：如果被截斷，印出官方的「死亡原因」
+                    finish_reason = data.get('candidates', [{}])[0].get('finishReason', 'UNKNOWN')
+                    if finish_reason != 'STOP':
+                        print(f"⚠️ [Debug] 異常中止，原因: {finish_reason}")
+            #--4/9修改以下-----------#
+                        
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
                     if text: return clean_json_string(text), model 
             except Exception as e: 
