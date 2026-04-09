@@ -1150,7 +1150,7 @@ def handle_message(event):
             if not data: data = fetch_data_light(stock_id) # 補救
             if not data: return
 				
-		print(f"⏱️ [效能追蹤] 1️⃣ FinMind爬蟲耗時: {time.time() - t_api_start:.2f} 秒")
+        print(f"⏱️ [效能追蹤] 1️⃣ FinMind爬蟲耗時: {time.time() - t_api_start:.2f} 秒")
         
         f_str, t_str, af_val, at_val = chips_res
         is_etf = stock_id.startswith("00")
@@ -1170,7 +1170,7 @@ def handle_message(event):
         # 🌟 核心升級：去大水庫 (JSON) 撈取歷史入榜紀錄
         # ==========================================
         history_banner = ""
-		t_git_start = time.time()
+        t_git_start = time.time()
         try:
             # 1. 先查右側動能清單 (把 timeout 拉長到 4 秒防斷線)
             res_r = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json", headers={'Cache-Control': 'no-cache'}, timeout=4)
@@ -1198,7 +1198,7 @@ def handle_message(event):
                             break
         except Exception as e: 
             print(f"[Debug] 撈取歷史紀錄失敗: {e}")
-		print(f"⏱️ [效能追蹤] 2️⃣ GitHub讀取耗時: {time.time() - t_git_start:.2f} 秒")
+        print(f"⏱️ [效能追蹤] 2️⃣ GitHub讀取耗時: {time.time() - t_git_start:.2f} 秒")
         # ==========================================
 
         if user_cost:
@@ -1213,7 +1213,7 @@ def handle_message(event):
                 "【實戰判斷邏輯】：\n"
                 "1. 資金控管：依據使用者的『成本與現價差距』，結合『產業基本面(EPS/殖利率/營收成長率)』進行無情診斷。\n"
                 "2. 動能加碼(防踏空)：若個股屬於極強勢多頭且基本面佳，【嚴禁】叫人死等深幅回測，如果仍有漲幅空間，應該直接給予『強勢追買』或『現價/5MA加碼』建議，以免錯失主升段。\n"
-		        "3.套牢救援：若屬主流趨勢或基本面強勁(EPS高)，技術面跌深且接近季線(60MA)即是『🔴逢低加碼』攤平良機；若基本面極爛(EPS差/無殖利率)且跌破均線，直接給予『⚫破線停損』，嚴禁留戀。\n"                
+                "3.套牢救援：若屬主流趨勢或基本面強勁(EPS高)，技術面跌深且接近季線(60MA)即是『🔴逢低加碼』攤平良機；若基本面極爛(EPS差/無殖利率)且跌破均線，直接給予『⚫破線停損』，嚴禁留戀。\n"                
                 "4. 獲利操作(防賣飛)：若處於獲利狀態且基本面佳，必須啟動『📈移動停利』策略（如沿5MA或10MA操作，未破線前抱緊處理，讓獲利奔跑）。若出現高檔爆量收黑、法人連賣或跌破關鍵均線，才給予『🟢分批停利』或『獲利了結』建議。\n"
                 "5. 具體定價：無論加碼、防守或移動停利，【strategy】中必須給出『絕對的價格數字』(參考短期均線、前低或跳空缺口)。"
             )
@@ -1275,7 +1275,7 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 			# 👇 插入這行 (總結算)
-     	   print(f"⏱️ [效能追蹤] ✅ 總執行耗時: {time.time() - start_total_time:.2f} 秒\n==============")
+            print(f"⏱️ [效能追蹤] ✅ 總執行耗時: {time.time() - start_total_time:.2f} 秒\n==============")
 
             return    
                 
