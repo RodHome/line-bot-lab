@@ -262,14 +262,22 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                 if response.status_code == 200:
                     data = response.json()
                     
-                    # 💡 進階 Debug：如果被截斷，印出官方的「死亡原因」
+                    # 🔥 [API 觀測站 1] 抓出官方中斷原因
                     finish_reason = data.get('candidates', [{}])[0].get('finishReason', 'UNKNOWN')
                     if finish_reason != 'STOP':
-                        print(f"⚠️ [Debug] 異常中止，原因: {finish_reason}")
-            #--4/9修改以下-----------#
+                        print(f"⚠️ [API 觀測站] 異常中止！官方原因: {finish_reason}")
                         
                     text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                    if text: return clean_json_string(text), model 
+                    
+                    if text: 
+                        cleaned_text = clean_json_string(text)
+                        
+                        # 🔥 [API 觀測站 2] 如果沒完美收尾，印出斷尾長度與死前最後 50 字
+                        if finish_reason != 'STOP' or not cleaned_text.endswith('}'):
+                            print(f"⚠️ [API 觀測站] 總字數: {len(cleaned_text)} 字")
+                            print(f"⚠️ [API 觀測站] 斷尾最後 50 字: {cleaned_text[-50:]}")
+                            
+                        return cleaned_text, model 
             except Exception as e: 
                 print(f"⚠️ [Debug] 請求發生 Exception: {e}")
                 continue
