@@ -221,7 +221,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
     if not keys: return None, "No API Key"
     random.shuffle(keys)
     
-    target_models = ["gemma-4-31b-it","gemini-2.5-flash", "gemma-3-27b-it"]
+    target_models = ["gemini-2.5-flash", "gemma-4-31b-it","gemma-3-27b-it"]
     final_prompt = prompt 
     
     for model in target_models:
@@ -259,16 +259,15 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
 
-                # 🔥 只需要加入這兩行，確保這把 Key 額度滿了會換下一把
-                # 🔥 攔截 429 錯誤，並印出 Google 官方的「死亡證明」
+                # 狀況 A：這把鑰匙額度用光了 (429) 👉 換下一把鑰匙試試看！
                 if response.status_code == 429:
-                    try:
-                        error_msg = response.json().get('error', {}).get('message', '未知錯誤')
-                    except:
-                        error_msg = response.text
-                    
-                    print(f"⚠️ [Quota] Key {key[-4:]} 撞牆！Google 官方死因：{error_msg}")
+                    print(f"⚠️ [Quota] Key {key[-4:]} 額度已滿，切換下一把...")
                     continue 
+
+                # 狀況 B：Google 伺服器大塞車/當機 (503) 👉 不要浪費時間試其他鑰匙了，直接換 Gemma！
+                elif response.status_code == 503:
+                    print(f"🚨 [Server Down] Google 伺服器 503 塞車中，放棄 Flash，直接呼叫備援模型！")
+                    break # 👈 注意！這裡是 break (打破迴圈)，它會直接跳出「換鑰匙」的迴圈，進入下一個「換模型」的迴圈！
                 
                 # 🔥 順便攔截 403 / 400 等權限錯誤，抓出是不是 Key 根本無效
                 elif response.status_code != 200:
