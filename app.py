@@ -221,7 +221,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
     if not keys: return None, "No API Key"
     random.shuffle(keys)
     
-    target_models = ["gemini-2.5-flash", "gemma-4-31b-it", "gemma-3-27b-it", "gemini-2.5-flash-lite"]
+    target_models = ["gemini-2.5-flash", "gemma-4-31b-it", "gemma-3-27b-it"]
     final_prompt = prompt 
     
     for model in target_models:
@@ -260,8 +260,19 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
 
                 # 🔥 只需要加入這兩行，確保這把 Key 額度滿了會換下一把
+                # 🔥 攔截 429 錯誤，並印出 Google 官方的「死亡證明」
                 if response.status_code == 429:
-                    print(f"⚠️ [Quota] Key {key[-4:]} 額度已滿，切換下一把...")
+                    try:
+                        error_msg = response.json().get('error', {}).get('message', '未知錯誤')
+                    except:
+                        error_msg = response.text
+                    
+                    print(f"⚠️ [Quota] Key {key[-4:]} 撞牆！Google 官方死因：{error_msg}")
+                    continue 
+                
+                # 🔥 順便攔截 403 / 400 等權限錯誤，抓出是不是 Key 根本無效
+                elif response.status_code != 200:
+                    print(f"❌ [API Error] Key {key[-4:]} 發生錯誤 ({response.status_code}): {response.text}")
                     continue
 
                 if response.status_code == 200:
