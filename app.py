@@ -258,7 +258,12 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                     "safetySettings": safety_settings # 👈 把安全設定塞進去
                 }
                 response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
-                
+
+                # 🔥 只需要加入這兩行，確保這把 Key 額度滿了會換下一把
+                if response.status_code == 429:
+                    print(f"⚠️ [Quota] Key {key[-4:]} 額度已滿，切換下一把...")
+                    continue
+
                 if response.status_code == 200:
                     data = response.json()
                     finish_reason = data.get('candidates', [{}])[0].get('finishReason', 'UNKNOWN')
@@ -1149,7 +1154,7 @@ def handle_message(event):
             print(f"並行錯誤: {e}")
             if not data: data = fetch_data_light(stock_id) # 補救
             if not data: return
-				
+
         print(f"⏱️ [效能追蹤] 1️⃣ FinMind爬蟲耗時: {time.time() - t_api_start:.2f} 秒")
         
         f_str, t_str, af_val, at_val = chips_res
@@ -1231,13 +1236,13 @@ def handle_message(event):
                 "required": ["action", "analysis", "strategy"]
             }
 
-			# 👇 插入起點
+            # 👇 插入起點
             t_ai_start = time.time()
 
             # 傳入 schema
             json_str, used_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=cost_schema)
 
-			# 👇 插入終點
+            # 👇 插入終點
             print(f"⏱️ [效能追蹤] 3️⃣ Gemini大腦二耗時: {time.time() - t_ai_start:.2f} 秒")
 
             # 👇 程式碼大瘦身：因為一定會有完美 JSON，不再需要 Regex！
@@ -1274,7 +1279,7 @@ def handle_message(event):
             )
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
-			# 👇 插入這行 (總結算)
+            # 👇 插入這行 (總結算)
             print(f"⏱️ [效能追蹤] ✅ 總執行耗時: {time.time() - start_total_time:.2f} 秒\n==============")
 
             return    
@@ -1334,7 +1339,7 @@ def handle_message(event):
 
             json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=gen_schema)
 
-			# 👇 插入終點
+            # 👇 插入終點
             print(f"⏱️ [效能追蹤] 3️⃣ Gemini大腦三耗時: {time.time() - t_ai_start:.2f} 秒")
 
             if ai_model != "Error":
@@ -1396,7 +1401,7 @@ def handle_message(event):
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
-		# 👇 插入這行 (總結算)
+        # 👇 插入這行 (總結算)
         print(f"⏱️ [效能追蹤] ✅ 總執行耗時: {time.time() - start_total_time:.2f} 秒\n==============")
 
 if __name__ == "__main__":
