@@ -12,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v18.7 
-BOT_VERSION = "v18.7 (+計時器)"
+# 🤖 [版本號] v18.8 
+BOT_VERSION = "v18.8 (調整買賣超顯示)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -1338,12 +1338,27 @@ def handle_message(event):
             sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             
             # 🔥 關鍵修復 1：把「今日」跟「5日」的數據徹底拆開
-            today_f = f_str.split(" ")[0] # 抓出 "-14445"
-            today_t = t_str.split(" ")[0] # 抓出 "-1467"
+            today_f = f_str.split(" ")[0] 
+            today_t = t_str.split(" ")[0] 
             
-            # 🔥 關鍵修復 2：在 Prompt 中明確標示【今日籌碼】，並補回半年高/低點！
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, 【今日籌碼】(外資:{today_f}/投信:{today_t}), 【5日累積】(外資:{af_val}/投信:{at_val}), MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
+            # 🤖 新增：專門給 AI 看的「防呆翻譯機」 (不影響 LINE 介面)
+            def translate_chips(val):
+                try:
+                    v = int(val)
+                    if v > 0: return f"買超{v}張"
+                    elif v < 0: return f"賣超{abs(v)}張"
+                    else: return "無買賣"
+                except:
+                    return str(val)
 
+            # 將今日與5日的原始數字，全部過濾成中文字串
+            ai_today_f = translate_chips(today_f)
+            ai_today_t = translate_chips(today_t)
+            ai_af_val = translate_chips(af_val)
+            ai_at_val = translate_chips(at_val)
+            
+            # 🔥 關鍵修復 2：將「翻譯後」的文字 (ai_xxx) 餵給 AI，徹底封殺正負號盲區！
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, 【今日籌碼】(外資:{ai_today_f}/投信:{ai_today_t}), 【5日累積】(外資:{ai_af_val}/投信:{ai_at_val}), MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
             # 👇 插入起點
             t_ai_start = time.time()
 
