@@ -237,8 +237,8 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
             #--4/9修改以下-----------#    
                 # 🔥 優化 1 & 2：將溫度降至 0.1，並縮緊預期輸出的 Token (讓它精簡與加速)
                 gen_config = {
-                    "maxOutputTokens": 2000, 
-                    "temperature": 0.1, 
+                    "maxOutputTokens": 4096, 
+                    "temperature": 0.2, 
                     "responseMimeType": "application/json"
                 }
                 if schema:
