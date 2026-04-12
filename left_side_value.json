@@ -133,25 +133,6 @@
         "first_entry_price": 80.1
     },
     {
-        "date": "2026-04-08",
-        "code": "6753",
-        "name": "龍德造船",
-        "price": 129.0,
-        "score": 88,
-        "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
-        "entry_price": 127.71,
-        "bias60": "-6.8%",
-        "bias24": "-2.2%",
-        "bias6": "0.8%",
-        "vol_ratio": "55.2%",
-        "eps": 2.24,
-        "yield_rate": 0.0,
-        "buy_days": 4,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-04-08",
-        "first_entry_price": 129.0
-    },
-    {
         "date": "2026-03-26",
         "code": "2354",
         "name": "鴻準",
@@ -283,6 +264,25 @@
         "tag": "左側黃金坑",
         "first_entry_date": "2026-04-10",
         "first_entry_price": 36.1
+    },
+    {
+        "date": "2026-04-10",
+        "code": "6753",
+        "name": "龍德造船",
+        "price": 126.5,
+        "score": 83,
+        "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
+        "entry_price": 125.23,
+        "bias60": "-8.5%",
+        "bias24": "-3.4%",
+        "bias6": "-0.7%",
+        "vol_ratio": "66.3%",
+        "eps": 2.24,
+        "yield_rate": 0.0,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-04-08",
+        "first_entry_price": 129.0
     },
     {
         "date": "2026-03-30",
