@@ -12,8 +12,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v18.8 
-BOT_VERSION = "v18.8 (調整買賣超顯示)"
+# 🤖 [版本號] v18.9 
+BOT_VERSION = "v18.9 (add 10MA)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -379,6 +379,7 @@ def fetch_data_light(stock_id):
         closes[-1] = latest_price
 
     ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
+    ma10 = round(sum(closes[-10:]) / 10, 2) if len(closes) >= 10 else 0  # 👈 新增這行
     ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
     ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
 
@@ -396,7 +397,7 @@ def fetch_data_light(stock_id):
         "close": latest_price, 
         "update_time": f"{update_time} ({source_name})",
         "resistance": res_price, "support": sup_price,
-        "ma5": ma5, "ma20": ma20, "ma60": ma60,
+        "ma5": ma5, "ma10": ma10, "ma20": ma20, "ma60": ma60,  # 👈 補上 "ma10": ma10
         "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
         "color": color,
         "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
@@ -410,22 +411,38 @@ def fetch_chips_accumulate(stock_id):
         start = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
         res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
         data = res.json().get('data', [])
-        if not data: return "0 (5日: 0)", "0 (5日: 0)", 0, 0
+        if not data: return "0 (5日: 0)", "0 (5日: 0)", 0, 0, 0, 0 # 👈 增加至6個變數
+        
         unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
         latest_date = unique_dates[0] if unique_dates else ""
         target_dates = unique_dates[:5]
+        
         today_f = 0; acc_f = 0; today_t = 0; acc_t = 0
-        for row in data:
-            if row['date'] in target_dates:
-                val = (row['buy'] - row['sell']) // 1000
-                if row['name'] == 'Foreign_Investor':
-                    acc_f += val
-                    if row['date'] == latest_date: today_f = val
-                elif row['name'] == 'Investment_Trust':
-                    acc_t += val
-                    if row['date'] == latest_date: today_t = val
-        return f"{today_f} (5日: {acc_f})", f"{today_t} (5日: {acc_t})", acc_f, acc_t
-    except: return "N/A", "N/A", 0, 0
+        f_history = []; t_history = []
+        
+        for d in target_dates:
+            daily_f = sum([(row['buy'] - row['sell']) // 1000 for row in data if row['date'] == d and row['name'] == 'Foreign_Investor'])
+            daily_t = sum([(row['buy'] - row['sell']) // 1000 for row in data if row['date'] == d and row['name'] == 'Investment_Trust'])
+            f_history.append(daily_f)
+            t_history.append(daily_t)
+            acc_f += daily_f; acc_t += daily_t
+            if d == latest_date:
+                today_f = daily_f; today_t = daily_t
+
+        def get_consec(hist):
+            if not hist or hist[0] == 0: return 0
+            sign = 1 if hist[0] > 0 else -1
+            count = 0
+            for v in hist:
+                if (v > 0 and sign > 0) or (v < 0 and sign < 0): count += sign
+                else: break
+            return count
+            
+        f_consec = get_consec(f_history)
+        t_consec = get_consec(t_history)
+
+        return f"{today_f} (5日: {acc_f})", f"{today_t} (5日: {acc_t})", acc_f, acc_t, f_consec, t_consec
+    except: return "N/A", "N/A", 0, 0, 0, 0
 
 def fetch_dividend_yield(stock_id, current_price):
     token = os.environ.get('FINMIND_TOKEN', '')
@@ -574,8 +591,11 @@ def scan_recommendations_turbo(target_sector=None):
 def callback():
     signature = request.headers.get('X-Line-Signature')
     body = request.get_data(as_text=True)
-    try: handler.handle(body, signature)
-    except: abort(400)
+    try: 
+        handler.handle(body, signature)
+    except Exception as e: 
+        print(f"🚨 [致命崩潰] LINE Webhook 發生錯誤: {e}")  # 👈 加上這行，以後當機絕對抓得到兇手
+        abort(400)
     return 'OK'
 
 @handler.add(MessageEvent, message=TextMessage)
@@ -1153,7 +1173,7 @@ def handle_message(event):
 
         # 🔥 並行抓取開始
         data = None
-        chips_res = ("0 (5日: 0)", "0 (5日: 0)", 0, 0)
+        chips_res = ("0 (5日: 0)", "0 (5日: 0)", 0, 0, 0, 0) # 👈 配合新函數擴充至 6 個
         eps = "N/A"
         yield_rate = "N/A"
 
@@ -1182,10 +1202,22 @@ def handle_message(event):
 
         print(f"⏱️ [效能追蹤] 1️⃣ FinMind爬蟲耗時: {time.time() - t_api_start:.2f} 秒")
         
-        f_str, t_str, af_val, at_val = chips_res
+        f_str, t_str, af_val, at_val, f_consec, t_consec = chips_res # 👈 解包 6 個變數
         is_etf = stock_id.startswith("00")
 
         signals = get_technical_signals(data, af_val + at_val)
+        
+        # 🤖 加入高階量化模組判斷 (Python 擔任大腦皮層)
+        advanced_signals = []
+        if (f_consec <= -3 or t_consec <= -3) and (data['close'] < data.get('ma10', 0) or data['close'] < data['ma20']):
+            advanced_signals.append("🚨籌碼土石流+技術破線(高檔出貨)")
+            
+        if (f_consec >= 2 or t_consec >= 2) and (data['ma20'] * 0.98 <= data['close'] <= data['ma60'] * 1.02):
+            advanced_signals.append("🟢法人回補+均線支撐(轉強確認)")
+
+        if advanced_signals:
+            signals.extend(advanced_signals)
+            
         signal_str = " | ".join(signals)
 
         # 🔥 [修改處 4-1] 產生被動防禦字串
@@ -1236,20 +1268,21 @@ def handle_message(event):
             
             # 🧠 提示詞大升級：解開字數限制，導入「讓獲利奔跑」的移動停利思維
             sys_prompt = (
-                "你是極度冷酷、講求實戰的頂級操盤手。請執行以下持股診斷：\n"
+                "你是極度冷酷、講求實戰的頂級操盤手。你的任務是給出最一針見血的持股診斷。\n"
                 "【輸出鐵律】：\n"
                 "1. 直接給出『洞察』。絕對禁止重複報價或念出帳面虧損數字。\n"
                 "2. 每一句話都必須具備決策價值，拒絕模稜兩可的廢話。\n"
-                "【實戰判斷邏輯】：\n"
-                "1. 資金控管：依據『成本與現價差距』與『產業基本面』進行無情診斷。\n"
-                "2. 動能加碼(防踏空)：若處於強勢多頭且基本面佳，且仍有漲幅空間，【強制】給予『強勢追買』或『現價/5MA加碼』建議，不准叫人死等深幅回測。\n"
-                "3. 套牢救援：若屬主流趨勢(EPS高)，技術面跌深近季線(60MA)即判定『🔴逢低加碼』；若基本面極爛且跌破均線，直接判定『⚫破線停損』。\n"                
-                "4. 獲利操作(防賣飛)：若獲利中且基本面佳，【必須】啟動『📈移動停利』策略（沿5MA或10MA抱緊）。唯有高檔爆量收黑、法人連賣或破線，才建議『🟢分批停利』。\n"
-                "5. 具體定價：【strategy】欄位必須給出『絕對的價格數字』(如具體的均線價位、前低或缺口)。"
+                "【量化演算法與實戰邏輯】：\n"
+                "1. 綜合定錨：依據『成本與現價差距』結合『產業基本面』進行無情診斷。\n"
+                "2. 🚨高檔避險(最高優先)：若【訊號】出現『🚨籌碼土石流』，或高檔爆量收黑、法人連賣，代表主力撤退，【強制】判定『🟢分批停利』或『⚫破線停損』，嚴禁留戀。\n"
+                "3. 🚀動能與右側建倉(防踏空)：若【訊號】出現『🟢法人回補』代表洗盤結束可建倉。若處於強勢多頭且基本面佳，【強制】給予『強勢追買』或『現價/5MA加碼』，不准死等深幅回測。\n"
+                "4. 🛡️套牢救援：若屬主流趨勢(EPS高)，跌深近季線(60MA)即判定『🔴逢低加碼』；若基本面極爛且跌破均線，直接判定『⚫破線停損』。\n"
+                "5. 📈獲利操作(防賣飛)：若獲利中且無避險訊號，【必須】啟動『📈移動停利』策略（沿5MA或10MA抱緊，讓獲利奔跑）。\n"
+                "6. 🎯具體定價：【strategy】欄位必須給出『絕對的價格數字』(如具體的均線價位、前低或跳空缺口)。"
             )
 
-            # 🔥 升級火力：補上 20MA(月線)，讓 AI 在設定「移動停利」時有更多均線防守點可以參考！
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 使用者成本:{user_cost} (帳面盈虧:{profit_pct}%), 基本面(EPS:{eps}/殖利率:{yield_rate}), 均線(5MA:{data['ma5']}/20MA:{data['ma20']}/60MA:{data['ma60']}), 訊號:{signal_str}"
+            # 🔥 補上 10MA
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 使用者成本:{user_cost} (帳面盈虧:{profit_pct}%), 基本面(EPS:{eps}/殖利率:{yield_rate}), 均線(5MA:{data['ma5']}/10MA:{data.get('ma10',0)}/20MA:{data['ma20']}/60MA:{data['ma60']}), 訊號:{signal_str}"
 
             cost_schema = {
                 "type": "OBJECT",
@@ -1313,21 +1346,19 @@ def handle_message(event):
         ai_reply_text = get_cached_ai_response(cache_key)
         
         if not ai_reply_text:
-            # 🧠 提示詞大升級：植入「防套牢鐵律」與「產業估值差異化」
+            # 🧠 統一使用終極融合版 Prompt
             sys_prompt = (
-                "你是華爾街頂級雙向操盤手與總體經濟學家。你的任務是給出極具深度、帶有預測性與專業術語的個股診斷。\n"
-                "【嚴禁行為 - 違者系統崩潰】：\n"
-                "1. 嚴禁只回答「XX業」或「趨勢向上/向下」這種廢話。你必須像資深分析師一樣，點出『資金輪動、籌碼換手、估值位階』。\n"
-                "2. 嚴禁填寫『依紀律操作』，目標價與防守價必須給出『絕對數字』！\n"
-                "【深度解析要求與實戰鐵律】：\n"
-                "1. 基本面洞察：必須結合提供的 EPS 與產業別，論述該股目前是『價值錯置』、『盈餘動能爆發』還是『估值透支』。\n"
-                "2. 產業估值差異：若為面板、記憶體、鋼鐵等『景氣循環股』，市場看重的是『淨值比與報價轉機』，嚴禁單憑 EPS 低就看壞；若為 AI/半導體，則著重高成長本益比。\n"
-                "3. 技術與籌碼解構：必須結合 MA 乖離與訊號，使用專業術語(如：均線糾結壓縮、量價背離、籌碼沉澱)。\n"
-                "4. 🚨防套牢鐵律(最高優先級)：若【訊號】出現『量增價漲/過熱』，但【今日籌碼】的外資或投信卻出現『賣超』字眼，極有可能是『拉高出貨/隔日沖陷阱』！此時【絕對無視】5日累積買超或快篩的買進訊號，【trend_status】強制判定為『🟡觀望等待』或『⚫避開風險』，並在【technical】嚴厲警告『主力趁高倒貨，請小心』。\n"
-                "5. 精準定價模型：\n"
-                "   - 進場價：若為安全多頭，給予『強勢追買或回測XX元買進』；若判定為出貨陷阱，直接填寫『嚴禁追高，觀望』。\n"
-                "   - 目標價：請以提供的 CDP壓力位、半年高點，或現價往上推 7~10% 作為波段滿足點。\n"
-                "   - 防守價：請以 MA20(月線)、CDP支撐位，或現價往下推 5% 作為破線出場點。\n"
+                "你是極度冷酷、講求實戰的頂級操盤手。你的任務是給出最一針見血的持股診斷。\n"
+                "【輸出鐵律】：\n"
+                "1. 直接給出『洞察』。絕對禁止重複報價或念出帳面虧損數字。\n"
+                "2. 每一句話都必須具備決策價值，拒絕模稜兩可的廢話。\n"
+                "【量化演算法與實戰邏輯】：\n"
+                "1. 綜合定錨：依據『成本與現價差距』結合『產業基本面』進行無情診斷。\n"
+                "2. 🚨高檔避險(最高優先)：若【訊號】出現『🚨籌碼土石流』，或高檔爆量收黑、法人連賣，代表主力撤退，【強制】判定『🟢分批停利』或『⚫破線停損』，嚴禁留戀。\n"
+                "3. 🚀動能與右側建倉(防踏空)：若【訊號】出現『🟢法人回補』代表洗盤結束可建倉。若處於強勢多頭且基本面佳，【強制】給予『強勢追買』或『現價/5MA加碼』，不准死等深幅回測。\n"
+                "4. 🛡️套牢救援：若屬主流趨勢(EPS高)，跌深近季線(60MA)即判定『🔴逢低加碼』；若基本面極爛且跌破均線，直接判定『⚫破線停損』。\n"
+                "5. 📈獲利操作(防賣飛)：若獲利中且無避險訊號，【必須】啟動『📈移動停利』策略（沿5MA或10MA抱緊，讓獲利奔跑）。\n"
+                "6. 🎯具體定價：【strategy】欄位必須給出『絕對的價格數字』(如具體的均線價位、前低或跳空缺口)。"
             )
             
             gen_schema = {
@@ -1372,9 +1403,8 @@ def handle_message(event):
             ai_af_val = translate_chips(af_val)
             ai_at_val = translate_chips(at_val)
             
-            # 🔥 關鍵修復 2：將「翻譯後」的文字 (ai_xxx) 餵給 AI，徹底封殺正負號盲區！
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, 【今日籌碼】(外資:{ai_today_f}/投信:{ai_today_t}), 【5日累積】(外資:{ai_af_val}/投信:{ai_at_val}), MA5:{data['ma5']}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
-            # 👇 插入起點
+            # 🔥 加入 10MA
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, EPS:{eps}, 【今日籌碼】(外資:{ai_today_f}/投信:{ai_today_t}), 【5日累積】(外資:{ai_af_val}/投信:{ai_at_val}), MA5:{data['ma5']}, MA10:{data.get('ma10',0)}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
             t_ai_start = time.time()
 
             json_str, ai_model = call_gemini_json(user_prompt, system_instruction=sys_prompt, schema=gen_schema)
