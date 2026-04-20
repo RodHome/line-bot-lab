@@ -569,22 +569,6 @@ if __name__ == "__main__":
     update_stock_list_json()
     generate_daily_recommendations()
 
-# 🔥 [新增模組] 左側爬蟲專屬殖利率計算機 (使用免費 GUEST_TOKEN，不扣 VIP 額度)
-def get_dividend_yield_for_crawler(code, current_price):
-    try:
-        start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-        url = "https://api.finmindtrade.com/api/v4/data"
-        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
-        data = res.json().get('data', [])
-        total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
-        if total_dividend > 0 and current_price > 0:
-            return round((total_dividend / current_price) * 100, 2)
-        return 0.0
-    except:
-        return 0.0
-
-
-
 #----------3/13增加左側交易-------------
 # ========================================================
 # 🔥 新增功能 3: 【左側交易：三層漏斗價值雷達】(100% 獨立產線)
@@ -689,19 +673,16 @@ def generate_left_side_value():
             closes = df['Close'].tolist()
             lows = df['Low'].tolist()
             highs = df['High'].tolist()
-            opens = df['Open'].tolist() # 🔥 新增：取得開盤價
             volumes = df['Volume'].tolist()
 
             item['real_date'] = df.index[-1].strftime('%Y-%m-%d')
             
             close_today = closes[-1]
-            open_today = opens[-1] # 🔥 新增
-            low_today = lows[-1]   # 🔥 新增
-            
+            # 🔥 新增這行：強制用 yfinance 的精準收盤價覆寫掉第一層的粗糙價格！
             item['price'] = round(close_today, 2)
             ma60 = sum(closes[-60:]) / 60
-            ma24 = sum(closes[-24:]) / 24
-            ma6 = sum(closes[-6:]) / 6   
+            ma24 = sum(closes[-24:]) / 24 # 🔥 新增月線
+            ma6 = sum(closes[-6:]) / 6    # 🔥 新增週線
             
             bias60 = (close_today - ma60) / ma60
             bias24 = (close_today - ma24) / ma24
@@ -711,7 +692,7 @@ def generate_left_side_value():
             
             vol_today = volumes[-1]
             ma20_vol = sum(volumes[-20:]) / 20
-            vol_ratio = vol_today / ma20_vol 
+            vol_ratio = vol_today / ma20_vol # 🔥 記錄量縮比例，用來算分數
             
             if vol_ratio >= 0.8: continue
             
@@ -722,23 +703,13 @@ def generate_left_side_value():
             if amplitude >= 0.12: continue
             if (close_today - closes[-5]) / closes[-5] >= 0.05: continue
 
-            # 🛡️ 新增：防飛刀 K 線止跌濾網
-            is_red_candle = close_today > open_today
-            lower_shadow = min(open_today, close_today) - low_today
-            body = abs(close_today - open_today)
-            has_lower_shadow = lower_shadow > (max(body, 0.01) * 1.5)
-
-            if not (is_red_candle or has_lower_shadow):
-                continue # 🔪 剔除無量陰跌的飛刀股！
-
             # 通過第二層考驗，把數據打包給第三層算分
             item['bias60'] = bias60
-            item['bias24'] = bias24 
-            item['bias6'] = bias6   
+            item['bias24'] = bias24 # 傳遞給第三層
+            item['bias6'] = bias6   # 傳遞給第三層
             item['vol_ratio'] = vol_ratio
             item['amplitude'] = amplitude
             item['ma60'] = ma60
-            item['vol_5d'] = sum(volumes[-5:]) # 🔥 新增：傳遞近5日總成交量給第三層算佔比
             layer2_candidates.append(item)
             
         except Exception: pass
@@ -754,52 +725,34 @@ def generate_left_side_value():
     
     for item in layer2_candidates:
         code = item['code']
-        # 只取 eps，殖利率讓獨立爬蟲去抓
-        eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
+        # 🔥 加上 , _ 接住第三個變數
+        eps, yield_rate, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
 
-        if eps <= 0: continue # 🔴 淘汰虧損股       
-                
+        if eps <= 0: continue # 🔴 淘汰虧損股
+        
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
         
-        # 🕵️‍♂️ 取得純化後的籌碼陣列，開始運算吃貨參數
         chips_history = get_finmind_chips_history(code, days=5)
-        buy_days_5d = sum(1 for x in chips_history if x > 0)
-        net_buy_vol_5d = sum(chips_history) # 近 5 日累計淨買超(張)
+        buy_days = sum(1 for x in chips_history if x > 0)
         
-        net_buy_amount_10k = (net_buy_vol_5d * item['price']) / 10 # 買超金額(萬)
-        total_vol_5d = item['vol_5d'] / 1000 # 🔧 修正：將 yfinance 的「股」轉換為「張」
-        buy_ratio = (net_buy_vol_5d / total_vol_5d) * 100 if total_vol_5d > 0 else 0
-        
-        # 🛡️ 終極 3D 隱蔽吃貨濾網
-        # 條件 1: 持續性 (買超 >= 3天)
-        # 條件 2: 實質性防雜訊 (買超張數 > 200 OR 買超金額 > 1000萬)
-        # 條件 3: 照妖鏡 (買超佔比 > 5%)
-        if buy_days_5d >= 3 and (net_buy_vol_5d > 200 or net_buy_amount_10k > 1000) and buy_ratio > 5.0:
-
-            # ✅ 【效能救星】只對最終過關的少數菁英股查殖利率！
-            # 從原本的 100 次 API 呼叫，瞬間降到 3~5 次
-            yield_rate = get_dividend_yield_for_crawler(code, item['price'])
+        # 門檻：法人至少買 3 天 (或轉機股特例)
+        if buy_days >= 4 or (buy_days == 3 and yoy > -15.0):
             
-            # 🎯 重構計分模型 (Base: 40，讓權重給高股息)
-            score = 40 
+            # 🎯 啟動計分模型 (Base: 50)
+            score = 50 
             
-            # 1. 🛡️ 高股息護城河 (Max 20)
-            if yield_rate >= 5.0: score += 20
-            elif yield_rate >= 4.0: score += 15
-            elif yield_rate >= 3.0: score += 10
+            # 1. 籌碼權重 (Max 30)
+            if buy_days == 5: score += 30
+            elif buy_days == 4: score += 20
+            elif buy_days == 3: score += 10
             
-            # 2. 籌碼權重 (Max 20)
-            if buy_days_5d == 5: score += 20
-            elif buy_days_5d == 4: score += 15
-            elif buy_days_5d == 3: score += 10
-            
-            # 3. 量縮權重 (Max 10)
+            # 2. 量縮權重 (Max 10)
             if item['vol_ratio'] < 0.5: score += 10
             elif item['vol_ratio'] < 0.6: score += 8
             elif item['vol_ratio'] < 0.7: score += 5
             
-            # 4. 乖離權重 (Max 10)
+            # 3. 乖離權重 (Max 10)
             bias_pct = item['bias60'] * 100
             if -8.0 <= bias_pct <= -5.0: score += 10
             elif bias_pct < -8.0: score += 8
