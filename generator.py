@@ -757,11 +757,8 @@ def generate_left_side_value():
         # 只取 eps，殖利率讓獨立爬蟲去抓
         eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
 
-        if eps <= 0: continue # 🔴 淘汰虧損股
-        
-        # 💰 新增：獨立抓取殖利率護城河
-        yield_rate = get_dividend_yield_for_crawler(code, item['price'])
-        
+        if eps <= 0: continue # 🔴 淘汰虧損股       
+                
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
         
@@ -779,6 +776,10 @@ def generate_left_side_value():
         # 條件 2: 實質性防雜訊 (買超張數 > 200 OR 買超金額 > 1000萬)
         # 條件 3: 照妖鏡 (買超佔比 > 5%)
         if buy_days_5d >= 3 and (net_buy_vol_5d > 200 or net_buy_amount_10k > 1000) and buy_ratio > 5.0:
+
+            # ✅ 【效能救星】只對最終過關的少數菁英股查殖利率！
+            # 從原本的 100 次 API 呼叫，瞬間降到 3~5 次
+            yield_rate = get_dividend_yield_for_crawler(code, item['price'])
             
             # 🎯 重構計分模型 (Base: 40，讓權重給高股息)
             score = 40 
