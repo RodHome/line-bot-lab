@@ -771,7 +771,7 @@ def generate_left_side_value():
         net_buy_vol_5d = sum(chips_history) # 近 5 日累計淨買超(張)
         
         net_buy_amount_10k = (net_buy_vol_5d * item['price']) / 10 # 買超金額(萬)
-        total_vol_5d = item['vol_5d'] # 第二層傳過來的總成交量
+        total_vol_5d = item['vol_5d'] / 1000 # 🔧 修正：將 yfinance 的「股」轉換為「張」
         buy_ratio = (net_buy_vol_5d / total_vol_5d) * 100 if total_vol_5d > 0 else 0
         
         # 🛡️ 終極 3D 隱蔽吃貨濾網
