@@ -9,10 +9,6 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
 
-# 🔥 [下下策：直接寫死 Token] 請把你的 600 次 VIP Token 完整貼在引號內
-MY_FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoicm9kNzQxMDAxMiIsImVtYWlsIjoicm9kNzQxMDAxQGdtYWlsLmNvbSJ9._uVBhZlcu5XqXPisAMehxfbvZUMFUj7VRDOQjfT9WLg"
-
-
 #---restart
 app = Flask(__name__)
 
@@ -308,7 +304,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
 def fetch_data_light(stock_id):
     # 定義內部子任務
     def get_history():
-        token = MY_FINMIND_TOKEN # 👈 改成這行
+        token = os.environ.get('FINMIND_TOKEN', '')
         url_hist = "https://api.finmindtrade.com/api/v4/data"
         try:
             start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
@@ -409,11 +405,11 @@ def fetch_data_light(stock_id):
     }
 
 def fetch_chips_accumulate(stock_id):
-    token = MY_FINMIND_TOKEN # 👈 改成這行
+    token = os.environ.get('FINMIND_TOKEN', '')
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
         start = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
-        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": start, "token": token}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
         data = res.json().get('data', [])
         if not data: return "0 (5日: 0)", "0 (5日: 0)", 0, 0, 0, 0 # 👈 增加至6個變數
         
@@ -446,12 +442,10 @@ def fetch_chips_accumulate(stock_id):
         t_consec = get_consec(t_history)
 
         return f"{today_f} (5日: {acc_f})", f"{today_t} (5日: {acc_t})", acc_f, acc_t, f_consec, t_consec
-    except Exception as e: 
-        print(f"🚨 [籌碼崩潰真兇] {type(e).__name__}: {e}") # 👈 把真正的錯誤印在伺服器日誌上
-        return "N/A(錯誤)", "N/A(錯誤)", 0, 0, 0, 0
+    except: return "N/A", "N/A", 0, 0, 0, 0
 
 def fetch_dividend_yield(stock_id, current_price):
-    token = MY_FINMIND_TOKEN # 👈 改成這行
+    token = os.environ.get('FINMIND_TOKEN', '')
     try:
         start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         res = requests.get("https://api.finmindtrade.com/api/v4/data", params={"dataset": "TaiwanStockDividend", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
@@ -464,7 +458,7 @@ def fetch_dividend_yield(stock_id, current_price):
 
 def fetch_eps(stock_id):
     if stock_id.startswith("00"): return "ETF"
-    token = MY_FINMIND_TOKEN # 👈 改成這行
+    token = os.environ.get('FINMIND_TOKEN', '')
     start = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
     try:
         res = requests.get("https://api.finmindtrade.com/api/v4/data", params={"dataset": "TaiwanStockFinancialStatements", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
@@ -1197,7 +1191,7 @@ def handle_message(event):
 
         # 🔥 並行抓取開始
         data = None
-        chips_res = ("N/A (超時)", "N/A (超時)", 0, 0, 0, 0)
+        chips_res = ("0 (5日: 0)", "0 (5日: 0)", 0, 0, 0, 0) # 👈 配合新函數擴充至 6 個
         eps = "N/A"
         yield_rate = "N/A"
 
@@ -1216,8 +1210,8 @@ def handle_message(event):
                     future_yield = executor.submit(fetch_dividend_yield, stock_id, data['close'])
                     yield_rate = future_yield.result(timeout=3)
                 
-                chips_res = future_chips.result(timeout=10)
-                eps = future_eps.result(timeout=10)
+                chips_res = future_chips.result(timeout=5)
+                eps = future_eps.result(timeout=5)
 
         except Exception as e:
             print(f"並行錯誤: {e}")
