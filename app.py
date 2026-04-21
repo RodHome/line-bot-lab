@@ -10,7 +10,7 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
 
 # 🔥 [下下策：直接寫死 Token] 請把你的 600 次 VIP Token 完整貼在引號內
-MY_FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
+MY_FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoicm9kNzQxMDAxMiIsImVtYWlsIjoicm9kNzQxMDAxQGdtYWlsLmNvbSJ9._uVBhZlcu5XqXPisAMehxfbvZUMFUj7VRDOQjfT9WLg"
 
 
 #---restart
