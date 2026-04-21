@@ -9,6 +9,10 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
 
+# 🔥 [下下策：直接寫死 Token] 請把你的 600 次 VIP Token 完整貼在引號內
+MY_FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
+
+
 #---restart
 app = Flask(__name__)
 
@@ -304,7 +308,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
 def fetch_data_light(stock_id):
     # 定義內部子任務
     def get_history():
-        token = os.environ.get('FINMIND_TOKEN', '')
+        token = MY_FINMIND_TOKEN # 👈 改成這行
         url_hist = "https://api.finmindtrade.com/api/v4/data"
         try:
             start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
@@ -405,7 +409,7 @@ def fetch_data_light(stock_id):
     }
 
 def fetch_chips_accumulate(stock_id):
-    token = os.environ.get('FINMIND_TOKEN', '')
+    token = MY_FINMIND_TOKEN # 👈 改成這行
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
         start = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
@@ -445,7 +449,7 @@ def fetch_chips_accumulate(stock_id):
     except: return "N/A", "N/A", 0, 0, 0, 0
 
 def fetch_dividend_yield(stock_id, current_price):
-    token = os.environ.get('FINMIND_TOKEN', '')
+    token = MY_FINMIND_TOKEN # 👈 改成這行
     try:
         start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         res = requests.get("https://api.finmindtrade.com/api/v4/data", params={"dataset": "TaiwanStockDividend", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
@@ -458,7 +462,7 @@ def fetch_dividend_yield(stock_id, current_price):
 
 def fetch_eps(stock_id):
     if stock_id.startswith("00"): return "ETF"
-    token = os.environ.get('FINMIND_TOKEN', '')
+    token = MY_FINMIND_TOKEN # 👈 改成這行
     start = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
     try:
         res = requests.get("https://api.finmindtrade.com/api/v4/data", params={"dataset": "TaiwanStockFinancialStatements", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
