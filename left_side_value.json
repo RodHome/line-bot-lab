@@ -570,25 +570,6 @@
         "first_entry_price": 20.75
     },
     {
-        "date": "2026-04-20",
-        "code": "7722",
-        "name": "LINEPAY",
-        "price": 304.5,
-        "score": 78,
-        "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
-        "entry_price": 301.45,
-        "bias60": "-22.1%",
-        "bias24": "-3.4%",
-        "bias6": "-0.2%",
-        "vol_ratio": "77.2%",
-        "eps": 1.4,
-        "yield_rate": 0.0,
-        "buy_days": 4,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-04-13",
-        "first_entry_price": 302.5
-    },
-    {
         "date": "2026-04-17",
         "code": "1584",
         "name": "精剛",
@@ -1271,6 +1252,25 @@
         "tag": "左側黃金坑",
         "first_entry_date": "2026-04-17",
         "first_entry_price": 94.0
+    },
+    {
+        "date": "2026-04-21",
+        "code": "7722",
+        "name": "LINEPAY",
+        "price": 309.0,
+        "score": 71,
+        "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
+        "entry_price": 305.91,
+        "bias60": "-20.2%",
+        "bias24": "-1.6%",
+        "bias6": "0.9%",
+        "vol_ratio": "59.0%",
+        "eps": 1.4,
+        "yield_rate": 0.49,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-04-13",
+        "first_entry_price": 302.5
     },
     {
         "date": "2026-03-31",

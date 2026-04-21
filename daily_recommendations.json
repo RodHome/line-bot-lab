@@ -249,8 +249,8 @@
         "sector": "通信網路業",
         "price": 708.0,
         "turnover": 6411737000.0,
-        "chips_display": "6509張 (46.1億)",
-        "buy_value": 4608372000.0,
+        "chips_display": "6666張 (47.2億)",
+        "buy_value": 4719528000.0,
         "yoy": 20.18,
         "tag": "外資大買",
         "debug_info": {
@@ -271,8 +271,8 @@
         "sector": "AI伺服器",
         "price": 329.0,
         "turnover": 6515996141.0,
-        "chips_display": "13709張 (45.1億)",
-        "buy_value": 4510261000.0,
+        "chips_display": "13706張 (45.1億)",
+        "buy_value": 4509274000.0,
         "yoy": 88.42,
         "tag": "外資大買",
         "debug_info": {
@@ -352,6 +352,28 @@
         "first_entry_price": 3805.0
     },
     {
+        "date": "2026-04-20",
+        "code": "8358",
+        "name": "金居",
+        "exchange": "上櫃",
+        "sector": "電子零組件業",
+        "price": 404.0,
+        "turnover": 19383383000.0,
+        "chips_display": "10756張 (43.5億)",
+        "buy_value": 4345424000.0,
+        "yoy": 42.81,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 860691000,
+            "last_rev": 602680000,
+            "this_period": "2026/3",
+            "last_period": "2025/3",
+            "formula": "(860691000 - 602680000) / 602680000"
+        },
+        "first_entry_date": "2026-03-31",
+        "first_entry_price": 236.5
+    },
+    {
         "date": "2026-04-16",
         "code": "2376",
         "name": "技嘉",
@@ -372,28 +394,6 @@
         },
         "first_entry_date": "2026-03-24",
         "first_entry_price": 235.0
-    },
-    {
-        "date": "2026-04-20",
-        "code": "8358",
-        "name": "金居",
-        "exchange": "上櫃",
-        "sector": "電子零組件業",
-        "price": 404.0,
-        "turnover": 19383383000.0,
-        "chips_display": "10042張 (40.6億)",
-        "buy_value": 4056968000.0,
-        "yoy": 42.81,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 860691000,
-            "last_rev": 602680000,
-            "this_period": "2026/3",
-            "last_period": "2025/3",
-            "formula": "(860691000 - 602680000) / 602680000"
-        },
-        "first_entry_date": "2026-03-31",
-        "first_entry_price": 236.5
     },
     {
         "date": "2026-04-20",
@@ -513,8 +513,8 @@
         "sector": "半導體業",
         "price": 10795.0,
         "turnover": 4356080225.0,
-        "chips_display": "332張 (35.8億)",
-        "buy_value": 3583940000.0,
+        "chips_display": "326張 (35.2億)",
+        "buy_value": 3519170000.0,
         "yoy": 69.25,
         "tag": "投信作帳",
         "debug_info": {
@@ -667,8 +667,8 @@
         "sector": "電子零組件業",
         "price": 1210.0,
         "turnover": 7026288110.0,
-        "chips_display": "2217張 (26.8億)",
-        "buy_value": 2682570000.0,
+        "chips_display": "2122張 (25.7億)",
+        "buy_value": 2567620000.0,
         "yoy": 63.14,
         "tag": "投信作帳",
         "debug_info": {
