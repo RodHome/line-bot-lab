@@ -120,7 +120,7 @@ def get_finmind_revenue_yoy(code):
     except Exception as e:
         default_res["debug_info"]["status"] = f"Error: {str(e)}"
         return default_res
-#==========3/17==================================
+
 # 🔥 [為左側雷達新增] 專門抓取近 N 日的法人買賣超陣列
 def get_finmind_chips_history(code, days=3):
     start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -146,8 +146,6 @@ def get_finmind_chips_history(code, days=3):
         return history
     except: return [0]*days
 
-# 🔥 [為左側/存股雷達新增] 查詢單季 EPS 與 殖利率 (動態頻率推算版)
-# ==========================================
 # ==========================================
 # 區塊：FinMind 基本面與殖利率查詢 (雙軌分流版)
 # 用途：EPS 扣訪客額度，殖利率扣 VIP 額度，極大化 API 使用率
@@ -223,14 +221,7 @@ def get_dividend_yield_for_crawler(code, current_price):
     except:
         return 0.0
 
-#==========3/17==================================
 # ========================================================
-
-# --- 功能 1: 抓取所有股票代號與產業分類 (精準過濾版) ---
-
-#==========3/17==================================
-# ========================================================
-
 # --- 功能 1: 抓取所有股票代號與產業分類 (精準過濾版) ---
 def update_stock_list_json():
     print("🚀 [Task 1] 開始抓取所有股票代號與產業分類...")
@@ -337,8 +328,6 @@ def generate_daily_recommendations():
         print(f"⚠️ 讀取 stock_list.json 失敗: {e}")
 
     # 設定目標日期 (GitHub Actions 通常在 UTC 時間跑，台灣+8)
-    # 策略：抓取「最新收盤日」。如果今天是週六日，API 會自動給最近的週五資料，或我們指定日期。
-    # 這裡使用簡單策略：抓取當下台灣時間，如果是下午2點後抓今天，否則抓昨天
     utc_now = datetime.now(timezone.utc)
     tw_now = utc_now + timedelta(hours=8)
     
@@ -584,11 +573,6 @@ def generate_daily_recommendations():
     else:
         print("⚠️ 歷史與今日皆無資料可存。")
 
-if __name__ == "__main__":
-    # 執行兩個任務
-    update_stock_list_json()
-    generate_daily_recommendations()
-
 #----------3/13增加左側交易-------------
 # ========================================================
 # 🔥 新增功能 3: 【左側交易：三層漏斗價值雷達】(100% 獨立產線)
@@ -606,10 +590,9 @@ def generate_left_side_value():
         return
 
     # ---------------------------------------------------------
-    # 🌊 第一層：大數據降維 (流動性 5,000萬 ~ 3億)
-    # 為了 100% 不干擾右側，我們在左側雷達內自己發動一次輕量級爬蟲
+    # 🌊 第一層：大數據降維 (流動性 1000萬 ~ 5億)
     # ---------------------------------------------------------
-    print("🌊 [第一層] 大數據降維：尋找流動性 1000萬~3億 的潛伏股...")
+    print("🌊 [第一層] 大數據降維：尋找流動性 1000萬~5億 的潛伏股...")
     layer1_candidates = []
     
     # 1. 抓取上市 (TWSE) 最新交易日
@@ -633,21 +616,19 @@ def generate_left_side_value():
                     try:
                         turnover = float(row[idx_turnover].replace(',', ''))
                         price = float(row[idx_price].replace(',', ''))
-                        # 🔥 條件：成交金額 1000萬 ~ 3億，且股價 > 10元
-                        if 10000000 <= turnover <= 300000000 and price >= 10:
+                        # 🔥 修改：放寬上限至 5 億
+                        if 10000000 <= turnover <= 500000000 and price >= 10:
                             layer1_candidates.append({"code": code, "price": price, "market": "TW"})
                     except: pass
     except Exception as e:
         print(f"⚠️ TWSE 第一層抓取錯誤: {e}")
 
-    # 2. 抓取上櫃 (TPEx)
+    # 2. 抓取上櫃 (TPEx) 最新交易日
     print(f"🔄 正在尋找最新上櫃 (TPEx) 行情...")
     try:
         base_date = datetime.now(timezone.utc) + timedelta(hours=8)
-        # 🛡️ 升級 1：使用跟 Task 2 一樣的高級瀏覽器偽裝
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'} 
-        
-        # 🛡️ 升級 2：強制暫停 1 秒，讓櫃買中心伺服器喘口氣，避免被判定為 DDOS
+        # 🛡️ 升級：高級偽裝與延遲，防擋 IP
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         time.sleep(1) 
         
         for i in range(6): 
@@ -657,18 +638,13 @@ def generate_left_side_value():
             
             try:
                 res_otc = requests.get(url_otc, headers=headers, timeout=10)
-                
-                # 🛡️ 升級 3：確保伺服器真的給我們 JSON，而不是錯誤網頁
                 if res_otc.status_code == 200:
                     try:
                         temp_data = res_otc.json()
                     except json.JSONDecodeError:
-                        print(f"⚠️ {roc_date} 回傳非 JSON 格式 (可能被短暫擋IP)，嘗試前一天...")
-                        time.sleep(1)
-                        continue
+                        continue 
 
                     if 'tables' in temp_data and temp_data['tables'] and len(temp_data['tables'][0].get('data', [])) > 0:
-                        print(f"✅ 成功取得上櫃資料，實際資料日期: {roc_date}")
                         table = temp_data['tables'][0]
                         fields = [str(f).strip() for f in table.get('fields', [])]
                         idx_code = fields.index("代號") if "代號" in fields else 0
@@ -684,31 +660,26 @@ def generate_left_side_value():
                                 if price_str in ['----', '--', '除息', '除權'] or turnover_str in ['--', '']: continue
                                 turnover = float(turnover_str)
                                 price = float(price_str)
-                                if 10000000 <= turnover <= 300000000 and price >= 10:
+                                # 🔥 修改：放寬上限至 5 億
+                                if 10000000 <= turnover <= 500000000 and price >= 10:
                                     layer1_candidates.append({"code": code, "price": price, "market": "TWO"})
                             except: pass
-                        break # 成功找到並處理完畢，跳出找日期的迴圈
-                else:
-                    print(f"⚠️ {roc_date} 伺服器狀態碼異常: {res_otc.status_code}")
-                    
-            except Exception as e:
-                print(f"⚠️ {roc_date} 請求失敗: {e}")
-                
-            time.sleep(0.5) # 每次失敗重試前稍等
-            
+                        break
+            except Exception: pass
+            time.sleep(0.5)
     except Exception as e:
         print(f"⚠️ TPEx 第一層抓取錯誤: {e}")
 
     print(f"✅ 第一層降維完畢，全市場 2000 檔中，共 {len(layer1_candidates)} 檔符合流動性門檻，進入第二層。")
 
     # ---------------------------------------------------------
-    # 📉 第二層：位階與動能過濾 (加入進度條與 K線防護)
+    # 📉 第二層：位階與動能過濾 (新增量縮比例與週線運算)
     # ---------------------------------------------------------
     print(f"📉 [第二層] 啟動 yfinance 計算 (預計處理 {len(layer1_candidates)} 檔)...")
     layer2_candidates = []
     
     for i, item in enumerate(layer1_candidates):
-        # 👁️ 新增：監視器進度條，讓你確定程式沒當機
+        # 👁️ 加上進度條
         if i > 0 and i % 50 == 0: 
             print(f"   ... yfinance 已處理 {i}/{len(layer1_candidates)} 檔")
             
@@ -721,14 +692,14 @@ def generate_left_side_value():
             closes = df['Close'].tolist()
             lows = df['Low'].tolist()
             highs = df['High'].tolist()
-            opens = df['Open'].tolist() # 👁️ 新增：取得開盤價，用來看 K 線顏色
+            opens = df['Open'].tolist() # 🔥 抓開盤價算 K 線
             volumes = df['Volume'].tolist()
 
             item['real_date'] = df.index[-1].strftime('%Y-%m-%d')
             
             close_today = closes[-1]
-            open_today = opens[-1] # 👁️ 新增
-            low_today = lows[-1]   # 👁️ 新增
+            open_today = opens[-1]
+            low_today = lows[-1]
             
             item['price'] = round(close_today, 2)
             ma60 = sum(closes[-60:]) / 60
@@ -739,38 +710,33 @@ def generate_left_side_value():
             bias24 = (close_today - ma24) / ma24
             bias6 = (close_today - ma6) / ma6
 
-            if bias60 >= -0.03: continue
+            # 🔥 放寬：只要跌破季線就不淘汰
+            if bias60 >= 0: continue
             
             vol_today = volumes[-1]
             ma20_vol = sum(volumes[-20:]) / 20
-            vol_ratio = vol_today / ma20_vol 
+            vol_ratio = vol_today / ma20_vol if ma20_vol > 0 else 1 
             
-            if vol_ratio >= 0.8: continue
-            
-            recent_10_high = max(highs[-10:])
-            recent_10_low = min(lows[-10:])
-            amplitude = (recent_10_high - recent_10_low) / recent_10_low
-            
-            if amplitude >= 0.12: continue
-            if (close_today - closes[-5]) / closes[-5] >= 0.05: continue
+            # 🔥 放寬：量縮 0.9 以內、振幅 15% 以內、5日漲幅 8% 以內
+            if vol_ratio >= 0.9: continue
+            if (max(highs[-10:]) - min(lows[-10:])) / min(lows[-10:]) >= 0.15: continue
+            if (close_today - closes[-5]) / closes[-5] >= 0.08: continue
 
-            # 🛡️ 新增：防飛刀 K 線止跌濾網
+            # 🛡️ 防破底刀：如果今天收盤價比過去 4 天的最低點還低，代表還在殺，不接！
+            if close_today < min(closes[-5:-1]):
+                continue
+                
+            # 判斷有無防守紅K或下影線 (存起來當第三層加分項)
             is_red_candle = close_today > open_today
             lower_shadow = min(open_today, close_today) - low_today
             body = abs(close_today - open_today)
-            has_lower_shadow = lower_shadow > (max(body, 0.01) * 1.5)
+            item['is_anti_knife'] = bool(is_red_candle or (lower_shadow > max(body, 0.01) * 1.5))
 
-            if not (is_red_candle or has_lower_shadow):
-                continue # 🔪 剔除無量陰跌的飛刀股
-
-            # 通過第二層考驗，把數據打包給第三層算分
             item['bias60'] = bias60
             item['bias24'] = bias24 
             item['bias6'] = bias6   
             item['vol_ratio'] = vol_ratio
-            item['amplitude'] = amplitude
-            item['ma60'] = ma60
-            item['vol_5d'] = sum(volumes[-5:]) # 🔥 新增：傳遞近5日總成交量給第三層算佔比
+            item['vol_5d'] = sum(volumes[-5:]) # 🔥 傳近5日總量給第三層算佔比
             layer2_candidates.append(item)
             
         except Exception: pass
@@ -788,71 +754,64 @@ def generate_left_side_value():
         code = item['code']
         print(f"   🔍 查核 {code}...", end=" ")
         
-        # 🛡️ 節流第一關：先看籌碼！沒大人照顧直接踢，省下大量 API 請求
+        # 1. 查籌碼
         chips_history = get_finmind_chips_history(code, days=5)
         buy_days_5d = sum(1 for x in chips_history if x > 0)
         
-        # 如果連買 3 天都沒有，直接放生
-        if buy_days_5d < 3:
-            print("❌ 籌碼不連續")
+        if buy_days_5d < 1:
+            print("❌ 籌碼掛零")
             continue
             
-        net_buy_vol_5d = sum(chips_history) # 近 5 日累計淨買超(張)
-        net_buy_amount_10k = (net_buy_vol_5d * item['price']) / 10 # 買超金額(萬)
-        total_vol_5d = item['vol_5d'] / 1000 # 🔧 (修正) 將 yfinance 的「股」轉換為「張」
+        net_buy_vol_5d = sum(chips_history)
+        total_vol_5d = item['vol_5d'] / 1000 
         buy_ratio = (net_buy_vol_5d / total_vol_5d) * 100 if total_vol_5d > 0 else 0
         
-        # 隱蔽吃貨濾網：張數/金額聯集 + 佔比 > 5%
-        if not ((net_buy_vol_5d > 200 or net_buy_amount_10k > 1000) and buy_ratio > 5.0):
-            print("❌ 隱蔽佔比/金額不足")
-            continue
-            
-        # 🛡️ 節流第二關：籌碼過了，才去查 EPS (保護額度)
-        eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
-        if eps <= 0: 
-            print("❌ EPS 虧損")
-            continue 
-        
-        # 🛡️ 節流第三關：最後才查 YoY 跟 殖利率
+        # 2. 查基本面與殖利率
+        eps, yield_rate, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
-        yield_rate = get_dividend_yield_for_crawler(code, item['price'])
         
-        print("✅ 完美過關！")
+        # 🎯 啟動計分模型 (Base: 50)
+        score = 50 
         
-        # 🎯 重構計分模型 (Base: 40)
-        score = 40 
+        # 🛡️ 廉價品質指標懲罰：太薄的獲利自動往後排
+        earnings_yield = eps / item['price'] if item['price'] > 0 else 0
+        if eps < 0.3 or earnings_yield < 0.005:
+            score -= 15 # 扣大分！EPS 太低的 C 級垃圾股會自動沉下去
+            
+        if item['is_anti_knife']: score += 5  # 有防守 K 線加分
         
-        # 1. 🛡️ 高股息護城河 (Max 20)
-        if yield_rate >= 5.0: score += 20
-        elif yield_rate >= 4.0: score += 15
-        elif yield_rate >= 3.0: score += 10
+        # 3. 獲利與成長加分 (補上承諾的 YoY 與 EPS 加分)
+        if eps > 0: score += 10
+        if yoy > 10.0: score += 10
+        if yield_rate >= 4.0: score += 10
         
-        # 2. 籌碼權重 (Max 20)
-        if buy_days_5d == 5: score += 20
-        elif buy_days_5d == 4: score += 15
+        # 籌碼加分
+        if buy_ratio > 5.0: score += 10
+        if buy_days_5d == 5: score += 30
+        elif buy_days_5d == 4: score += 20
         elif buy_days_5d == 3: score += 10
         
-        # 3. 量縮權重 (Max 10)
+        # 量縮加分
         if item['vol_ratio'] < 0.5: score += 10
         elif item['vol_ratio'] < 0.6: score += 8
         elif item['vol_ratio'] < 0.7: score += 5
         
-        # 4. 乖離權重 (Max 10)
+        # 乖離加分
         bias_pct = item['bias60'] * 100
         if -8.0 <= bias_pct <= -5.0: score += 10
         elif bias_pct < -8.0: score += 8
         elif -5.0 < bias_pct <= -3.0: score += 5
 
-        # 🎯 判斷趨勢狀態 (Trend Status)
+        # 🔥 L1 / L0 狀態分流 (讓你一眼看出誰可以買)
         if item['bias6'] > 0:
-            trend_status = "⭐ 底部起漲 (乖離6已翻正)"
+            trend_status = "🔥 L1_左側起漲 (交易清單)"
         else:
-            trend_status = "⏳ 築底量縮中 (乖離6仍為負)"
+            trend_status = "⏳ L0_左側築底 (觀察清單)"
             
         entry_price = round(item['price'] * 0.99, 2)
+        print(f"✅ 入選 | 分數: {score} | {trend_status}")
 
-        # 🏆 封裝入庫
         final_list.append({
             "date": item['real_date'],
             "code": code,
