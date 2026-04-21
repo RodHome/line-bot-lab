@@ -724,9 +724,8 @@ def generate_left_side_value():
             if (max(highs[-10:]) - min(lows[-10:])) / min(lows[-10:]) >= 0.15: continue
             if (close_today - closes[-5]) / closes[-5] >= 0.08: continue
 
-            # 🛡️ 防破底刀：如果今天收盤價比過去 4 天的最低點還低，代表還在殺，不接！
-            if close_today < min(closes[-5:-1]):
-                continue
+            # 🛡️ 紀錄是否破底 (不直接淘汰，交給第三層扣分)
+            item['is_breaking_low'] = bool(close_today < min(closes[-5:-1]))
                 
             # 判斷有無防守紅K或下影線 (存起來當第三層加分項)
             is_red_candle = close_today > open_today
@@ -775,17 +774,22 @@ def generate_left_side_value():
             continue
         
         # 2. 查基本面與殖利率
-        eps, yield_rate, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
+        eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
+        # 🔥 修復 Bug：呼叫專屬計算機，確保殖利率不是 0
+        yield_rate = get_dividend_yield_for_crawler(code, item['price']) 
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
         
         # 🎯 啟動計分模型 (Base: 40)
         score = 40 
         
-        # 🛡️ 廉價品質指標懲罰：太薄的獲利自動扣分往後排
-        earnings_yield = eps / item['price'] if item['price'] > 0 else 0
-        if eps < 0.3 or earnings_yield < 0.005:
-            score -= 15 # 扣大分！EPS 太低的 C 級垃圾股會自動沉下去
+        # 🛡️ 放寬 EPS 懲罰：只針對「虧損股」扣 5 分，不亂殺轉機股
+        if eps < 0:
+            score -= 5 
+            
+        # 🛡️ 破底扣分：還在破底的刀子扣 10 分 (取代原本的直接淘汰)
+        if item.get('is_breaking_low'):
+            score -= 10
             
         if item['is_anti_knife']: score += 5  # 有防守 K 線加分
         
@@ -805,11 +809,11 @@ def generate_left_side_value():
         elif item['vol_ratio'] < 0.6: score += 8
         elif item['vol_ratio'] < 0.7: score += 5
         
-        # 乖離加分
+        # 🔥 修正邏輯：乖離加分 (跌越深，加越多分)
         bias_pct = item['bias60'] * 100
-        if -8.0 <= bias_pct <= -5.0: score += 10
-        elif bias_pct < -8.0: score += 8
-        elif -5.0 < bias_pct <= -3.0: score += 5
+        if bias_pct < -8.0: score += 15
+        elif bias_pct < -5.0: score += 10
+        elif bias_pct < -3.0: score += 5
 
         # ---------------------------------------------------------
         # 🛡️ 資格層與輸出層 (決定誰有資格活下來)
@@ -819,7 +823,7 @@ def generate_left_side_value():
             is_qualified = (score >= 60)  # L1 交易清單的生死線：60分
         else:
             trend_status = "⏳ L0_左側築底"
-            is_qualified = (score >= 75)  # L0 觀察池的生死線：75分 (非極品不看)
+            is_qualified = (score >= 55)  # 🔥 降門檻：L0 觀察池生死線降為 55分
 
         # ❌ 不及格的直接淘汰，絕對不放進 final_list 佔用注意力
         if not is_qualified:
@@ -851,6 +855,9 @@ def generate_left_side_value():
     # 📦 結算與存檔
     # ---------------------------------------------------------
     if final_list:
+        # 🔥 數量控制：依照分數高低排序，每天最多只取前 15 檔極品
+        final_list.sort(key=lambda x: x['score'], reverse=True)
+        final_list = final_list[:15]
         print(f"✅ 今日掃描共 {len(final_list)} 檔無敵黃金坑達標。")
     else:
         print("⚠️ 今日掃描無股票通過三層漏斗。")
