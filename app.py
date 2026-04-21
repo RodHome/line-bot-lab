@@ -855,6 +855,7 @@ def handle_message(event):
             else:
                 bubbles = []
                 # 🛡️ 首張導覽與時間卡片
+                # 🛡️ 首張導覽與時間卡片
                 info_bubble = {
                     "type": "bubble", "size": "hecto",
                     "body": {
@@ -863,7 +864,24 @@ def handle_message(event):
                             {"type": "text", "text": "🛡️ 左側黃金坑", "weight": "bold", "size": "xl", "color": "#1E88E5", "align": "center"},
                             {"type": "text", "text": f"雷達掃描時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
                             {"type": "separator", "margin": "lg"},
-                            {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"},
+                            {"type": "text", "text": "👉 向右滑動查看 Top 5", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"},
+                        ]
+                    },
+                    # 🔥 新增 footer 區塊放置網頁按鈕
+                    "footer": {
+                        "type": "box", "layout": "vertical", "spacing": "sm",
+                        "contents": [
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "color": "#1E88E5",
+                                "height": "sm",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "🌐 完整網頁榜單",
+                                    "uri": "https://rodhome.github.io/line-bot-lab/"  # 👈 這是你 GitHub Pages 的預設網址
+                                }
+                            }
                         ]
                     }
                 }
