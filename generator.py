@@ -640,38 +640,62 @@ def generate_left_side_value():
     except Exception as e:
         print(f"⚠️ TWSE 第一層抓取錯誤: {e}")
 
-    # 2. 抓取上櫃 (TPEx) 最新交易日
+    # 2. 抓取上櫃 (TPEx)
+    print(f"🔄 正在尋找最新上櫃 (TPEx) 行情...")
     try:
         base_date = datetime.now(timezone.utc) + timedelta(hours=8)
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        for i in range(6): # 往回找最近的交易日
+        # 🛡️ 升級 1：使用跟 Task 2 一樣的高級瀏覽器偽裝
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'} 
+        
+        # 🛡️ 升級 2：強制暫停 1 秒，讓櫃買中心伺服器喘口氣，避免被判定為 DDOS
+        time.sleep(1) 
+        
+        for i in range(6): 
             check_date = base_date - timedelta(days=i)
             roc_date = f"{check_date.year - 1911}/{check_date.strftime('%m/%d')}"
             url_otc = f"https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d={roc_date}&se=EW"
-            res_otc = requests.get(url_otc, headers=headers, timeout=10)
-            temp_data = res_otc.json()
-            if 'tables' in temp_data and temp_data['tables'] and len(temp_data['tables'][0].get('data', [])) > 0:
-                table = temp_data['tables'][0]
-                fields = [str(f).strip() for f in table.get('fields', [])]
-                idx_code = fields.index("代號") if "代號" in fields else 0
-                idx_turnover = fields.index("成交金額(元)") if "成交金額(元)" in fields else 8
-                idx_price = fields.index("收盤") if "收盤" in fields else 2
+            
+            try:
+                res_otc = requests.get(url_otc, headers=headers, timeout=10)
                 
-                for row in table['data']:
-                    code = str(row[idx_code]).strip()
-                    if code not in stock_meta: continue
+                # 🛡️ 升級 3：確保伺服器真的給我們 JSON，而不是錯誤網頁
+                if res_otc.status_code == 200:
                     try:
-                        price_str = str(row[idx_price]).replace(',', '').strip()
-                        turnover_str = str(row[idx_turnover]).replace(',', '').strip()
-                        if price_str in ['----', '--', '除息', '除權'] or turnover_str in ['--', '']: continue
-                        turnover = float(turnover_str)
-                        price = float(price_str)
-                        # 🔥 條件：成交金額 1000萬 ~ 3億，且股價 > 10元
-                        if 10000000 <= turnover <= 300000000 and price >= 10:
-                            layer1_candidates.append({"code": code, "price": price, "market": "TWO"})
-                    except: pass
-                break
-            time.sleep(0.3)
+                        temp_data = res_otc.json()
+                    except json.JSONDecodeError:
+                        print(f"⚠️ {roc_date} 回傳非 JSON 格式 (可能被短暫擋IP)，嘗試前一天...")
+                        time.sleep(1)
+                        continue
+
+                    if 'tables' in temp_data and temp_data['tables'] and len(temp_data['tables'][0].get('data', [])) > 0:
+                        print(f"✅ 成功取得上櫃資料，實際資料日期: {roc_date}")
+                        table = temp_data['tables'][0]
+                        fields = [str(f).strip() for f in table.get('fields', [])]
+                        idx_code = fields.index("代號") if "代號" in fields else 0
+                        idx_turnover = fields.index("成交金額(元)") if "成交金額(元)" in fields else 8
+                        idx_price = fields.index("收盤") if "收盤" in fields else 2
+                        
+                        for row in table['data']:
+                            code = str(row[idx_code]).strip()
+                            if code not in stock_meta: continue
+                            try:
+                                price_str = str(row[idx_price]).replace(',', '').strip()
+                                turnover_str = str(row[idx_turnover]).replace(',', '').strip()
+                                if price_str in ['----', '--', '除息', '除權'] or turnover_str in ['--', '']: continue
+                                turnover = float(turnover_str)
+                                price = float(price_str)
+                                if 10000000 <= turnover <= 300000000 and price >= 10:
+                                    layer1_candidates.append({"code": code, "price": price, "market": "TWO"})
+                            except: pass
+                        break # 成功找到並處理完畢，跳出找日期的迴圈
+                else:
+                    print(f"⚠️ {roc_date} 伺服器狀態碼異常: {res_otc.status_code}")
+                    
+            except Exception as e:
+                print(f"⚠️ {roc_date} 請求失敗: {e}")
+                
+            time.sleep(0.5) # 每次失敗重試前稍等
+            
     except Exception as e:
         print(f"⚠️ TPEx 第一層抓取錯誤: {e}")
 
