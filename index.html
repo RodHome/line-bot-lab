@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ 價值雷達戰情室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111827; color: #f3f4f6; }
+        .card:hover { transform: translateY(-2px); transition: all 0.2s; }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-7xl mx-auto">
+
+    <header class="mb-8 text-center md:text-left border-b border-gray-700 pb-4">
+        <h1 class="text-3xl font-bold text-blue-400 mb-2">🛡️ 價值雷達戰情室</h1>
+        <p class="text-gray-400">每日 AI 量化籌碼與技術面掃描 <span id="updateTime" class="text-sm ml-2 text-gray-500"></span></p>
+    </header>
+
+    <div class="flex flex-wrap gap-3 mb-8 justify-center md:justify-start" id="filter-buttons">
+        <button onclick="renderData('ALL')" id="btn-ALL" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium shadow-lg border border-blue-500">全部名單</button>
+        <button onclick="renderData('L1')" id="btn-L1" class="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-medium hover:bg-gray-700 border border-gray-700">🔥 L1 起漲 (建議關注)</button>
+        <button onclick="renderData('L0')" id="btn-L0" class="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-medium hover:bg-gray-700 border border-gray-700">⏳ L0 築底 (持續觀察)</button>
+    </div>
+
+    <div id="stock-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div class="text-center col-span-full py-10 text-gray-400 animate-pulse">雷達掃描中...</div>
+    </div>
+
+    <script>
+        let globalData = [];
+
+        // 啟動時載入資料
+        async function loadData() {
+            try {
+                // 🔥 關鍵防呆：加上時間戳記，強迫瀏覽器抓最新的 JSON，不抓暫存舊檔！
+                const response = await fetch('left_side_value.json?v=' + new Date().getTime());
+                globalData = await response.json();
+                
+                if(globalData.length > 0) {
+                    document.getElementById('updateTime').innerText = `(資料日期: ${globalData[0].date})`;
+                }
+                renderData('ALL');
+            } catch (error) {
+                document.getElementById('stock-grid').innerHTML = '<div class="text-center col-span-full py-10 text-red-400">讀取資料失敗，請確認 JSON 檔案是否存在。</div>';
+            }
+        }
+
+        // 渲染畫面與篩選邏輯
+        function renderData(filterType) {
+            // 處理按鈕視覺狀態
+            ['ALL', 'L1', 'L0'].forEach(type => {
+                const btn = document.getElementById(`btn-${type}`);
+                if(type === filterType) {
+                    btn.className = "px-4 py-2 rounded-lg bg-blue-600 text-white font-medium shadow-lg border border-blue-500";
+                } else {
+                    btn.className = "px-4 py-2 rounded-lg bg-gray-800 text-gray-300 font-medium hover:bg-gray-700 border border-gray-700";
+                }
+            });
+
+            // 篩選資料
+            let filteredData = globalData;
+            if (filterType === 'L1') {
+                filteredData = globalData.filter(item => item.trend_status.includes('L1'));
+            } else if (filterType === 'L0') {
+                filteredData = globalData.filter(item => item.trend_status.includes('L0'));
+            }
+
+            // 產生 HTML
+            const grid = document.getElementById('stock-grid');
+            if (filteredData.length === 0) {
+                grid.innerHTML = '<div class="text-center col-span-full py-10 text-gray-400">目前此分類無股票達標。</div>';
+                return;
+            }
+
+            let html = '';
+            filteredData.forEach(stock => {
+                const isL1 = stock.trend_status.includes('L1');
+                const badgeClass = isL1 ? 'bg-red-900/50 text-red-300 border border-red-800' : 'bg-yellow-900/50 text-yellow-300 border border-yellow-800';
+                const statusText = isL1 ? '🔥 L1 起漲' : '⏳ L0 築底';
+
+                html += `
+                <div class="card bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-lg flex flex-col h-full">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">${stock.name}</h2>
+                            <p class="text-gray-400 text-sm">${stock.code}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-bold text-green-400">$${stock.price}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4">
+                        <span class="px-2 py-1 text-xs font-bold rounded-md bg-purple-900/50 text-purple-300 border border-purple-800">${stock.score} 分</span>
+                        <span class="px-2 py-1 text-xs font-bold rounded-md ${badgeClass}">${statusText}</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-sm mt-auto bg-gray-900/50 p-3 rounded-lg">
+                        <div><span class="text-gray-500 block text-xs">季乖離</span><span class="font-medium ${parseFloat(stock.bias60) < -10 ? 'text-green-400' : 'text-gray-200'}">${stock.bias60}</span></div>
+                        <div><span class="text-gray-500 block text-xs">量縮率</span><span class="font-medium ${parseFloat(stock.vol_ratio) < 50 ? 'text-green-400' : 'text-gray-200'}">${stock.vol_ratio}</span></div>
+                        <div><span class="text-gray-500 block text-xs">殖利率</span><span class="font-medium text-gray-200">${stock.yield_rate}%</span></div>
+                        <div><span class="text-gray-500 block text-xs">EPS</span><span class="font-medium ${stock.eps < 0 ? 'text-red-400' : 'text-gray-200'}">${stock.eps}</span></div>
+                        <div class="col-span-2 pt-1 border-t border-gray-700 mt-1">
+                            <span class="text-gray-500 block text-xs">法人連買</span>
+                            <span class="font-medium text-yellow-400">${stock.buy_days} 天</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            grid.innerHTML = html;
+        }
+
+        // 執行
+        loadData();
+    </script>
+</body>
+</html>
