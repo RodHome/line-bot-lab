@@ -846,7 +846,7 @@ def generate_left_side_value():
             "buy_days": buy_days_5d,
             "tag": "左側黃金坑"
         })
-            print(f"   🏆 入選: {code} | 分數: {score} | 狀態: {trend_status}")
+        print(f"   🏆 入選: {code} | 分數: {score} | 狀態: {trend_status}")
 
     # ---------------------------------------------------------
     # 📦 結算與存檔 (融入 30 天歷史大水庫)
