@@ -208,6 +208,30 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     except: pass
         
     return eps_latest, yield_rate, annual_div
+
+except: pass
+        
+    return eps_latest, yield_rate, annual_div
+
+# 🔥 [新增模組] 左側爬蟲專屬殖利率計算機 (使用免費 GUEST_TOKEN，不扣 VIP 額度)
+def get_dividend_yield_for_crawler(code, current_price):
+    try:
+        start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        url = "https://api.finmindtrade.com/api/v4/data"
+        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
+        data = res.json().get('data', [])
+        total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
+        if total_dividend > 0 and current_price > 0:
+            return round((total_dividend / current_price) * 100, 2)
+        return 0.0
+    except:
+        return 0.0
+
+#==========3/17==================================
+# ========================================================
+
+# --- 功能 1: 抓取所有股票代號與產業分類 (精準過濾版) ---
+
 #==========3/17==================================
 # ========================================================
 
@@ -658,12 +682,16 @@ def generate_left_side_value():
     print(f"✅ 第一層降維完畢，全市場 2000 檔中，共 {len(layer1_candidates)} 檔符合流動性門檻，進入第二層。")
 
     # ---------------------------------------------------------
-    # 📉 第二層：位階與動能過濾 (新增量縮比例與週線運算)
+    # 📉 第二層：位階與動能過濾 (加入進度條與 K線防護)
     # ---------------------------------------------------------
-    print("📉 [第二層] 啟動 yfinance 計算：尋找負乖離、量縮窒息、低波築底...")
+    print(f"📉 [第二層] 啟動 yfinance 計算 (預計處理 {len(layer1_candidates)} 檔)...")
     layer2_candidates = []
     
-    for item in layer1_candidates:
+    for i, item in enumerate(layer1_candidates):
+        # 👁️ 新增：監視器進度條，讓你確定程式沒當機
+        if i > 0 and i % 50 == 0: 
+            print(f"   ... yfinance 已處理 {i}/{len(layer1_candidates)} 檔")
+            
         code = item['code']
         try:
             ticker = yf.Ticker(f"{code}.{item['market']}")
@@ -673,16 +701,19 @@ def generate_left_side_value():
             closes = df['Close'].tolist()
             lows = df['Low'].tolist()
             highs = df['High'].tolist()
+            opens = df['Open'].tolist() # 👁️ 新增：取得開盤價，用來看 K 線顏色
             volumes = df['Volume'].tolist()
 
             item['real_date'] = df.index[-1].strftime('%Y-%m-%d')
             
             close_today = closes[-1]
-            # 🔥 新增這行：強制用 yfinance 的精準收盤價覆寫掉第一層的粗糙價格！
+            open_today = opens[-1] # 👁️ 新增
+            low_today = lows[-1]   # 👁️ 新增
+            
             item['price'] = round(close_today, 2)
             ma60 = sum(closes[-60:]) / 60
-            ma24 = sum(closes[-24:]) / 24 # 🔥 新增月線
-            ma6 = sum(closes[-6:]) / 6    # 🔥 新增週線
+            ma24 = sum(closes[-24:]) / 24 
+            ma6 = sum(closes[-6:]) / 6    
             
             bias60 = (close_today - ma60) / ma60
             bias24 = (close_today - ma24) / ma24
@@ -692,7 +723,7 @@ def generate_left_side_value():
             
             vol_today = volumes[-1]
             ma20_vol = sum(volumes[-20:]) / 20
-            vol_ratio = vol_today / ma20_vol # 🔥 記錄量縮比例，用來算分數
+            vol_ratio = vol_today / ma20_vol 
             
             if vol_ratio >= 0.8: continue
             
@@ -703,13 +734,23 @@ def generate_left_side_value():
             if amplitude >= 0.12: continue
             if (close_today - closes[-5]) / closes[-5] >= 0.05: continue
 
+            # 🛡️ 新增：防飛刀 K 線止跌濾網
+            is_red_candle = close_today > open_today
+            lower_shadow = min(open_today, close_today) - low_today
+            body = abs(close_today - open_today)
+            has_lower_shadow = lower_shadow > (max(body, 0.01) * 1.5)
+
+            if not (is_red_candle or has_lower_shadow):
+                continue # 🔪 剔除無量陰跌的飛刀股
+
             # 通過第二層考驗，把數據打包給第三層算分
             item['bias60'] = bias60
-            item['bias24'] = bias24 # 傳遞給第三層
-            item['bias6'] = bias6   # 傳遞給第三層
+            item['bias24'] = bias24 
+            item['bias6'] = bias6   
             item['vol_ratio'] = vol_ratio
             item['amplitude'] = amplitude
             item['ma60'] = ma60
+            item['vol_5d'] = sum(volumes[-5:]) # 🔥 新增：傳遞近5日總成交量給第三層算佔比
             layer2_candidates.append(item)
             
         except Exception: pass
@@ -718,73 +759,97 @@ def generate_left_side_value():
     print(f"✅ 第二層過濾完畢，剩餘 {len(layer2_candidates)} 檔進入終極基本面與評分查核。")
 
     # ---------------------------------------------------------
-    # 🏦 第三層：聰明錢定錨與 🌟信心評分系統 (Scoring Model)
+    # 🏦 第三層：聰明錢定錨與 🌟信心評分系統 (API 節流模式)
     # ---------------------------------------------------------
-    print("🏦 [第三層] 啟動 FinMind 查核與評分：法人連買、EPS、黃金交叉探測...")
+    print("🏦 [第三層] 啟動 FinMind 查核與評分 (API 節流模式啟動)...")
     final_list = []
     
     for item in layer2_candidates:
         code = item['code']
-        # 🔥 加上 , _ 接住第三個變數
-        eps, yield_rate, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
-
-        if eps <= 0: continue # 🔴 淘汰虧損股
+        print(f"   🔍 查核 {code}...", end=" ")
         
+        # 🛡️ 節流第一關：先看籌碼！沒大人照顧直接踢，省下大量 API 請求
+        chips_history = get_finmind_chips_history(code, days=5)
+        buy_days_5d = sum(1 for x in chips_history if x > 0)
+        
+        # 如果連買 3 天都沒有，直接放生
+        if buy_days_5d < 3:
+            print("❌ 籌碼不連續")
+            continue
+            
+        net_buy_vol_5d = sum(chips_history) # 近 5 日累計淨買超(張)
+        net_buy_amount_10k = (net_buy_vol_5d * item['price']) / 10 # 買超金額(萬)
+        total_vol_5d = item['vol_5d'] / 1000 # 🔧 (修正) 將 yfinance 的「股」轉換為「張」
+        buy_ratio = (net_buy_vol_5d / total_vol_5d) * 100 if total_vol_5d > 0 else 0
+        
+        # 隱蔽吃貨濾網：張數/金額聯集 + 佔比 > 5%
+        if not ((net_buy_vol_5d > 200 or net_buy_amount_10k > 1000) and buy_ratio > 5.0):
+            print("❌ 隱蔽佔比/金額不足")
+            continue
+            
+        # 🛡️ 節流第二關：籌碼過了，才去查 EPS (保護額度)
+        eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
+        if eps <= 0: 
+            print("❌ EPS 虧損")
+            continue 
+        
+        # 🛡️ 節流第三關：最後才查 YoY 跟 殖利率
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
+        yield_rate = get_dividend_yield_for_crawler(code, item['price'])
         
-        chips_history = get_finmind_chips_history(code, days=5)
-        buy_days = sum(1 for x in chips_history if x > 0)
+        print("✅ 完美過關！")
         
-        # 門檻：法人至少買 3 天 (或轉機股特例)
-        if buy_days >= 4 or (buy_days == 3 and yoy > -15.0):
-            
-            # 🎯 啟動計分模型 (Base: 50)
-            score = 50 
-            
-            # 1. 籌碼權重 (Max 30)
-            if buy_days == 5: score += 30
-            elif buy_days == 4: score += 20
-            elif buy_days == 3: score += 10
-            
-            # 2. 量縮權重 (Max 10)
-            if item['vol_ratio'] < 0.5: score += 10
-            elif item['vol_ratio'] < 0.6: score += 8
-            elif item['vol_ratio'] < 0.7: score += 5
-            
-            # 3. 乖離權重 (Max 10)
-            bias_pct = item['bias60'] * 100
-            if -8.0 <= bias_pct <= -5.0: score += 10
-            elif bias_pct < -8.0: score += 8
-            elif -5.0 < bias_pct <= -3.0: score += 5
+        # 🎯 重構計分模型 (Base: 40)
+        score = 40 
+        
+        # 1. 🛡️ 高股息護城河 (Max 20)
+        if yield_rate >= 5.0: score += 20
+        elif yield_rate >= 4.0: score += 15
+        elif yield_rate >= 3.0: score += 10
+        
+        # 2. 籌碼權重 (Max 20)
+        if buy_days_5d == 5: score += 20
+        elif buy_days_5d == 4: score += 15
+        elif buy_days_5d == 3: score += 10
+        
+        # 3. 量縮權重 (Max 10)
+        if item['vol_ratio'] < 0.5: score += 10
+        elif item['vol_ratio'] < 0.6: score += 8
+        elif item['vol_ratio'] < 0.7: score += 5
+        
+        # 4. 乖離權重 (Max 10)
+        bias_pct = item['bias60'] * 100
+        if -8.0 <= bias_pct <= -5.0: score += 10
+        elif bias_pct < -8.0: score += 8
+        elif -5.0 < bias_pct <= -3.0: score += 5
 
-            # 🎯 判斷趨勢狀態 (Trend Status)
-            if item['bias6'] > 0:
-                trend_status = "⭐ 底部起漲 (乖離6已翻正)"
-            else:
-                trend_status = "⏳ 築底量縮中 (乖離6仍為負)"
-                
-            # 計算建議進場價 (取今日收盤與季線的折衷，或是保守取今日收盤往下抓 1%)
-            entry_price = round(item['price'] * 0.99, 2)
+        # 🎯 判斷趨勢狀態 (Trend Status)
+        if item['bias6'] > 0:
+            trend_status = "⭐ 底部起漲 (乖離6已翻正)"
+        else:
+            trend_status = "⏳ 築底量縮中 (乖離6仍為負)"
+            
+        entry_price = round(item['price'] * 0.99, 2)
 
-            # 🏆 封裝入庫
-            final_list.append({
-                "date": item['real_date'],
-                "code": code,
-                "name": stock_meta[code]['name'],
-                "price": item['price'],
-                "score": score,
-                "trend_status": trend_status,
-                "entry_price": entry_price,
-                "bias60": f"{bias_pct:.1f}%",
-                "bias24": f"{item['bias24']*100:.1f}%", # 🔥 新增
-                "bias6": f"{item['bias6']*100:.1f}%",   # 🔥 新增
-                "vol_ratio": f"{item['vol_ratio']*100:.1f}%",
-                "eps": eps,
-                "yield_rate": yield_rate,
-                "buy_days": buy_days,
-                "tag": "左側黃金坑"
-            })
+        # 🏆 封裝入庫
+        final_list.append({
+            "date": item['real_date'],
+            "code": code,
+            "name": stock_meta[code]['name'],
+            "price": item['price'],
+            "score": score,
+            "trend_status": trend_status,
+            "entry_price": entry_price,
+            "bias60": f"{bias_pct:.1f}%",
+            "bias24": f"{item['bias24']*100:.1f}%", 
+            "bias6": f"{item['bias6']*100:.1f}%",   
+            "vol_ratio": f"{item['vol_ratio']*100:.1f}%",
+            "eps": eps,
+            "yield_rate": yield_rate,
+            "buy_days": buy_days_5d,
+            "tag": "左側黃金坑"
+        })
             print(f"   🏆 入選: {code} | 分數: {score} | 狀態: {trend_status}")
 
     # ---------------------------------------------------------
