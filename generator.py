@@ -209,10 +209,6 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
         
     return eps_latest, yield_rate, annual_div
 
-except: pass
-        
-    return eps_latest, yield_rate, annual_div
-
 # 🔥 [新增模組] 左側爬蟲專屬殖利率計算機 (使用免費 GUEST_TOKEN，不扣 VIP 額度)
 def get_dividend_yield_for_crawler(code, current_price):
     try:
