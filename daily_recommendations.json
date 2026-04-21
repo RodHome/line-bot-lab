@@ -51,8 +51,8 @@
         "sector": "半導體業",
         "price": 617.0,
         "turnover": 32818568000.0,
-        "chips_display": "16713張 (103.1億)",
-        "buy_value": 10311921000.0,
+        "chips_display": "17155張 (105.8億)",
+        "buy_value": 10584635000.0,
         "yoy": 34.25,
         "tag": "外資大買",
         "debug_info": {
@@ -308,28 +308,6 @@
         "first_entry_price": 281.5
     },
     {
-        "date": "2026-04-21",
-        "code": "3324",
-        "name": "雙鴻",
-        "exchange": "上櫃",
-        "sector": "散熱",
-        "price": 1050.0,
-        "turnover": 4534495000.0,
-        "chips_display": "4324張 (45.4億)",
-        "buy_value": 4540200000.0,
-        "yoy": 91.73,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 3329237000,
-            "last_rev": 1736460000,
-            "this_period": "2026/3",
-            "last_period": "2025/3",
-            "formula": "(3329237000 - 1736460000) / 1736460000"
-        },
-        "first_entry_date": "2026-03-25",
-        "first_entry_price": 1035.0
-    },
-    {
         "date": "2026-04-16",
         "code": "3037",
         "name": "欣興",
@@ -372,6 +350,28 @@
         },
         "first_entry_date": "2026-03-31",
         "first_entry_price": 236.5
+    },
+    {
+        "date": "2026-04-21",
+        "code": "3324",
+        "name": "雙鴻",
+        "exchange": "上櫃",
+        "sector": "散熱",
+        "price": 1050.0,
+        "turnover": 4534495000.0,
+        "chips_display": "3844張 (40.4億)",
+        "buy_value": 4036200000.0,
+        "yoy": 91.73,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 3329237000,
+            "last_rev": 1736460000,
+            "this_period": "2026/3",
+            "last_period": "2025/3",
+            "formula": "(3329237000 - 1736460000) / 1736460000"
+        },
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 1035.0
     },
     {
         "date": "2026-04-20",
@@ -528,28 +528,6 @@
         "first_entry_price": 63.4
     },
     {
-        "date": "2026-04-21",
-        "code": "3529",
-        "name": "力旺",
-        "exchange": "上櫃",
-        "sector": "半導體業",
-        "price": 4400.0,
-        "turnover": 4919205000.0,
-        "chips_display": "762張 (33.5億)",
-        "buy_value": 3352800000.0,
-        "yoy": 30.35,
-        "tag": "投信作帳",
-        "debug_info": {
-            "this_rev": 121169000,
-            "last_rev": 92956000,
-            "this_period": "2026/3",
-            "last_period": "2025/3",
-            "formula": "(121169000 - 92956000) / 92956000"
-        },
-        "first_entry_date": "2026-03-19",
-        "first_entry_price": 2775.0
-    },
-    {
         "date": "2026-04-12",
         "code": "2383",
         "name": "台光電",
@@ -592,6 +570,28 @@
         },
         "first_entry_date": "2026-03-19",
         "first_entry_price": 584.0
+    },
+    {
+        "date": "2026-04-21",
+        "code": "3529",
+        "name": "力旺",
+        "exchange": "上櫃",
+        "sector": "半導體業",
+        "price": 4400.0,
+        "turnover": 4919205000.0,
+        "chips_display": "685張 (30.1億)",
+        "buy_value": 3014000000.0,
+        "yoy": 30.35,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 121169000,
+            "last_rev": 92956000,
+            "this_period": "2026/3",
+            "last_period": "2025/3",
+            "formula": "(121169000 - 92956000) / 92956000"
+        },
+        "first_entry_date": "2026-03-19",
+        "first_entry_price": 2775.0
     },
     {
         "date": "2026-04-19",
