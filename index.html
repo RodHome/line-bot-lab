@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ 價值雷達戰情室 V2.5</title>
+    <title>🛡️ 價值雷達戰情室 V2.6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f1a; color: #f8fafc; }
@@ -16,7 +16,7 @@
 </head>
 <body class="p-4 md:p-10 max-w-7xl mx-auto min-h-screen">
 
-    <div class="ver-tag">Ver 2.5 (Smart Tagging System)</div>
+    <div class="ver-tag">Ver 2.6 (Layout Fixed)</div>
 
     <header class="mb-10 text-center md:text-left border-b border-slate-800 pb-6">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -24,14 +24,14 @@
                 <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2">價值雷達戰情室</h1>
                 <p class="text-slate-400 font-medium italic">自動化標籤系統 · 數據深度解碼</p>
             </div>
-            <div id="updateTime" class="text-slate-500 text-sm font-mono bg-slate-900 px-4 py-2 rounded-full border border-slate-800">數據解密中...</div>
+            <div id="updateTime" class="text-slate-500 text-sm font-mono bg-slate-900 px-4 py-2 rounded-full border border-slate-800">數據同步中...</div>
         </div>
     </header>
 
     <div class="flex flex-col md:flex-row gap-6 mb-10 items-center justify-between">
-        <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto">
-            <button onclick="renderData('HISTORY')" id="btn-HISTORY" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all">📊 歷史追蹤 (15日)</button>
+        <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto" id="filter-buttons">
             <button onclick="renderData('NEW')" id="btn-NEW" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all">🆕 今日最新 (3日)</button>
+            <button onclick="renderData('HISTORY')" id="btn-HISTORY" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all">📊 歷史追蹤 (15日)</button>
             <button onclick="renderData('DEV_ALL')" id="btn-DEV_ALL" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all border border-dashed border-slate-700">🚀 戰情全記錄</button>
         </div>
         <div id="stats-banner" class="text-slate-500 text-sm font-medium"></div>
@@ -53,7 +53,8 @@
                     baseDate = new Date(globalData[0].date);
                     document.getElementById('updateTime').innerText = `📡 最後同步: ${globalData[0].date}`;
                 }
-                renderData('HISTORY'); 
+                // 🔥 預設顯示「今日最新」
+                renderData('NEW'); 
             } catch (e) {
                 document.getElementById('stock-grid').innerHTML = `<div class="col-span-full text-center text-red-400 p-10 bg-red-900/10 rounded-2xl border border-red-900/20">JSON LINK ERROR</div>`;
             }
@@ -62,9 +63,12 @@
         function renderData(mode) {
             const buttons = ['NEW', 'HISTORY', 'DEV_ALL'];
             buttons.forEach(b => {
-                document.getElementById(`btn-${b}`).className = (b === mode) ? 
-                    "whitespace-nowrap px-6 py-2.5 rounded-lg font-bold bg-blue-600 text-white shadow-lg" : 
-                    "whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-slate-500 hover:text-slate-300";
+                const btn = document.getElementById(`btn-${b}`);
+                if (b === mode) {
+                    btn.className = "whitespace-nowrap px-6 py-2.5 rounded-lg font-bold bg-blue-600 text-white shadow-lg";
+                } else {
+                    btn.className = "whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-slate-500 hover:text-slate-300";
+                }
             });
 
             let filtered = [];
@@ -75,7 +79,7 @@
                 s.daysAgo = diffDays;
 
                 if (mode === 'NEW' && diffDays > 3) return; 
-                if (mode === 'HISTORY' && diffDays > 15) return;
+                if (mode === 'HISTORY' && (diffDays <= 3 || diffDays > 15)) return;
                 filtered.push(s);
             });
 
@@ -84,11 +88,10 @@
             let html = '';
             filtered.forEach(s => {
                 const roi = s.roiNum.toFixed(1);
-                const roiColor = roi == 0 ? "text-slate-500" : (s.roiNum > 0 ? "text-red-400" : "text-emerald-400");
+                const roiColor = s.roiNum == 0 ? "text-slate-500" : (s.roiNum > 0 ? "text-red-400" : "text-emerald-400");
                 const volValue = parseFloat(s.vol_ratio);
                 const buyDays = parseInt(s.buy_days);
 
-                // 🔥 核心：智慧標籤邏輯
                 let smartTags = '';
                 if (buyDays >= 4 && volValue < 70) {
                     smartTags += `<span class="badge-power px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm">💎 飆股基因</span>`;
@@ -140,11 +143,11 @@
 
                     <div class="grid grid-cols-2 gap-3 mt-auto">
                         <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
-                            <span class="text-[10px] text-slate-600 block mb-0.5">法人連買</span>
+                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">Buy Days</span>
                             <span class="text-sm font-black text-orange-400">${s.buy_days} 天</span>
                         </div>
                         <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
-                            <span class="text-[10px] text-slate-600 block mb-0.5">量縮率</span>
+                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">Vol Ratio</span>
                             <span class="text-sm font-black text-blue-500">${s.vol_ratio}</span>
                         </div>
                     </div>
@@ -152,7 +155,7 @@
             });
 
             document.getElementById('stock-grid').innerHTML = filtered.length > 0 ? html : `<div class="col-span-full py-20 text-slate-700 italic border-2 border-dashed border-slate-800 rounded-3xl text-center font-bold">無符合數據</div>`;
-            document.getElementById('stats-banner').innerHTML = `顯示 <strong>${filtered.length}</strong> 檔標的 | 智慧診斷已啟動`;
+            document.getElementById('stats-banner').innerHTML = `顯示 <strong>${filtered.length}</strong> 檔標的 | 模式: ${mode === 'NEW' ? '今日最新' : (mode === 'HISTORY' ? '歷史追蹤' : '戰情全記錄')}`;
         }
 
         loadData();
