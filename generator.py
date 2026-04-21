@@ -891,6 +891,37 @@ def generate_left_side_value():
             print(f"⚠️ 同步歷史價格失敗: {e}")
 
     # 執行融合 (除名機制就在這裡面：維持最近 30 個交易日)
+    # ---------------------------------------------------------
+    # 🔥 [關鍵修正] 老標的現價同步模組
+    # ---------------------------------------------------------
+    print("🔄 正在同步所有歷史標的的最新市場現價...")
+    if os.path.exists('left_side_value.json'):
+        try:
+            with open('left_side_value.json', 'r', encoding='utf-8') as f:
+                history_stocks = json.load(f)
+            
+            today_codes = {s['code'] for s in final_list}
+            for old_s in history_stocks:
+                code = old_s['code']
+                # 如果這檔老股票今天沒被雷達掃到(代表它起漲或條件變了)
+                # 我們依然要強迫更新它的價格，績效才不會失真
+                if code not in today_codes:
+                    try:
+                        suffix = ".TW" if len(code) == 4 else ".TWO"
+                        ticker = yf.Ticker(f"{code}{suffix}")
+                        # 抓取最後一筆成交價
+                        hist = ticker.history(period="1d")
+                        if not hist.empty:
+                            new_p = round(float(hist['Close'].iloc[-1]), 2)
+                            old_s['price'] = new_p
+                            # 💡 重要：更新它的資料日期為今天，否則會被 30 天機制除名
+                            old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                            final_list.append(old_s) 
+                    except: continue
+        except Exception as e:
+            print(f"⚠️ 同步歷史價格失敗: {e}")
+
+    # 執行融合與除名機制
     merged_list = merge_history_data(final_list, 'left_side_value.json', 'score')
     
     with open('left_side_value.json', 'w', encoding='utf-8') as f:
