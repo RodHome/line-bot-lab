@@ -590,7 +590,7 @@ def generate_left_side_value():
         return
 
     # ---------------------------------------------------------
-    # 🌊 第一層：大數據降維 (流動性 1000萬 ~ 5億)
+    # 🌊 第一層：大數據降維 (流動性 1000萬 ~ 5億，排除 ETF)
     # ---------------------------------------------------------
     print("🌊 [第一層] 大數據降維：尋找流動性 1000萬~5億 的潛伏股...")
     layer1_candidates = []
@@ -611,12 +611,13 @@ def generate_left_side_value():
                 idx_price = fields.index("收盤價") if "收盤價" in fields else 8
 
                 for row in target_table['data']:
-                    code = row[idx_code]
+                    code = str(row[idx_code]).strip()
                     if code not in stock_meta: continue
+                    if code.startswith('00'): continue # 🛡️ 防線：拆穿偽裝成股票的 ETF
                     try:
                         turnover = float(row[idx_turnover].replace(',', ''))
                         price = float(row[idx_price].replace(',', ''))
-                        # 🔥 修改：放寬上限至 5 億
+                        # 🔥 條件：放寬上限至 5 億
                         if 10000000 <= turnover <= 500000000 and price >= 10:
                             layer1_candidates.append({"code": code, "price": price, "market": "TW"})
                     except: pass
@@ -654,13 +655,14 @@ def generate_left_side_value():
                         for row in table['data']:
                             code = str(row[idx_code]).strip()
                             if code not in stock_meta: continue
+                            if code.startswith('00'): continue # 🛡️ 防線：拆穿偽裝成股票的 ETF
                             try:
                                 price_str = str(row[idx_price]).replace(',', '').strip()
                                 turnover_str = str(row[idx_turnover]).replace(',', '').strip()
                                 if price_str in ['----', '--', '除息', '除權'] or turnover_str in ['--', '']: continue
                                 turnover = float(turnover_str)
                                 price = float(price_str)
-                                # 🔥 修改：放寬上限至 5 億
+                                # 🔥 條件：放寬上限至 5 億
                                 if 10000000 <= turnover <= 500000000 and price >= 10:
                                     layer1_candidates.append({"code": code, "price": price, "market": "TWO"})
                             except: pass
@@ -673,7 +675,7 @@ def generate_left_side_value():
     print(f"✅ 第一層降維完畢，全市場 2000 檔中，共 {len(layer1_candidates)} 檔符合流動性門檻，進入第二層。")
 
     # ---------------------------------------------------------
-    # 📉 第二層：位階與動能過濾 (新增量縮比例與週線運算)
+    # 📉 第二層：位階與動能過濾 (不接破底刀)
     # ---------------------------------------------------------
     print(f"📉 [第二層] 啟動 yfinance 計算 (預計處理 {len(layer1_candidates)} 檔)...")
     layer2_candidates = []
@@ -736,7 +738,7 @@ def generate_left_side_value():
             item['bias24'] = bias24 
             item['bias6'] = bias6   
             item['vol_ratio'] = vol_ratio
-            item['vol_5d'] = sum(volumes[-5:]) # 🔥 傳近5日總量給第三層算佔比
+            item['vol_5d'] = sum(volumes[-5:]) 
             layer2_candidates.append(item)
             
         except Exception: pass
@@ -745,9 +747,9 @@ def generate_left_side_value():
     print(f"✅ 第二層過濾完畢，剩餘 {len(layer2_candidates)} 檔進入終極基本面與評分查核。")
 
     # ---------------------------------------------------------
-    # 🏦 第三層：聰明錢定錨與 🌟信心評分系統 (API 節流模式)
+    # 🏦 第三層：聰明錢定錨與 🌟動態評分系統
     # ---------------------------------------------------------
-    print("🏦 [第三層] 啟動 FinMind 查核與評分 (API 節流模式啟動)...")
+    print("🏦 [第三層] 啟動 FinMind 查核與動態評分 (API 節流模式啟動)...")
     final_list = []
     
     for item in layer2_candidates:
@@ -765,23 +767,29 @@ def generate_left_side_value():
         net_buy_vol_5d = sum(chips_history)
         total_vol_5d = item['vol_5d'] / 1000 
         buy_ratio = (net_buy_vol_5d / total_vol_5d) * 100 if total_vol_5d > 0 else 0
+        net_buy_amount_10k = (net_buy_vol_5d * item['price']) / 10
+        
+        # 🛡️ 隱蔽吃貨防線：買超大於 100張 或 500萬，且佔比 > 2.0% 
+        if not ((net_buy_vol_5d > 100 or net_buy_amount_10k > 500) and buy_ratio > 2.0):
+            print("❌ 佔比/金額不足")
+            continue
         
         # 2. 查基本面與殖利率
         eps, yield_rate, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
         
-        # 🎯 啟動計分模型 (Base: 50)
-        score = 50 
+        # 🎯 啟動計分模型 (Base: 40)
+        score = 40 
         
-        # 🛡️ 廉價品質指標懲罰：太薄的獲利自動往後排
+        # 🛡️ 廉價品質指標懲罰：太薄的獲利自動扣分往後排
         earnings_yield = eps / item['price'] if item['price'] > 0 else 0
         if eps < 0.3 or earnings_yield < 0.005:
             score -= 15 # 扣大分！EPS 太低的 C 級垃圾股會自動沉下去
             
         if item['is_anti_knife']: score += 5  # 有防守 K 線加分
         
-        # 3. 獲利與成長加分 (補上承諾的 YoY 與 EPS 加分)
+        # 3. 獲利與成長加分 (補上之前漏掉的)
         if eps > 0: score += 10
         if yoy > 10.0: score += 10
         if yield_rate >= 4.0: score += 10
@@ -803,14 +811,23 @@ def generate_left_side_value():
         elif bias_pct < -8.0: score += 8
         elif -5.0 < bias_pct <= -3.0: score += 5
 
-        # 🔥 L1 / L0 狀態分流 (讓你一眼看出誰可以買)
+        # ---------------------------------------------------------
+        # 🛡️ 資格層與輸出層 (決定誰有資格活下來)
+        # ---------------------------------------------------------
         if item['bias6'] > 0:
-            trend_status = "🔥 L1_左側起漲 (交易清單)"
+            trend_status = "🔥 L1_左側起漲"
+            is_qualified = (score >= 60)  # L1 交易清單的生死線：60分
         else:
-            trend_status = "⏳ L0_左側築底 (觀察清單)"
+            trend_status = "⏳ L0_左側築底"
+            is_qualified = (score >= 75)  # L0 觀察池的生死線：75分 (非極品不看)
+
+        # ❌ 不及格的直接淘汰，絕對不放進 final_list 佔用注意力
+        if not is_qualified:
+            print(f"❌ 資格不符 ({trend_status} 但分數僅 {score} 分)")
+            continue
             
         entry_price = round(item['price'] * 0.99, 2)
-        print(f"✅ 入選 | 分數: {score} | {trend_status}")
+        print(f"✅ 最終清單入選 | 分數: {score} | {trend_status}")
 
         final_list.append({
             "date": item['real_date'],
@@ -829,10 +846,9 @@ def generate_left_side_value():
             "buy_days": buy_days_5d,
             "tag": "左側黃金坑"
         })
-        print(f"   🏆 入選: {code} | 分數: {score} | 狀態: {trend_status}")
 
     # ---------------------------------------------------------
-    # 📦 結算與存檔 (融入 30 天歷史大水庫)
+    # 📦 結算與存檔
     # ---------------------------------------------------------
     if final_list:
         print(f"✅ 今日掃描共 {len(final_list)} 檔無敵黃金坑達標。")
