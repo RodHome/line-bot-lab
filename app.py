@@ -413,7 +413,7 @@ def fetch_chips_accumulate(stock_id):
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
         start = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
-        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": start, "token": token}, timeout=5)
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": stock_id, "start_date": start, "token": token}, timeout=10)
         data = res.json().get('data', [])
         if not data: return "0 (5日: 0)", "0 (5日: 0)", 0, 0, 0, 0 # 👈 增加至6個變數
         
@@ -1195,7 +1195,7 @@ def handle_message(event):
 
         # 🔥 並行抓取開始
         data = None
-        chips_res = ("0 (5日: 0)", "0 (5日: 0)", 0, 0, 0, 0) # 👈 配合新函數擴充至 6 個
+        chips_res = ("N/A (超時)", "N/A (超時)", 0, 0, 0, 0)
         eps = "N/A"
         yield_rate = "N/A"
 
@@ -1214,7 +1214,7 @@ def handle_message(event):
                     future_yield = executor.submit(fetch_dividend_yield, stock_id, data['close'])
                     yield_rate = future_yield.result(timeout=3)
                 
-                chips_res = future_chips.result(timeout=5)
+                chips_res = future_chips.result(timeout=10)
                 eps = future_eps.result(timeout=5)
 
         except Exception as e:
