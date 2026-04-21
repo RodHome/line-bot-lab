@@ -446,7 +446,9 @@ def fetch_chips_accumulate(stock_id):
         t_consec = get_consec(t_history)
 
         return f"{today_f} (5日: {acc_f})", f"{today_t} (5日: {acc_t})", acc_f, acc_t, f_consec, t_consec
-    except: return "N/A", "N/A", 0, 0, 0, 0
+    except Exception as e: 
+        print(f"🚨 [籌碼崩潰真兇] {type(e).__name__}: {e}") # 👈 把真正的錯誤印在伺服器日誌上
+        return "N/A(錯誤)", "N/A(錯誤)", 0, 0, 0, 0
 
 def fetch_dividend_yield(stock_id, current_price):
     token = MY_FINMIND_TOKEN # 👈 改成這行
@@ -1215,7 +1217,7 @@ def handle_message(event):
                     yield_rate = future_yield.result(timeout=3)
                 
                 chips_res = future_chips.result(timeout=10)
-                eps = future_eps.result(timeout=5)
+                eps = future_eps.result(timeout=10)
 
         except Exception as e:
             print(f"並行錯誤: {e}")
