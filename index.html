@@ -3,80 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ 價值雷達戰情室 V2.6</title>
+    <title>⚡ 雙引擎雷達戰情室 V3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f1a; color: #f8fafc; }
         .card { transition: all 0.3s ease; border: 1px solid #1e293b; background: linear-gradient(145deg, #111827, #1f2937); }
-        .card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.3); border-color: #3b82f6; }
-        .badge-power { background: linear-gradient(90deg, #f59e0b, #ef4444); color: white; animation: pulse 2s infinite; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.3); }
+        
+        /* 左側專屬視覺 */
+        .mode-left .card:hover { border-color: #3b82f6; }
+        .badge-left { background: linear-gradient(90deg, #3b82f6, #10b981); color: white; animation: pulse 2s infinite; }
+        
+        /* 右側專屬視覺 */
+        .mode-right .card:hover { border-color: #ef4444; box-shadow: 0 15px 30px -5px rgba(239, 68, 68, 0.3); }
+        .badge-right { background: linear-gradient(90deg, #ef4444, #f59e0b); color: white; animation: pulse-fast 1.5s infinite; }
+        
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .ver-tag { position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: #475569; pointer-events: none; }
+        @keyframes pulse-fast { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+        .ver-tag { position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: #475569; pointer-events: none; z-index: 50;}
+        
+        /* Tab 按鈕樣式 */
+        .tab-active-left { background-color: #2563eb; color: white; border-color: #3b82f6; }
+        .tab-active-right { background-color: #dc2626; color: white; border-color: #ef4444; }
+        .tab-inactive { background-color: #1e293b; color: #94a3b8; border-color: #334155; }
+        .tab-inactive:hover { background-color: #334155; color: white; }
     </style>
 </head>
-<body class="p-4 md:p-10 max-w-7xl mx-auto min-h-screen">
+<body class="p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-left" id="main-body">
 
-    <div class="ver-tag">Ver 2.6 (Layout Fixed)</div>
+    <div class="ver-tag">Ver 3.0 (Dual Engine)</div>
 
-    <header class="mb-10 text-center md:text-left border-b border-slate-800 pb-6">
+    <header class="mb-8 text-center md:text-left border-b border-slate-800 pb-6">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-                <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2">價值雷達戰情室</h1>
-                <p class="text-slate-400 font-medium italic">自動化標籤系統 · 數據深度解碼</p>
+                <h1 id="main-title" class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2 transition-all">價值雷達戰情室</h1>
+                <p id="sub-title" class="text-slate-400 font-medium italic">尋找被錯殺的黃金坑 · 左側潛伏</p>
             </div>
-            <div id="updateTime" class="text-slate-500 text-sm font-mono bg-slate-900 px-4 py-2 rounded-full border border-slate-800">數據同步中...</div>
+            <div class="flex flex-col items-end gap-2">
+                <div id="updateTimeL" class="text-slate-500 text-xs font-mono">左側同步: 讀取中...</div>
+                <div id="updateTimeR" class="text-slate-500 text-xs font-mono">右側同步: 讀取中...</div>
+            </div>
         </div>
     </header>
 
-    <div class="flex flex-col md:flex-row gap-6 mb-10 items-center justify-between">
-        <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto" id="filter-buttons">
-            <button onclick="renderData('NEW')" id="btn-NEW" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all">🆕 今日最新 (3日)</button>
-            <button onclick="renderData('HISTORY')" id="btn-HISTORY" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all">📊 歷史追蹤 (15日)</button>
-            <button onclick="renderData('DEV_ALL')" id="btn-DEV_ALL" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all border border-dashed border-slate-700">🚀 戰情全記錄</button>
+    <div class="flex gap-4 mb-8 justify-center md:justify-start">
+        <button onclick="switchStrategy('LEFT')" id="tab-LEFT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-left">🛡️ 左側黃金坑</button>
+        <button onclick="switchStrategy('RIGHT')" id="tab-RIGHT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive">🚀 右側動能飆股</button>
+    </div>
+
+    <div class="flex flex-col md:flex-row gap-4 mb-10 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+        <div class="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto">
+            <button onclick="renderData('NEW')" id="btn-NEW" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all bg-blue-600 text-white shadow-lg">🆕 今日最新 (3日)</button>
+            <button onclick="renderData('HISTORY')" id="btn-HISTORY" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-slate-500 hover:text-slate-300 transition-all">📊 歷史追蹤 (15日)</button>
+            <button onclick="renderData('DEV_ALL')" id="btn-DEV_ALL" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-slate-500 hover:text-slate-300 transition-all border border-dashed border-slate-700">🚀 戰情全記錄</button>
         </div>
-        <div id="stats-banner" class="text-slate-500 text-sm font-medium"></div>
+        <div id="stats-banner" class="text-slate-400 text-sm font-medium bg-slate-800 px-4 py-2 rounded-lg"></div>
     </div>
 
     <div id="stock-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <div class="col-span-full text-center py-20 text-slate-500 font-bold text-xl">雷達掃描中...</div>
+        <div class="col-span-full text-center py-20 text-slate-500 font-bold text-xl">雙引擎數據載入中...</div>
     </div>
 
     <script>
-        let globalData = [];
-        let baseDate = new Date();
+        let leftData = [];
+        let rightData = [];
+        let baseDateLeft = new Date();
+        let baseDateRight = new Date();
+        
+        let currentStrategy = 'LEFT'; // 'LEFT' or 'RIGHT'
+        let currentMode = 'NEW';      // 'NEW', 'HISTORY', 'DEV_ALL'
 
+        // 同時抓取兩份 JSON 檔案
         async function loadData() {
             try {
-                const response = await fetch('left_side_value.json?t=' + Date.now());
-                globalData = await response.json();
-                if (globalData.length > 0) {
-                    baseDate = new Date(globalData[0].date);
-                    document.getElementById('updateTime').innerText = `📡 最後同步: ${globalData[0].date}`;
+                // 使用 Promise.all 同時發出請求加速載入
+                const [resLeft, resRight] = await Promise.all([
+                    fetch('left_side_value.json?t=' + Date.now()).catch(() => null),
+                    fetch('daily_recommendations.json?t=' + Date.now()).catch(() => null)
+                ]);
+
+                if (resLeft && resLeft.ok) {
+                    leftData = await resLeft.json();
+                    if (leftData.length > 0) {
+                        baseDateLeft = new Date(leftData[0].date);
+                        document.getElementById('updateTimeL').innerText = `🛡️ 左側同步: ${leftData[0].date}`;
+                    }
                 }
-                // 🔥 預設顯示「今日最新」
-                renderData('NEW'); 
+
+                if (resRight && resRight.ok) {
+                    rightData = await resRight.json();
+                    if (rightData.length > 0) {
+                        baseDateRight = new Date(rightData[0].date);
+                        document.getElementById('updateTimeR').innerText = `🚀 右側同步: ${rightData[0].date}`;
+                    }
+                }
+                
+                // 預設渲染左側的「今日最新」
+                renderData(currentMode); 
+
             } catch (e) {
-                document.getElementById('stock-grid').innerHTML = `<div class="col-span-full text-center text-red-400 p-10 bg-red-900/10 rounded-2xl border border-red-900/20">JSON LINK ERROR</div>`;
+                document.getElementById('stock-grid').innerHTML = `<div class="col-span-full text-center text-red-400 p-10 bg-red-900/10 rounded-2xl border border-red-900/20">🚨 資料讀取失敗，請確認 JSON 檔案是否存在。</div>`;
             }
         }
 
+        // 切換主策略 (左側/右側)
+        function switchStrategy(strategy) {
+            currentStrategy = strategy;
+            
+            const btnLeft = document.getElementById('tab-LEFT');
+            const btnRight = document.getElementById('tab-RIGHT');
+            const mainBody = document.getElementById('main-body');
+            const mainTitle = document.getElementById('main-title');
+            const subTitle = document.getElementById('sub-title');
+
+            if (strategy === 'LEFT') {
+                btnLeft.className = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-left";
+                btnRight.className = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive";
+                mainBody.className = "p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-left";
+                mainTitle.className = "text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2 transition-all";
+                subTitle.innerText = "尋找被錯殺的黃金坑 · 左側潛伏";
+                
+                // 次頁籤顏色切換
+                document.getElementById('btn-NEW').classList.replace('bg-red-600', 'bg-blue-600');
+            } else {
+                btnLeft.className = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive";
+                btnRight.className = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-right";
+                mainBody.className = "p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-right";
+                mainTitle.className = "text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400 mb-2 transition-all";
+                subTitle.innerText = "追擊量價齊揚的突破口 · 右側動能";
+                
+                // 次頁籤顏色切換
+                document.getElementById('btn-NEW').classList.replace('bg-blue-600', 'bg-red-600');
+            }
+
+            renderData(currentMode); // 重新渲染當前模式
+        }
+
+        // 渲染資料邏輯
         function renderData(mode) {
+            currentMode = mode;
             const buttons = ['NEW', 'HISTORY', 'DEV_ALL'];
+            const activeBgClass = currentStrategy === 'LEFT' ? 'bg-blue-600' : 'bg-red-600';
+
             buttons.forEach(b => {
                 const btn = document.getElementById(`btn-${b}`);
                 if (b === mode) {
-                    btn.className = "whitespace-nowrap px-6 py-2.5 rounded-lg font-bold bg-blue-600 text-white shadow-lg";
+                    btn.className = `whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-white shadow-lg ${activeBgClass}`;
                 } else {
-                    btn.className = "whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-slate-500 hover:text-slate-300";
+                    btn.className = "whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-slate-500 hover:text-slate-300 border border-transparent";
+                    if(b === 'DEV_ALL') btn.classList.add('border-dashed', 'border-slate-700');
                 }
             });
 
+            // 根據當前策略選擇資料來源
+            let sourceData = currentStrategy === 'LEFT' ? leftData : rightData;
+            let baseDate = currentStrategy === 'LEFT' ? baseDateLeft : baseDateRight;
+
             let filtered = [];
-            globalData.forEach(s => {
+            sourceData.forEach(s => {
                 const entryDate = new Date(s.first_entry_date);
                 const diffDays = Math.ceil(Math.abs(baseDate - entryDate) / (1000 * 60 * 60 * 24));
-                s.roiNum = ((parseFloat(s.price) - parseFloat(s.first_entry_price)) / parseFloat(s.first_entry_price) * 100);
+                
+                // 統一計算 ROI (相容 left 的 price 和 right 的 close)
+                const currentPrice = parseFloat(s.price || s.close || s.first_entry_price); 
+                const entryPrice = parseFloat(s.first_entry_price);
+                s.roiNum = ((currentPrice - entryPrice) / entryPrice * 100);
                 s.daysAgo = diffDays;
+                s.currentPriceDisplay = currentPrice;
 
                 if (mode === 'NEW' && diffDays > 3) return; 
                 if (mode === 'HISTORY' && (diffDays <= 3 || diffDays > 15)) return;
@@ -89,41 +182,52 @@
             filtered.forEach(s => {
                 const roi = s.roiNum.toFixed(1);
                 const roiColor = s.roiNum == 0 ? "text-slate-500" : (s.roiNum > 0 ? "text-red-400" : "text-emerald-400");
-                const volValue = parseFloat(s.vol_ratio);
-                const buyDays = parseInt(s.buy_days);
-
-                let smartTags = '';
-                if (buyDays >= 4 && volValue < 70) {
-                    smartTags += `<span class="badge-power px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm">💎 飆股基因</span>`;
-                }
-                if (buyDays === 5) {
-                    smartTags += `<span class="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded text-[10px] font-bold">🎯 籌碼鎖定</span>`;
-                }
-                if (volValue < 50) {
-                    smartTags += `<span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-bold">🌊 窒息量</span>`;
-                }
-
+                
+                // --- 共通區塊：頭部 (名稱、代號、價格) ---
                 html += `
-                <div class="card rounded-2xl p-6 flex flex-col h-full">
+                <div class="card rounded-2xl p-6 flex flex-col h-full relative overflow-hidden">
+                    ${s.roiNum > 20 ? '<div class="absolute -right-6 top-6 bg-red-600 text-white text-[10px] font-black py-1 px-8 transform rotate-45 shadow-lg">飆股</div>' : ''}
+                    
                     <div class="flex justify-between items-start mb-2">
                         <div>
                             <h2 class="text-2xl font-bold text-white">${s.name}</h2>
                             <p class="text-slate-600 font-mono text-sm tracking-widest">${s.code}</p>
                         </div>
                         <div class="text-right">
-                            <span class="text-2xl font-black text-slate-100">$${s.price}</span>
+                            <span class="text-2xl font-black text-slate-100">$${s.currentPriceDisplay}</span>
                         </div>
-                    </div>
+                    </div>`;
 
-                    <div class="flex flex-wrap gap-1.5 mb-4 min-h-[24px]">
-                        ${smartTags}
-                    </div>
+                // --- 差異化區塊：智慧標籤與狀態 ---
+                html += `<div class="flex flex-wrap gap-1.5 mb-4 min-h-[24px]">`;
+                
+                if (currentStrategy === 'LEFT') {
+                    // 左側專屬標籤
+                    const volValue = parseFloat(s.vol_ratio);
+                    const buyDays = parseInt(s.buy_days);
+                    if (buyDays >= 4 && volValue < 70) html += `<span class="badge-left px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm">💎 飆股基因</span>`;
+                    if (buyDays === 5) html += `<span class="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded text-[10px] font-bold">🎯 籌碼鎖定</span>`;
+                    if (volValue < 50) html += `<span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-bold">🌊 窒息量</span>`;
+                    
+                    html += `</div><div class="flex items-center gap-2 mb-6">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${s.score || 'N/A'} PTS</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black border ${s.trend_status && s.trend_status.includes('L1') ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}">${s.trend_status && s.trend_status.includes('L1') ? 'L1 起漲' : 'L0 築底'}</span>
+                    </div>`;
+                } else {
+                    // 右側專屬標籤
+                    const yoyVal = parseFloat(s.yoy);
+                    const buyVal = parseInt(s.buy_value);
+                    if (yoyVal > 20) html += `<span class="badge-right px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm">🔥 業績爆發</span>`;
+                    if (buyVal > 5000) html += `<span class="bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[10px] font-bold">💰 資金狂潮</span>`;
+                    if (s.tag) html += `<span class="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold">${s.tag}</span>`;
+                    
+                    html += `</div><div class="flex items-center gap-2 mb-6">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black border bg-red-500/10 text-red-400 border-red-500/20">🚀 右側動能</span>
+                    </div>`;
+                }
 
-                    <div class="flex items-center gap-2 mb-6">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${s.score} PTS</span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-black border ${s.trend_status.includes('L1') ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}">${s.trend_status.includes('L1') ? 'L1 起漲' : 'L0 築底'}</span>
-                    </div>
-
+                // --- 共通區塊：戰績面板 ---
+                html += `
                     <div class="bg-slate-950/60 rounded-xl p-4 border border-slate-800/50 mb-6">
                         <div class="flex justify-between items-center mb-3 text-[10px] text-slate-500 font-bold">
                             <span>Entry: ${s.first_entry_date}</span>
@@ -139,25 +243,44 @@
                                 <span class="text-2xl font-black ${roiColor}">${s.roiNum > 0 ? '+' : ''}${roi}%</span>
                             </div>
                         </div>
-                    </div>
+                    </div>`;
 
-                    <div class="grid grid-cols-2 gap-3 mt-auto">
+                // --- 差異化區塊：底部數據欄 ---
+                html += `<div class="grid grid-cols-2 gap-3 mt-auto">`;
+                
+                if (currentStrategy === 'LEFT') {
+                    html += `
                         <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
-                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">Buy Days</span>
+                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">連買天數</span>
                             <span class="text-sm font-black text-orange-400">${s.buy_days} 天</span>
                         </div>
                         <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
-                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">Vol Ratio</span>
+                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">量縮率</span>
                             <span class="text-sm font-black text-blue-500">${s.vol_ratio}</span>
+                        </div>`;
+                } else {
+                    html += `
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
+                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">法人買超(萬)</span>
+                            <span class="text-sm font-black text-red-400">${s.buy_value}</span>
                         </div>
-                    </div>
-                </div>`;
+                        <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
+                            <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">營收 YoY</span>
+                            <span class="text-sm font-black text-green-400">${s.yoy > 0 ? '+' : ''}${s.yoy}%</span>
+                        </div>`;
+                }
+                
+                html += `</div></div>`;
             });
 
-            document.getElementById('stock-grid').innerHTML = filtered.length > 0 ? html : `<div class="col-span-full py-20 text-slate-700 italic border-2 border-dashed border-slate-800 rounded-3xl text-center font-bold">無符合數據</div>`;
-            document.getElementById('stats-banner').innerHTML = `顯示 <strong>${filtered.length}</strong> 檔標的 | 模式: ${mode === 'NEW' ? '今日最新' : (mode === 'HISTORY' ? '歷史追蹤' : '戰情全記錄')}`;
+            const modeName = mode === 'NEW' ? '今日最新' : (mode === 'HISTORY' ? '歷史追蹤' : '戰情全記錄');
+            const stratName = currentStrategy === 'LEFT' ? '左側潛伏' : '右側動能';
+            
+            document.getElementById('stock-grid').innerHTML = filtered.length > 0 ? html : `<div class="col-span-full py-20 text-slate-700 italic border-2 border-dashed border-slate-800 rounded-3xl text-center font-bold">目前無符合數據</div>`;
+            document.getElementById('stats-banner').innerHTML = `顯示 <strong>${filtered.length}</strong> 檔 | ${stratName} - ${modeName}`;
         }
 
+        // 初始化載入
         loadData();
     </script>
 </body>
