@@ -564,8 +564,9 @@ def generate_daily_recommendations():
     except Exception as e:
         print(f"❌ [Task 2] 發生錯誤: {e}")
 
-    # 👇👇👇 從這裡開始複製，把缺漏的右側同步模組補上去 👇👇👇
-    # 🔥 [新增] 老標的現價同步模組：確保「右側學長」就算沒進榜，現價也要每天更新
+    # =========================================================
+    # 👇👇👇 請把【右側】的老標的同步模組貼在這裡 👇👇👇
+    # =========================================================
     print("🔄 正在同步右側歷史標的的最新現價...")
     if os.path.exists('daily_recommendations.json'):
         try:
@@ -575,24 +576,37 @@ def generate_daily_recommendations():
             today_codes = {s['code'] for s in final_list}
             for old_s in history_stocks:
                 code = old_s['code']
-                # 如果這檔老股票今天沒進榜，強迫更新它的價格
                 if code not in today_codes:
                     try:
-                        suffix = ".TW" if len(code) == 4 else ".TWO"
-                        ticker = yf.Ticker(f"{code}{suffix}")
-                        # 快速抓取最新一筆收盤價
-                        hist = ticker.history(period="1d")
+                        exchange_type = old_s.get('exchange')
+                        
+                        if exchange_type == '上櫃':
+                            ticker = yf.Ticker(f"{code}.TWO")
+                            hist = ticker.history(period="1d")
+                        elif exchange_type == '上市':
+                            ticker = yf.Ticker(f"{code}.TW")
+                            hist = ticker.history(period="1d")
+                        else:
+                            # 舊資料過渡期保護
+                            ticker = yf.Ticker(f"{code}.TW")
+                            hist = ticker.history(period="1d")
+                            if hist.empty:
+                                ticker = yf.Ticker(f"{code}.TWO")
+                                hist = ticker.history(period="1d")
+
                         if not hist.empty:
                             new_p = round(float(hist['Close'].iloc[-1]), 2)
                             old_s['price'] = new_p
-                            # 💡 重要：更新日期為今天，這樣才不會被 30 天機制淘汰
                             old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                            final_list.append(old_s) # 塞回今日清單參加融合
+                            final_list.append(old_s) 
+                            
                     except Exception as e:
                         print(f"⚠️ 右側學長 {code} 更新股價失敗: {e}")
         except Exception as e:
             print(f"⚠️ 讀取 daily_recommendations.json 失敗: {e}")
-    # 👆👆👆 複製到這裡結束 👆👆👆
+    # =========================================================
+    # 👆👆👆 貼到這裡結束 👆👆👆
+    # =========================================================
     
     # 📦 [修改] 呼叫融合大腦，結合歷史 30 天記憶後存檔
     merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'buy_value')
@@ -868,6 +882,8 @@ def generate_left_side_value():
             "code": code,
             "name": stock_meta[code]['name'],
             "price": item['price'],
+            # 👇 新增這行！把第一層貼好的標籤傳承下來，並統一叫 exchange
+            "exchange": "上市" if item.get('market') == 'TW' else "上櫃",
             "score": score,
             "trend_status": trend_status,
             "entry_price": entry_price,
@@ -892,33 +908,49 @@ def generate_left_side_value():
     else:
         print("⚠️ 今日掃描無股票通過三層漏斗。")
 
-    # 🔥 [新增] 老標的現價同步模組：確保「老學長」就算起漲了，現價也要每天更新
-    print("🔄 正在同步歷史標的的最新現價...")
+    # =========================================================
+    # 👇👇👇 請把【左側】的老標的同步模組貼在這裡 👇👇👇
+    # =========================================================
+    print("🔄 正在同步左側歷史標的的最新現價...")
     if os.path.exists('left_side_value.json'):
         try:
             with open('left_side_value.json', 'r', encoding='utf-8') as f:
                 history_stocks = json.load(f)
             
-            # 找出目前在 JSON 裡，但沒進今日榜單的代號
             today_codes = {s['code'] for s in final_list}
             for old_s in history_stocks:
                 code = old_s['code']
-                # 如果這檔老股票今天沒進榜，我們強迫幫它更新價格
                 if code not in today_codes:
                     try:
-                        suffix = ".TW" if len(code) == 4 else ".TWO"
-                        ticker = yf.Ticker(f"{code}{suffix}")
-                        # 快速抓取最新一筆價格
-                        hist = ticker.history(period="1d")
+                        exchange_type = old_s.get('exchange')
+                        
+                        if exchange_type == '上櫃':
+                            ticker = yf.Ticker(f"{code}.TWO")
+                            hist = ticker.history(period="1d")
+                        elif exchange_type == '上市':
+                            ticker = yf.Ticker(f"{code}.TW")
+                            hist = ticker.history(period="1d")
+                        else:
+                            # 舊資料過渡期保護
+                            ticker = yf.Ticker(f"{code}.TW")
+                            hist = ticker.history(period="1d")
+                            if hist.empty:
+                                ticker = yf.Ticker(f"{code}.TWO")
+                                hist = ticker.history(period="1d")
+
                         if not hist.empty:
                             new_p = round(float(hist['Close'].iloc[-1]), 2)
                             old_s['price'] = new_p
-                            # 更新日期為今天，確保不會被 merge_history_data 誤砍
                             old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                            final_list.append(old_s) # 塞回清單一起參加融合
-                    except: continue
+                            final_list.append(old_s) 
+                            
+                    except Exception as e:
+                        print(f"⚠️ 左側學長 {code} 更新股價失敗: {e}")
         except Exception as e:
-            print(f"⚠️ 同步歷史價格失敗: {e}")
+            print(f"⚠️ 讀取 left_side_value.json 失敗: {e}")
+    # =========================================================
+    # 👆👆👆 貼到這裡結束 👆👆👆
+    # =========================================================
 
     # 執行融合 (除名機制就在這裡面：維持最近 30 個交易日)
     # ---------------------------------------------------------
