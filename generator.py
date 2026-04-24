@@ -564,6 +564,36 @@ def generate_daily_recommendations():
     except Exception as e:
         print(f"❌ [Task 2] 發生錯誤: {e}")
 
+    # 👇👇👇 從這裡開始複製，把缺漏的右側同步模組補上去 👇👇👇
+    # 🔥 [新增] 老標的現價同步模組：確保「右側學長」就算沒進榜，現價也要每天更新
+    print("🔄 正在同步右側歷史標的的最新現價...")
+    if os.path.exists('daily_recommendations.json'):
+        try:
+            with open('daily_recommendations.json', 'r', encoding='utf-8') as f:
+                history_stocks = json.load(f)
+            
+            today_codes = {s['code'] for s in final_list}
+            for old_s in history_stocks:
+                code = old_s['code']
+                # 如果這檔老股票今天沒進榜，強迫更新它的價格
+                if code not in today_codes:
+                    try:
+                        suffix = ".TW" if len(code) == 4 else ".TWO"
+                        ticker = yf.Ticker(f"{code}{suffix}")
+                        # 快速抓取最新一筆收盤價
+                        hist = ticker.history(period="1d")
+                        if not hist.empty:
+                            new_p = round(float(hist['Close'].iloc[-1]), 2)
+                            old_s['price'] = new_p
+                            # 💡 重要：更新日期為今天，這樣才不會被 30 天機制淘汰
+                            old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                            final_list.append(old_s) # 塞回今日清單參加融合
+                    except Exception as e:
+                        print(f"⚠️ 右側學長 {code} 更新股價失敗: {e}")
+        except Exception as e:
+            print(f"⚠️ 讀取 daily_recommendations.json 失敗: {e}")
+    # 👆👆👆 複製到這裡結束 👆👆👆
+    
     # 📦 [修改] 呼叫融合大腦，結合歷史 30 天記憶後存檔
     merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'buy_value')
     if merged_list:
