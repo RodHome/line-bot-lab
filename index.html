@@ -183,6 +183,14 @@
                 const roi = s.roiNum.toFixed(1);
                 const roiColor = s.roiNum == 0 ? "text-slate-500" : (s.roiNum > 0 ? "text-red-400" : "text-emerald-400");
                 
+                // 處理市值 Badge (新增邏輯)
+                let capBadgeHtml = '';
+                if (s.cap_size === '大型權值股') {
+                    capBadgeHtml = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-900/50 text-blue-300 border border-blue-700/50 ml-2">🐘 權值股</span>`;
+                } else if (s.cap_size === '中小型股') {
+                    capBadgeHtml = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-orange-900/50 text-orange-300 border border-orange-700/50 ml-2">🚀 中小型</span>`;
+                }
+
                 // --- 共通區塊：頭部 (名稱、代號、價格) ---
                 html += `
                 <div class="card rounded-2xl p-6 flex flex-col h-full relative overflow-hidden">
@@ -190,7 +198,10 @@
                     
                     <div class="flex justify-between items-start mb-2">
                         <div>
-                            <h2 class="text-2xl font-bold text-white">${s.name}</h2>
+                            <div class="flex items-center">
+                                <h2 class="text-2xl font-bold text-white">${s.name}</h2>
+                                ${capBadgeHtml}
+                            </div>
                             <p class="text-slate-600 font-mono text-sm tracking-widest">${s.code}</p>
                         </div>
                         <div class="text-right">
@@ -209,9 +220,11 @@
                     if (buyDays === 5) html += `<span class="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded text-[10px] font-bold">🎯 籌碼鎖定</span>`;
                     if (volValue < 50) html += `<span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-bold">🌊 窒息量</span>`;
                     
-                    html += `</div><div class="flex items-center gap-2 mb-6">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${s.score || 'N/A'} PTS</span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-black border ${s.trend_status && s.trend_status.includes('L1') ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}">${s.trend_status && s.trend_status.includes('L1') ? 'L1 起漲' : 'L0 築底'}</span>
+                    html += `</div><div class="flex justify-between items-center mb-6">
+                        <div class="flex gap-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${s.score || 'N/A'} PTS</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black border ${s.trend_status && s.trend_status.includes('L1') ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}">${s.trend_status && s.trend_status.includes('L1') ? 'L1 起漲' : 'L0 築底'}</span>
+                        </div>
                     </div>`;
                 } else {
                     // 右側專屬標籤
@@ -221,8 +234,9 @@
                     if (buyVal > 5000) html += `<span class="bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[10px] font-bold">💰 資金狂潮</span>`;
                     if (s.tag) html += `<span class="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold">${s.tag}</span>`;
                     
-                    html += `</div><div class="flex items-center gap-2 mb-6">
+                    html += `</div><div class="flex justify-between items-center mb-6">
                         <span class="px-2 py-0.5 rounded text-[10px] font-black border bg-red-500/10 text-red-400 border-red-500/20">🚀 右側動能</span>
+                        ${s.m_score ? `<span class="text-[12px] font-bold text-yellow-400 border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 rounded">⚡ 動能評分: ${s.m_score}</span>` : ''}
                     </div>`;
                 }
 
@@ -273,15 +287,4 @@
                 html += `</div></div>`;
             });
 
-            const modeName = mode === 'NEW' ? '今日最新' : (mode === 'HISTORY' ? '歷史追蹤' : '戰情全記錄');
-            const stratName = currentStrategy === 'LEFT' ? '左側潛伏' : '右側動能';
-            
-            document.getElementById('stock-grid').innerHTML = filtered.length > 0 ? html : `<div class="col-span-full py-20 text-slate-700 italic border-2 border-dashed border-slate-800 rounded-3xl text-center font-bold">目前無符合數據</div>`;
-            document.getElementById('stats-banner').innerHTML = `顯示 <strong>${filtered.length}</strong> 檔 | ${stratName} - ${modeName}`;
-        }
-
-        // 初始化載入
-        loadData();
-    </script>
-</body>
-</html>
+            const modeName = mode === 'NEW' ? '今日最新' : (mode === 'HISTORY' ? '歷史
