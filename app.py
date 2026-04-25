@@ -504,6 +504,10 @@ def check_stock_worker_turbo(item):
         yoy = item_data.get('yoy', 'N/A')
         tag = item_data.get('tag', '強勢股')
         
+        # 👇👇👇 新增這兩行：把標籤與分數拿出來 👇👇👇
+        cap_size = item_data.get('cap_size', '中小型股')
+        m_score = item_data.get('m_score', 0)
+        
         # 3. 取得技術指標
         signals = get_technical_signals(data, 1001 if buy_value > 0 else 0)
         signal_str = " | ".join(signals)
@@ -511,7 +515,7 @@ def check_stock_worker_turbo(item):
         # 格式化 YoY 顯示字串
         yoy_display = f"+{yoy}%" if isinstance(yoy, (int, float)) and yoy > 0 else f"{yoy}%"
         
-        # 🔥 新增：提取初始推薦日與價格，並計算「推薦至今累積漲幅」
+        # 提取初始推薦日與價格，並計算「推薦至今累積漲幅」
         first_date = item_data.get('first_entry_date', 'N/A')
         first_price = item_data.get('first_entry_price')
         
@@ -521,17 +525,21 @@ def check_stock_worker_turbo(item):
             sign = "+" if profit_pct > 0 else ""
             period_profit = f"{sign}{profit_pct}%"
 
+        # 👇👇👇 在 return 裡面補上這三個新變數 👇👇👇
         return {
             "code": code, "name": name, "sector": sector,
             "close": data['close'], "change_display": data['change_display'], "color": data['color'],
             "chips": chips_display, 
             "buy_value": buy_value,
+            "yoy": yoy,                 # 👈 補上最原始的 yoy 數字
             "yoy_display": yoy_display, 
             "signal_str": signal_str,
             "tag": tag,
-            "first_date": first_date,           
-            "first_price": first_price,         
-            "period_profit": period_profit      
+            "first_date": first_date,            
+            "first_price": first_price,          
+            "period_profit": period_profit,
+            "cap_size": cap_size,       # 👈 補上市值標籤，LINE 才分得出來！
+            "m_score": m_score          # 👈 補上動能分數，LINE 才能顯示！
         }
     except Exception as e: 
         print(f"Worker Error: {e}")
