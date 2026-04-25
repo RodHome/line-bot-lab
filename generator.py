@@ -317,15 +317,6 @@ def update_stock_list_json():
 # --- 功能 2: 抓取每日熱門飆股 (建立推薦菜單) ---
 def generate_daily_recommendations():
     print("\n🚀 [Task 2] 開始分析每日熱門飆股...")
-
-    # 👇👇👇 新增這段：直接寫死大型權值股名單，絕不出錯 👇👇👇
-    TAIWAN_50 = [
-        "2330", "2317", "2454", "2382", "2308", "2881", "2412", "2882", "2891", "2886", 
-        "1303", "2884", "1216", "2892", "2002", "2885", "3231", "2303", "2890", "2880", 
-        "2883", "5880", "1301", "2345", "3711", "2887", "1101", "2324", "3034", "2357", 
-        "3045", "2395", "1326", "2603", "3008", "2379", "3036", "6669", "3661", "2408", 
-        "5871", "2207", "4904", "1519", "2609", "1590", "2615", "9904", "2353", "6505"
-    ]
     
     # 🔥 [新增] 讀取剛剛產生的 stock_list.json，用來查詢名稱與產業別
     stock_meta = {}
@@ -530,71 +521,37 @@ def generate_daily_recommendations():
                     buy_value_y = round(buy_value / 100000000, 1)
                     
                     print(f"掃描 {code}: YoY={yoy}%, 法人買超={buy_value_y}億")
-                    time.sleep(0.5) # 避免被 API 封鎖                    
-                   
+                    time.sleep(0.5) # 避免被 API 封鎖
+                    
                     # 🔥 3. 分析師終極濾網：營收 YoY > 10% 且 法人買超金額 > 3億
                     # 👇👇👇 從這裡開始替換 👇👇👇
                     if yoy > 10 and buy_value > 300000000:
                         meta_info = stock_meta.get(code, {})
                         stock_name = meta_info.get('name', '未知名稱')
                         stock_sector = meta_info.get('sector', '未知產業')
-                        stock_cap_size = "大型權值股" if code in TAIWAN_50 else "中小型股"
+                        
+                        # 取得剛剛貼上的上市/上櫃標籤，並格式化日期 (YYYY-MM-DD)
                         stock_exchange = item.get('exchange', '未知')
-                        
-                        # --- 🛡️ 新增：快速檢查均線 (過濾掉長空頭的假反彈) ---
-                        try:
-                            suffix = ".TW" if stock_exchange == '上市' else ".TWO"
-                            ticker = yf.Ticker(f"{code}{suffix}")
-                            hist = ticker.history(period="3mo")
-                            if len(hist) >= 60:
-                                closes = hist['Close'].tolist()
-                                ma20 = sum(closes[-20:]) / 20
-                                ma60 = sum(closes[-60:]) / 60
-                                # 鐵血濾網：價格如果同時低於月線與季線，代表趨勢偏空，直接淘汰
-                                if price < ma20 and price < ma60:
-                                    print(f"❌ {code} 淘汰: 均線偏空 (價格 {price} < 月線 {ma20:.1f} / 季線 {ma60:.1f})")
-                                    continue
-                        except Exception as e:
-                            pass # 如果 API 偶爾抓不到歷史資料，就先放行不誤殺
-                        
-                        # --- 🚀 新增：動能綜合評分系統 (m_score) ---
-                        # 1. 成長爆發力 (YoY 上限 100，權重 1.5)
-                        score_yoy = min(yoy, 100) * 1.5
-                        
-                        # 2. 籌碼推升力 (買超金額封頂機制：超過 10 億一律算 10 億，滿分 50)
-                        buy_value_y = buy_value / 100000000 # 轉成億
-                        capped_buy = min(buy_value_y, 10)
-                        score_chips = capped_buy * 5
-                        
-                        # 3. 計算基礎總分
-                        m_score = score_yoy + score_chips
-                        
-                        # 4. 體積加權 (中小型股拉抬容易，給予 1.2 倍妖股分數加成)
-                        if stock_cap_size == "中小型股":
-                            m_score = m_score * 1.2
-
                         date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
 
                         final_list.append({
-                            "date": date_str,
+                            "date": date_str,          # ✅ 新增：資料日期
                             "code": code,
                             "name": stock_name,
-                            "exchange": stock_exchange,
+                            "exchange": stock_exchange,# ✅ 新增：上市或上櫃
                             "sector": stock_sector,
-                            "cap_size": stock_cap_size,  # ✅ 寫入分級標籤
                             "price": price,
                             "turnover": turnover,
-                            "chips_display": f"{chips_sum}張 ({buy_value_y:.1f}億)",
+                            "chips_display": f"{chips_sum}張 ({buy_value_y}億)",
                             "buy_value": buy_value,
                             "yoy": yoy,
-                            "m_score": round(m_score, 2), # ✅ 寫入動能評分
                             "tag": "外資大買" if acc_f > acc_t else "投信作帳",
                             "debug_info": yoy_data['debug_info']
                         })
                     # 👆👆👆 替換到這裡結束 👆👆👆
                 
-                # 🔥 4. 將過關的菁英，改依照「動能評分 (m_score)」由大到小排序
-                final_list.sort(key=lambda x: x['m_score'], reverse=True)
+                # 🔥 4. 將過關的菁英，依照「買超金額」由大到小排序
+                final_list.sort(key=lambda x: x['buy_value'], reverse=True)
                 
                 # 為了避免 JSON 太大，我們只保留最強的前 15 檔給 app.py 抽樣
                 final_list = final_list[:15]
@@ -622,44 +579,37 @@ def generate_daily_recommendations():
                 if code not in today_codes:
                     try:
                         exchange_type = old_s.get('exchange')
-                        suffix = ".TWO" if exchange_type == '上櫃' else ".TW"
-                        ticker = yf.Ticker(f"{code}{suffix}")
-                        hist = ticker.history(period="1d")
                         
-                        if hist.empty and suffix == ".TW":
+                        if exchange_type == '上櫃':
                             ticker = yf.Ticker(f"{code}.TWO")
                             hist = ticker.history(period="1d")
+                        elif exchange_type == '上市':
+                            ticker = yf.Ticker(f"{code}.TW")
+                            hist = ticker.history(period="1d")
+                        else:
+                            # 舊資料過渡期保護
+                            ticker = yf.Ticker(f"{code}.TW")
+                            hist = ticker.history(period="1d")
+                            if hist.empty:
+                                ticker = yf.Ticker(f"{code}.TWO")
+                                hist = ticker.history(period="1d")
 
                         if not hist.empty:
                             new_p = round(float(hist['Close'].iloc[-1]), 2)
                             old_s['price'] = new_p
                             old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                            
-                            # 👇👇👇 幫舊股票回補標籤與動能分數 👇👇👇
-                            old_s['cap_size'] = "大型權值股" if code in TAIWAN_50 else "中小型股"
-                            
-                            yoy_val = old_s.get('yoy', 0)
-                            buy_val = old_s.get('buy_value', 0)
-                            buy_val_y = buy_val / 100000000
-                            
-                            m_score = (min(yoy_val, 100) * 1.5) + (min(buy_val_y, 10) * 5)
-                            if old_s['cap_size'] == "中小型股":
-                                m_score = m_score * 1.2
-                                
-                            old_s['m_score'] = round(m_score, 2)
-                            # 👆👆👆 回補結束 👆👆👆
-
                             final_list.append(old_s) 
                             
                     except Exception as e:
                         print(f"⚠️ 右側學長 {code} 更新股價失敗: {e}")
         except Exception as e:
             print(f"⚠️ 讀取 daily_recommendations.json 失敗: {e}")
-
-    # 📦 呼叫融合大腦，結合歷史 30 天記憶後存檔
-    # 🚨 關鍵修復：這裡原本是 'buy_value'，請務必改成 'm_score'，否則大白鯊又會跑上來！
-    merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'm_score')
+    # =========================================================
+    # 👆👆👆 貼到這裡結束 👆👆👆
+    # =========================================================
     
+    # 📦 [修改] 呼叫融合大腦，結合歷史 30 天記憶後存檔
+    merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'buy_value')
     if merged_list:
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
             json.dump(merged_list, f, ensure_ascii=False, indent=4)
