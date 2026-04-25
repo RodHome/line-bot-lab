@@ -317,6 +317,15 @@ def update_stock_list_json():
 # --- 功能 2: 抓取每日熱門飆股 (建立推薦菜單) ---
 def generate_daily_recommendations():
     print("\n🚀 [Task 2] 開始分析每日熱門飆股...")
+
+    # 👇👇👇 新增這段：直接寫死大型權值股名單，絕不出錯 👇👇👇
+    TAIWAN_50 = [
+        "2330", "2317", "2454", "2382", "2308", "2881", "2412", "2882", "2891", "2886", 
+        "1303", "2884", "1216", "2892", "2002", "2885", "3231", "2303", "2890", "2880", 
+        "2883", "5880", "1301", "2345", "3711", "2887", "1101", "2324", "3034", "2357", 
+        "3045", "2395", "1326", "2603", "3008", "2379", "3036", "6669", "3661", "2408", 
+        "5871", "2207", "4904", "1519", "2609", "1590", "2615", "9904", "2353", "6505"
+    ]
     
     # 🔥 [新增] 讀取剛剛產生的 stock_list.json，用來查詢名稱與產業別
     stock_meta = {}
@@ -529,7 +538,7 @@ def generate_daily_recommendations():
                         meta_info = stock_meta.get(code, {})
                         stock_name = meta_info.get('name', '未知名稱')
                         stock_sector = meta_info.get('sector', '未知產業')
-                        stock_cap_size = meta_info.get('cap_size', '中小型股') # 讀出剛剛建好的市值標籤
+                        stock_cap_size = "大型權值股" if code in TAIWAN_50 else "中小型股"
                         stock_exchange = item.get('exchange', '未知')
                         
                         # --- 🛡️ 新增：快速檢查均線 (過濾掉長空頭的假反彈) ---
@@ -613,37 +622,44 @@ def generate_daily_recommendations():
                 if code not in today_codes:
                     try:
                         exchange_type = old_s.get('exchange')
+                        suffix = ".TWO" if exchange_type == '上櫃' else ".TW"
+                        ticker = yf.Ticker(f"{code}{suffix}")
+                        hist = ticker.history(period="1d")
                         
-                        if exchange_type == '上櫃':
+                        if hist.empty and suffix == ".TW":
                             ticker = yf.Ticker(f"{code}.TWO")
                             hist = ticker.history(period="1d")
-                        elif exchange_type == '上市':
-                            ticker = yf.Ticker(f"{code}.TW")
-                            hist = ticker.history(period="1d")
-                        else:
-                            # 舊資料過渡期保護
-                            ticker = yf.Ticker(f"{code}.TW")
-                            hist = ticker.history(period="1d")
-                            if hist.empty:
-                                ticker = yf.Ticker(f"{code}.TWO")
-                                hist = ticker.history(period="1d")
 
                         if not hist.empty:
                             new_p = round(float(hist['Close'].iloc[-1]), 2)
                             old_s['price'] = new_p
                             old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                            
+                            # 👇👇👇 幫舊股票回補標籤與動能分數 👇👇👇
+                            old_s['cap_size'] = "大型權值股" if code in TAIWAN_50 else "中小型股"
+                            
+                            yoy_val = old_s.get('yoy', 0)
+                            buy_val = old_s.get('buy_value', 0)
+                            buy_val_y = buy_val / 100000000
+                            
+                            m_score = (min(yoy_val, 100) * 1.5) + (min(buy_val_y, 10) * 5)
+                            if old_s['cap_size'] == "中小型股":
+                                m_score = m_score * 1.2
+                                
+                            old_s['m_score'] = round(m_score, 2)
+                            # 👆👆👆 回補結束 👆👆👆
+
                             final_list.append(old_s) 
                             
                     except Exception as e:
                         print(f"⚠️ 右側學長 {code} 更新股價失敗: {e}")
         except Exception as e:
             print(f"⚠️ 讀取 daily_recommendations.json 失敗: {e}")
-    # =========================================================
-    # 👆👆👆 貼到這裡結束 👆👆👆
-    # =========================================================
+
+    # 📦 呼叫融合大腦，結合歷史 30 天記憶後存檔
+    # 🚨 關鍵修復：這裡原本是 'buy_value'，請務必改成 'm_score'，否則大白鯊又會跑上來！
+    merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'm_score')
     
-    # 📦 [修改] 呼叫融合大腦，結合歷史 30 天記憶後存檔
-    merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'buy_value')
     if merged_list:
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
             json.dump(merged_list, f, ensure_ascii=False, indent=4)
