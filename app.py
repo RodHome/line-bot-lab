@@ -718,75 +718,187 @@ def handle_message(event):
 
         bubbles = []
         
-        # 🔥 新增：右側動能飆股的首張導覽卡片
         tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
         update_str = tw_now.strftime('%Y-%m-%d')
-        # 嘗試從快取中抓取真實的 JSON 產出日期
         global TWSE_CACHE
         if TWSE_CACHE.get('data') and isinstance(TWSE_CACHE['data'], list) and len(TWSE_CACHE['data']) > 0:
             update_str = TWSE_CACHE['data'][0].get('date', update_str)
-            
-        info_bubble = {
-            "type": "bubble", "size": "hecto",
-            "body": {
-                "type": "box", "layout": "vertical", "spacing": "sm", "alignItems": "center", "justifyContent": "center",
-                "contents": [
-                    {"type": "text", "text": "🚀 右側動能飆股", "weight": "bold", "size": "xl", "color": "#D32F2F", "align": "center"},
-                    {"type": "text", "text": f"雷達掃描時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
-                    {"type": "separator", "margin": "lg"},
-                    {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"},
+
+        # 🚀 1. 利用我們新加入的標籤進行分組
+        large_caps = [d for d in good_stocks if d.get('cap_size') == '大型權值股']
+        small_caps = [d for d in good_stocks if d.get('cap_size') == '中小型股']
+
+        # 🚀 2. 各取前 3 名 (因為 good_stocks 已經是被掃出來的最強前5名了，這裡再分流)
+        top_large = large_caps[:3]
+        top_small = small_caps[:3]
+
+        # 🛠️ 建立單一泡泡(卡片)的輔助函式
+        def create_bubble(title, title_color, icon, items):
+            body_contents = [
+                {
+                    "type": "text",
+                    "text": f"{icon} {title}",
+                    "weight": "bold",
+                    "size": "xl",
+                    "color": title_color,
+                    "align": "center"
+                },
+                {
+                    "type": "text",
+                    "text": f"雷達掃描時間\n{update_str}",
+                    "size": "xs",
+                    "color": "#888888",
+                    "align": "center",
+                    "wrap": True,
+                    "margin": "md"
+                },
+                {
+                    "type": "separator",
+                    "margin": "lg",
+                    "color": "#e2e8f0"
+                }
+            ]
+
+            if not items:
+                body_contents.append({
+                    "type": "text",
+                    "text": "今日無符合標的",
+                    "size": "sm",
+                    "color": "#94a3b8",
+                    "margin": "xl",
+                    "align": "center"
+                })
+            else:
+                for stock in items:
+                    code = stock.get('code', 'N/A')
+                    name = stock.get('name', 'N/A')
+                    price = stock.get('price', 0)
+                    m_score = stock.get('m_score', 0)
+                    yoy_display = f"+{stock.get('yoy', 0)}%" if stock.get('yoy', 0) > 0 else f"{stock.get('yoy', 0)}%"
+                    buy_val = stock.get('buy_value', 0)
+                    buy_val_yi = round(buy_val / 100000000, 1)
                     
-                    # 🔥 新增：換一批按鈕 (紅色邊框外觀，點擊自動發送"推薦")
-                    {
-                        "type": "box", "layout": "vertical", "margin": "lg", "paddingAll": "sm",
-                        "borderColor": "#D32F2F", "borderWidth": "2px", "cornerRadius": "md",
-                        "action": {"type": "message", "label": "換一批", "text": "推薦"},
+                    # 抓取 AI 短評
+                    default_reason = f"主力控盤，{stock.get('signal_str', '')}，多頭排列。"
+                    reason = reasons_map.get(code, default_reason)
+                    if "量增價漲" in stock.get('signal_str', '') or "RSI過熱" in stock.get('signal_str', ''):
+                        reason += "\n🚨 留意隔日沖倒貨風險"
+
+                    item_box = {
+                        "type": "box",
+                        "layout": "vertical",
+                        "margin": "lg",
+                        "spacing": "sm",
                         "contents": [
-                            {"type": "text", "text": "🔄 推薦飆股換一批", "color": "#D32F2F", "weight": "bold", "align": "center"}
+                            {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": f"▪️ {name}({code})",
+                                        "weight": "bold",
+                                        "size": "md",
+                                        "color": "#1e293b",
+                                        "flex": 3
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"${price}",
+                                        "weight": "bold",
+                                        "size": "md",
+                                        "color": "#ef4444",
+                                        "align": "end",
+                                        "flex": 2
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "contents": [
+                                    {
+                                        "type": "text",
+                                        "text": f"⚡動能:{m_score} | YoY:{yoy_display} | 買超:{buy_val_yi}億",
+                                        "size": "xs",
+                                        "color": "#64748b"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "text",
+                                "text": reason,
+                                "size": "xs",
+                                "color": "#333333",
+                                "wrap": True,
+                                "margin": "sm"
+                            },
+                            {
+                                "type": "button",
+                                "action": {
+                                    "type": "message",
+                                    "label": "詳細診斷",
+                                    "text": code
+                                },
+                                "style": "link",
+                                "height": "sm",
+                                "margin": "sm"
+                            },
+                            {
+                                "type": "separator",
+                                "margin": "md",
+                                "color": "#f1f5f9"
+                            }
                         ]
                     }
+                    body_contents.append(item_box)
+
+            # 加入底部按鈕
+            body_contents.append({
+                "type": "box",
+                "layout": "vertical",
+                "margin": "md",
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": title_color,
+                        "action": {
+                            "type": "uri",
+                            "label": "🌐 查看完整榜單",
+                            "uri": "https://rodhome.github.io/line-bot-lab/" # 替換成你的實際網址
+                        }
+                    },
+                    {
+                        "type": "button",
+                        "style": "secondary",
+                        "action": {
+                            "type": "message",
+                            "label": "🔄 重新推薦",
+                            "text": "推薦"
+                        }
+                    }
                 ]
-            }
-        }
-        bubbles.append(info_bubble)
+            })
 
-        for stock in good_stocks:
-            default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
-            reason = reasons_map.get(stock['code'], default_reason)
-            # 🔥 [修改處 1] 被動防禦提醒 (推薦卡片)：若帶量突破，短評後方附加警語
-            if "量增價漲" in stock['signal_str'] or "RSI過熱" in stock['signal_str']:
-                reason += "\n🚨 留意隔日沖倒貨風險"
-            
-            bubble = {
-                "type": "bubble", "size": "hecto",
-                "header": {
-                    "type": "box", "layout": "vertical", 
-                    "contents": [
-                        {"type": "text", "text": f"{stock['name']} ({stock['code']})", "weight": "bold", "size": "lg", "color": "#ffffff"},
-                        {"type": "text", "text": f"{stock['sector']} | {stock['tag']}", "size": "xxs", "color": "#eeeeee"}
-                    ], "backgroundColor": stock['color']
-                },
-                "body": {"type": "box", "layout": "vertical", "contents": [
-                    {"type": "text", "text": str(stock['close']), "weight": "bold", "size": "3xl", "color": stock['color'], "align": "center"},
-                    {"type": "text", "text": stock['change_display'], "size": "xs", "color": stock['color'], "align": "center"},
-
-                    # 🔥 籌碼金額 (從 JSON 讀取)
-                    {"type": "text", "text": f"💰 近5日法人: {stock.get('chips', 'N/A')}", "size": "sm", "weight": "bold", "color": "#D84315", "align": "center", "margin": "md"},
-                    
-                    # 🔥 營收 YoY (從 JSON 讀取的新武器！)
-                    {"type": "text", "text": f"📈 營收 YoY: {stock.get('yoy_display', 'N/A')}", "size": "sm", "weight": "bold", "color": "#1976D2", "align": "center", "margin": "sm"},
-                    
-                    # 👇 新增這兩行：歷史回測戰績展示！
-                    {"type": "text", "text": f"🎯 {stock.get('first_date', '')} 推薦價: {stock.get('first_price', 'N/A')}", "size": "xs", "color": "#888888", "align": "center", "margin": "md"},
-                    {"type": "text", "text": f"累積戰績: {stock.get('period_profit', 'N/A')}", "size": "sm", "weight": "bold", "color": "#D32F2F" if "+" in stock.get('period_profit', '') else "#2E7D32", "align": "center"},
-                    
-                    {"type": "separator", "margin": "md"},
-                    {"type": "text", "text": reason, "size": "xs", "color": "#333333", "wrap": True, "margin": "md"},
-                    {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": stock['code']}, "style": "link", "margin": "md"}
-                ]}
+            return {
+                "type": "bubble",
+                "size": "mega",
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": body_contents,
+                    "paddingAll": "20px"
+                }
             }
-            bubbles.append(bubble)
-        line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
+
+        # 🚀 3. 將兩張卡片組裝進 Carousel
+        # 即使某個分類沒有股票，也建立空卡片提醒使用者
+        bubbles.append(create_bubble("中小型妖股", "#ea580c", "🚀", top_small))
+        bubbles.append(create_bubble("權值吸金王", "#1d4ed8", "👑", top_large))
+
+        line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="🚀 右側動能戰報", contents={"type": "carousel", "contents": bubbles}))
         return
     
     # 🔥 [修改處 2] 隔日沖主動查詢 (版面美化版)
