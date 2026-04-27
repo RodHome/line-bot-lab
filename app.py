@@ -547,7 +547,6 @@ def scan_recommendations_turbo(filter_type=None):
     if filter_type and filter_type in ["大型權值股", "中小型股"]:
         pool = [s for s in twse_list if s.get('cap_size') == filter_type]
     elif filter_type:
-        # 相容原本的產業搜尋功能
         for item in twse_list:
             code = item.get('code')
             sector = STOCK_META.get(code, {}).get('sector', '')
@@ -556,10 +555,8 @@ def scan_recommendations_turbo(filter_type=None):
     else:
         pool = twse_list
 
-    # 3. 排序與取前 5 強
-    # 改用 m_score 排序，讓該分類中最強的 5 檔浮上來
-    pool.sort(key=lambda x: x.get('m_score', 0), reverse=True)
-    candidates_pool = pool[:5]
+    # 3. 🔥 恢復舊版盲抽作法：從過濾後的母池中，隨機抽出最多 8 檔候選
+    candidates_pool = random.sample(pool, min(8, len(pool)))
 
     # 4. 交給 worker 進行最後的現價與均線確認
     valid_candidates = []
@@ -569,7 +566,11 @@ def scan_recommendations_turbo(filter_type=None):
     for res in results:
         if res: valid_candidates.append(res)
         
-    return valid_candidates
+    # 5. 確保這隨機抽出的 8 檔在過濾後，依照分數強弱排序，最後取前 5 名
+    if valid_candidates:
+        valid_candidates.sort(key=lambda x: x.get('m_score', 0), reverse=True)
+        
+    return valid_candidates[:5]
 
 # --- Line Bot Handlers ---
 @app.route("/callback", methods=['POST'])
@@ -717,10 +718,9 @@ def handle_message(event):
 
         bubbles = []
         
-        # 🔥 新增：右側動能飆股的首張導覽卡片
+        # 🔥 修正：右側動能飆股的首張導覽卡片 (加入網頁連結與正確的換一批)
         tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
         update_str = tw_now.strftime('%Y-%m-%d')
-        # 嘗試從快取中抓取真實的 JSON 產出日期
         global TWSE_CACHE
         if TWSE_CACHE.get('data') and isinstance(TWSE_CACHE['data'], list) and len(TWSE_CACHE['data']) > 0:
             update_str = TWSE_CACHE['data'][0].get('date', update_str)
@@ -731,18 +731,32 @@ def handle_message(event):
                 "type": "box", "layout": "vertical", "spacing": "sm", "alignItems": "center", "justifyContent": "center",
                 "contents": [
                     {"type": "text", "text": "🚀 右側動能飆股", "weight": "bold", "size": "xl", "color": "#D32F2F", "align": "center"},
-                    {"type": "text", "text": f"雷達掃描時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
+                    {"type": "text", "text": f"分類：{target_type}", "size": "sm", "color": "#1d4ed8" if "權值" in target_type else "#ea580c", "weight": "bold", "align": "center", "margin": "sm"},
+                    {"type": "text", "text": f"雷達時間\n{update_str}", "size": "xs", "color": "#888888", "align": "center", "wrap": True, "margin": "md"},
                     {"type": "separator", "margin": "lg"},
-                    {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"},
-                    
-                    # 🔥 新增：換一批按鈕 (紅色邊框外觀，點擊自動發送"推薦")
+                    {"type": "text", "text": "👉 向右滑動查看標的", "size": "sm", "color": "#FF8F00", "weight": "bold", "margin": "lg", "align": "center"}
+                ]
+            },
+            "footer": {
+                "type": "box", "layout": "vertical", "spacing": "sm",
+                "contents": [
+                    # 🌐 新增網頁連結
                     {
-                        "type": "box", "layout": "vertical", "margin": "lg", "paddingAll": "sm",
-                        "borderColor": "#D32F2F", "borderWidth": "2px", "cornerRadius": "md",
-                        "action": {"type": "message", "label": "換一批", "text": "推薦"},
-                        "contents": [
-                            {"type": "text", "text": "🔄 推薦飆股換一批", "color": "#D32F2F", "weight": "bold", "align": "center"}
-                        ]
+                        "type": "button", "style": "primary", "color": "#D32F2F", "height": "sm",
+                        "action": {
+                            "type": "uri", 
+                            "label": "🌐 完整網頁榜單", 
+                            "uri": "https://rodhome.github.io/line-bot-lab/" # 👈 你的網頁
+                        }
+                    },
+                    # 🔄 修正換一批邏輯 (帶入原本選的分類)
+                    {
+                        "type": "button", "style": "secondary", "height": "sm", "margin": "sm",
+                        "action": {
+                            "type": "message", 
+                            "label": "🔄 換一批", 
+                            "text": f"推薦 {choice}" # 👈 這樣按下去就會自動傳送 "推薦 權值股"，不會跳回分類選單了
+                        }
                     }
                 ]
             }
