@@ -318,6 +318,14 @@ def update_stock_list_json():
 def generate_daily_recommendations():
     print("\n🚀 [Task 2] 開始分析每日熱門飆股...")
     
+    # 👇 新增：台灣 50 權值股名單
+    TAIWAN_50 = ["2330", "2317", "2454", "2382", "2308", "2881", "2412", "2882", "2891", 
+                 "2886", "1303", "2884", "1216", "2892", "2002", "2885", "3231", "2303",
+                 "2890", "2880", "2883", "5880", "1301", "2345", "3711", "2887", "1101",
+                 "2324", "3034", "2357", "3045", "2395", "1326", "2603", "3008", "2379", 
+                 "3036", "6669", "3661", "2408", "5871", "2207", "4904", "1519", "2609", 
+                 "1590", "2615", "9904", "2353", "6505"]
+    
     # 🔥 [新增] 讀取剛剛產生的 stock_list.json，用來查詢名稱與產業別
     stock_meta = {}
     try:
@@ -529,26 +537,36 @@ def generate_daily_recommendations():
                         meta_info = stock_meta.get(code, {})
                         stock_name = meta_info.get('name', '未知名稱')
                         stock_sector = meta_info.get('sector', '未知產業')
-                        
-                        # 取得剛剛貼上的上市/上櫃標籤，並格式化日期 (YYYY-MM-DD)
                         stock_exchange = item.get('exchange', '未知')
+                        
+                        # 👇 新增：判斷市值與計算動能分數
+                        stock_cap_size = "大型權值股" if code in TAIWAN_50 else "中小型股"
+                        score_yoy = min(yoy, 100) * 1.5
+                        buy_value_y = buy_value / 100000000
+                        capped_buy = min(buy_value_y, 10)
+                        score_chips = capped_buy * 5
+                        m_score = score_yoy + score_chips
+                        if stock_cap_size == "中小型股":
+                            m_score = m_score * 1.2
+                            
                         date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
 
                         final_list.append({
-                            "date": date_str,          # ✅ 新增：資料日期
+                            "date": date_str,
                             "code": code,
                             "name": stock_name,
-                            "exchange": stock_exchange,# ✅ 新增：上市或上櫃
+                            "exchange": stock_exchange,
                             "sector": stock_sector,
+                            "cap_size": stock_cap_size, # 👈 寫入標籤
+                            "m_score": round(m_score, 2), # 👈 寫入分數
                             "price": price,
                             "turnover": turnover,
-                            "chips_display": f"{chips_sum}張 ({buy_value_y}億)",
+                            "chips_display": f"{chips_sum}張 ({buy_value_y:.1f}億)",
                             "buy_value": buy_value,
                             "yoy": yoy,
                             "tag": "外資大買" if acc_f > acc_t else "投信作帳",
                             "debug_info": yoy_data['debug_info']
                         })
-                    # 👆👆👆 替換到這裡結束 👆👆👆
                 
                 # 🔥 4. 將過關的菁英，依照「買超金額」由大到小排序
                 final_list.sort(key=lambda x: x['buy_value'], reverse=True)
@@ -598,12 +616,26 @@ def generate_daily_recommendations():
                             new_p = round(float(hist['Close'].iloc[-1]), 2)
                             old_s['price'] = new_p
                             old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                            
+                            # 👇 新增：幫舊股票回補標籤與分數
+                            old_s['cap_size'] = "大型權值股" if code in TAIWAN_50 else "中小型股"
+                            yoy_val = old_s.get('yoy', 0)
+                            buy_val = old_s.get('buy_value', 0)
+                            buy_val_y = buy_val / 100000000
+                            m_score = (min(yoy_val, 100) * 1.5) + (min(buy_val_y, 10) * 5)
+                            if old_s['cap_size'] == "中小型股":
+                                m_score = m_score * 1.2
+                            old_s['m_score'] = round(m_score, 2)
+                            
                             final_list.append(old_s) 
                             
                     except Exception as e:
                         print(f"⚠️ 右側學長 {code} 更新股價失敗: {e}")
         except Exception as e:
             print(f"⚠️ 讀取 daily_recommendations.json 失敗: {e}")
+
+    # 👇 關鍵修改：融合存檔時，改用 m_score 排序 (原本是 buy_value)
+    merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'm_score')
     # =========================================================
     # 👆👆👆 貼到這裡結束 👆👆👆
     # =========================================================
