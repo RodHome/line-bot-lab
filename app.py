@@ -657,7 +657,7 @@ def handle_message(event):
     if msg == "推薦" or msg == "選股":
         menu_flex = {
             "type": "bubble",
-            "size": "small",
+            
             "body": {
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
