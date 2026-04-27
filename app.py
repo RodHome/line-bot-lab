@@ -664,7 +664,7 @@ def handle_message(event):
                     {"type": "text", "text": "🎯 請選擇選股標的", "weight": "bold", "size": "md", "align": "center"},
                     {"type": "button", "style": "primary", "color": "#1d4ed8", "action": {"type": "message", "label": "🐘 大型權值股", "text": "推薦 權值股"}},
                     {"type": "button", "style": "primary", "color": "#ea580c", "action": {"type": "message", "label": "🚀 中小型飆股", "text": "推薦 中小型股"}},
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 依產業搜尋", "text": "如何評估"}}
+                    
                 ]
             }
         }
