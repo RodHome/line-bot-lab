@@ -409,8 +409,8 @@ def generate_daily_recommendations():
                         sign = row[idx_sign]
                         is_up = ('+' in sign) or ('red' in sign) # 簡單判斷漲勢
                         
-                        # 🔥 動能濾網升級：收紅，且單日成交金額大於 3 億元 (300,000,000)
-                        if is_up and turnover > 300000000: 
+                        # 🔥 動能濾網升級：收紅，且單日成交金額大於 1 億元 (100,000,000)
+                        if is_up and turnover > 100000000: 
                             # ⚠️ 這裡一定要把 price 存進來，FinMind 才能算金額！
                             candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上市"})
                     except: continue
@@ -490,8 +490,8 @@ def generate_daily_recommendations():
                                         is_up = True
                                 except: pass
                             
-                            # 條件：收紅 且 成交金額 > 3億
-                            if is_up and turnover > 300000000: 
+                            # 條件：收紅 且 成交金額 > 1億
+                            if is_up and turnover > 100000000: 
                                 candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上櫃"})
                                 tpex_count += 1
                         except: continue
@@ -532,12 +532,27 @@ def generate_daily_recommendations():
                     time.sleep(0.5) # 避免被 API 封鎖
                     
                     # 🔥 3. 分析師終極濾網：營收 YoY > 10% 且 法人買超金額 > 3億
-                    # 👇👇👇 從這裡開始替換 👇👇👇
                     if yoy > 10 and buy_value > 300000000:
                         meta_info = stock_meta.get(code, {})
                         stock_name = meta_info.get('name', '未知名稱')
                         stock_sector = meta_info.get('sector', '未知產業')
                         stock_exchange = item.get('exchange', '未知')
+                        
+                        # =========================================================
+                        # 🛡️ 新增濾網：乖離率天花板 (防追高)
+                        # =========================================================
+                        try:
+                            suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
+                            hist = yf.Ticker(f"{code}{suffix}").history(period="1mo")
+                            if not hist.empty and len(hist) > 0:
+                                ma20 = hist['Close'].mean()
+                                bias20 = (price - ma20) / ma20 * 100
+                                if bias20 > 15.0:
+                                    print(f"⚠️ {code} 月線乖離過大({bias20:.1f}%)，避免當韭菜，淘汰！")
+                                    continue
+                        except Exception as e:
+                            pass
+                        # =========================================================
                         
                         # 👇 新增：判斷市值與計算動能分數
                         stock_cap_size = "大型權值股" if code in TAIWAN_50 else "中小型股"
@@ -783,6 +798,8 @@ def generate_left_side_value():
             ma60 = sum(closes[-60:]) / 60
             ma24 = sum(closes[-24:]) / 24 
             ma6 = sum(closes[-6:]) / 6    
+            ma5 = sum(closes[-5:]) / 5     # 👈 新增：計算 5MA
+            item['is_above_5ma'] = bool(close_today > ma5) # 👈 新增：判斷是否站上 5MA
             
             bias60 = (close_today - ma60) / ma60
             bias24 = (close_today - ma24) / ma24
@@ -894,12 +911,12 @@ def generate_left_side_value():
         # ---------------------------------------------------------
         # 🛡️ 資格層與輸出層 (決定誰有資格活下來)
         # ---------------------------------------------------------
-        if item['bias6'] > 0:
+        if item['is_above_5ma']:
             trend_status = "🔥 L1_左側起漲"
-            is_qualified = (score >= 60)  # L1 交易清單的生死線：60分
+            is_qualified = (score >= 60)  
         else:
             trend_status = "⏳ L0_左側築底"
-            is_qualified = (score >= 55)  # 🔥 降門檻：L0 觀察池生死線降為 55分
+            is_qualified = (score >= 55)
 
         # ❌ 不及格的直接淘汰，絕對不放進 final_list 佔用注意力
         if not is_qualified:
