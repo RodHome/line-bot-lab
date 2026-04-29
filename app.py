@@ -105,7 +105,7 @@ def fetch_twse_candidates():
             if isinstance(stock_list, list) and len(stock_list) > 0:
                 # 🔥 關鍵過濾器：找出所有日期並排序，只保留最新 5 個交易日的資料
                 all_dates = sorted(list(set([item.get('date') for item in stock_list if item.get('date')])), reverse=True)
-                recent_5_dates = all_dates[:5]
+                recent_3_dates = all_dates[:3]  # 👈 只推薦近 3 天入榜者
                 
                 # 過濾出在這 5 天內的推薦股
                 recent_stocks = [item for item in stock_list if item.get('date') in recent_5_dates]
