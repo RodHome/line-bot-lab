@@ -101,16 +101,18 @@ def fetch_twse_candidates():
         if res.status_code == 200:
             stock_list = res.json()
             
-            # 簡單驗證一下資料格式
+            ## 簡單驗證一下資料格式
             if isinstance(stock_list, list) and len(stock_list) > 0:
-                # 🔥 關鍵過濾器：找出所有日期並排序，只保留最新 5 個交易日的資料
+                # 🔥 關鍵過濾器：找出所有日期並排序
                 all_dates = sorted(list(set([item.get('date') for item in stock_list if item.get('date')])), reverse=True)
-                recent_3_dates = all_dates[:3]  # 👈 只推薦近 3 天入榜者
                 
-                # 過濾出在這 5 天內的推薦股
-                recent_stocks = [item for item in stock_list if item.get('date') in recent_5_dates]
+                # [核心修正 1]：嚴格限縮為近 3 日，並將變數改為通用的 recent_target_dates
+                recent_target_dates = all_dates[:3] 
                 
-                # 更新快取 (只把這 5 天的存進去)
+                # [核心修正 2]：過濾條件同步使用 recent_target_dates
+                recent_stocks = [item for item in stock_list if item.get('date') in recent_target_dates]
+                
+                # 更新快取
                 TWSE_CACHE = {"date": today_str, "data": recent_stocks}
                 print(f"[System] 成功載入 {len(recent_stocks)} 檔近期推薦股 (過濾自 30 天長線庫)")
                 return recent_stocks
@@ -122,9 +124,17 @@ def fetch_twse_candidates():
     except Exception as e:
         print(f"[Error] GitHub Download Error: {e}")
 
-    # 3. 如果 GitHub 掛了或還沒產出，回傳備用名單 (權值股) 防止 Bot 當機
+    # 3. 如果 GitHub 掛了或還沒產出，回傳備用名單防止 Bot 當機
     print("[System] 使用備用名單")
-    fallback_list = ["2330", "2317", "2454", "2382", "2308"]
+    
+    # [核心修正 3]：升級備用名單資料結構為 Dictionary，補足下游所需的欄位
+    fallback_list = [
+        {"code": "2330", "name": "台積電", "cap_size": "大型權值股", "m_score": 100},
+        {"code": "2317", "name": "鴻海", "cap_size": "大型權值股", "m_score": 90},
+        {"code": "2454", "name": "聯發科", "cap_size": "大型權值股", "m_score": 80},
+        {"code": "2382", "name": "廣達", "cap_size": "大型權值股", "m_score": 70},
+        {"code": "2308", "name": "台達電", "cap_size": "大型權值股", "m_score": 60}
+    ]
     return fallback_list
 
 # 技術指標
