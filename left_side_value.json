@@ -1,9 +1,9 @@
 [
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4162",
         "name": "智擎",
-        "price": 56.1,
+        "price": 56.7,
         "exchange": "上櫃",
         "score": 120,
         "trend_status": "🔥 L1_左側起漲",
@@ -20,10 +20,10 @@
         "first_entry_price": 58.9
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8390",
         "name": "金益鼎",
-        "price": 103.5,
+        "price": 113.0,
         "exchange": "上櫃",
         "score": 118,
         "trend_status": "🔥 L1_左側起漲",
@@ -40,10 +40,10 @@
         "first_entry_price": 85.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6143",
         "name": "振曜",
-        "price": 97.6,
+        "price": 96.8,
         "exchange": "上櫃",
         "score": 115,
         "trend_status": "🔥 L1_左側起漲",
@@ -60,10 +60,10 @@
         "first_entry_price": 89.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8341",
         "name": "日友",
-        "price": 76.1,
+        "price": 76.5,
         "exchange": "上市",
         "score": 115,
         "trend_status": "🔥 L1_左側起漲",
@@ -80,10 +80,10 @@
         "first_entry_price": 76.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2723",
         "name": "美食-KY",
-        "price": 68.0,
+        "price": 67.5,
         "exchange": "上市",
         "score": 110,
         "trend_status": "⏳ L0_左側築底",
@@ -100,10 +100,10 @@
         "first_entry_price": 69.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2442",
         "name": "新美齊",
-        "price": 18.8,
+        "price": 18.7,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -120,10 +120,10 @@
         "first_entry_price": 20.55
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2247",
         "name": "汎德永業",
-        "price": 212.0,
+        "price": 209.0,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -140,7 +140,7 @@
         "first_entry_price": 237.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9958",
         "name": "世紀鋼",
         "price": 103.5,
@@ -160,10 +160,10 @@
         "first_entry_price": 103.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9939",
         "name": "宏全",
-        "price": 120.0,
+        "price": 124.5,
         "exchange": "上市",
         "score": 108,
         "trend_status": "🔥 L1_左側起漲",
@@ -180,10 +180,10 @@
         "first_entry_price": 114.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2515",
         "name": "中工",
-        "price": 13.2,
+        "price": 13.15,
         "exchange": "上市",
         "score": 108,
         "trend_status": "🔥 L1_左側起漲",
@@ -200,10 +200,10 @@
         "first_entry_price": 13.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5403",
         "name": "中菲",
-        "price": 92.6,
+        "price": 91.8,
         "exchange": "上櫃",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
@@ -220,10 +220,10 @@
         "first_entry_price": 93.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6869",
         "name": "雲豹能源",
-        "price": 86.9,
+        "price": 83.8,
         "exchange": "上市",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
@@ -240,10 +240,10 @@
         "first_entry_price": 89.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8131",
         "name": "福懋科",
-        "price": 67.5,
+        "price": 64.8,
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 62.17,
@@ -259,10 +259,10 @@
         "first_entry_price": 61.7
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2208",
         "name": "台船",
-        "price": 20.2,
+        "price": 20.05,
         "exchange": "上市",
         "score": 105,
         "trend_status": "⏳ L0_左側築底",
@@ -279,10 +279,10 @@
         "first_entry_price": 20.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "7786",
         "name": "東方風能",
-        "price": 139.5,
+        "price": 139.0,
         "exchange": "上市",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
@@ -299,10 +299,10 @@
         "first_entry_price": 128.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2641",
         "name": "正德",
-        "price": 18.0,
+        "price": 17.8,
         "exchange": "上櫃",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
@@ -319,30 +319,30 @@
         "first_entry_price": 18.05
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1308",
         "name": "亞聚",
-        "price": 13.65,
+        "price": 13.5,
         "exchange": "上市",
-        "score": 103,
+        "score": 100,
         "trend_status": "⏳ L0_左側築底",
-        "entry_price": 13.51,
-        "bias60": "-10.7%",
-        "bias24": "-11.2%",
-        "bias6": "-1.1%",
-        "vol_ratio": "53.2%",
+        "entry_price": 13.37,
+        "bias60": "-11.7%",
+        "bias24": "-11.0%",
+        "bias6": "-1.5%",
+        "vol_ratio": "9.7%",
         "eps": -0.6,
-        "yield_rate": 1.83,
+        "yield_rate": 1.85,
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-05-11",
         "first_entry_price": 13.65
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5258",
         "name": "虹堡",
-        "price": 54.3,
+        "price": 52.6,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -359,10 +359,10 @@
         "first_entry_price": 46.65
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1609",
         "name": "大亞",
-        "price": 36.35,
+        "price": 35.3,
         "exchange": "上市",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -379,10 +379,10 @@
         "first_entry_price": 33.65
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2328",
         "name": "廣宇",
-        "price": 54.7,
+        "price": 53.0,
         "score": 100,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 44.85,
@@ -398,10 +398,10 @@
         "first_entry_price": 45.55
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6558",
         "name": "興能高",
-        "price": 30.2,
+        "price": 30.4,
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 30.2,
@@ -417,10 +417,10 @@
         "first_entry_price": 30.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8927",
         "name": "北基",
-        "price": 20.0,
+        "price": 19.95,
         "exchange": "上櫃",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -437,10 +437,10 @@
         "first_entry_price": 23.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4157",
         "name": "太景*-KY",
-        "price": 9.26,
+        "price": 9.2,
         "exchange": "上櫃",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -457,10 +457,10 @@
         "first_entry_price": 10.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5278",
         "name": "尚凡*",
-        "price": 22.6,
+        "price": 23.1,
         "exchange": "上櫃",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -477,10 +477,10 @@
         "first_entry_price": 23.35
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6125",
         "name": "廣運",
-        "price": 59.7,
+        "price": 58.8,
         "exchange": "上櫃",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -497,10 +497,10 @@
         "first_entry_price": 53.9
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1514",
         "name": "亞力",
-        "price": 126.5,
+        "price": 123.0,
         "exchange": "上市",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -517,10 +517,10 @@
         "first_entry_price": 110.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1503",
         "name": "士電",
-        "price": 206.5,
+        "price": 202.5,
         "exchange": "上市",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -537,10 +537,10 @@
         "first_entry_price": 197.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2457",
         "name": "飛宏",
-        "price": 25.5,
+        "price": 25.15,
         "exchange": "上市",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -557,10 +557,10 @@
         "first_entry_price": 23.9
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3048",
         "name": "益登",
-        "price": 45.0,
+        "price": 44.2,
         "exchange": "上市",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -577,10 +577,10 @@
         "first_entry_price": 37.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6757",
         "name": "台灣虎航",
-        "price": 55.2,
+        "price": 53.9,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -597,10 +597,10 @@
         "first_entry_price": 50.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5608",
         "name": "四維航",
-        "price": 15.15,
+        "price": 15.0,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -617,10 +617,10 @@
         "first_entry_price": 16.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3005",
         "name": "神基",
-        "price": 99.8,
+        "price": 98.3,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -637,30 +637,10 @@
         "first_entry_price": 98.4
     },
     {
-        "date": "2026-05-11",
-        "code": "2014",
-        "name": "中鴻",
-        "price": 18.1,
-        "exchange": "上市",
-        "score": 100,
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 17.32,
-        "bias60": "-3.6%",
-        "bias24": "-3.5%",
-        "bias6": "-0.3%",
-        "vol_ratio": "49.5%",
-        "eps": 0.0,
-        "yield_rate": 0.0,
-        "buy_days": 5,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-05-05",
-        "first_entry_price": 17.5
-    },
-    {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6472",
         "name": "保瑞",
-        "price": 408.5,
+        "price": 399.5,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -677,30 +657,10 @@
         "first_entry_price": 408.5
     },
     {
-        "date": "2026-05-11",
-        "code": "2228",
-        "name": "劍麟",
-        "price": 87.8,
-        "exchange": "上市",
-        "score": 100,
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 87.71,
-        "bias60": "-2.7%",
-        "bias24": "-1.1%",
-        "bias6": "-0.2%",
-        "vol_ratio": "84.2%",
-        "eps": 1.19,
-        "yield_rate": 10.16,
-        "buy_days": 5,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-25",
-        "first_entry_price": 88.9
-    },
-    {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1584",
         "name": "精剛",
-        "price": 20.4,
+        "price": 20.05,
         "exchange": "上櫃",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -717,10 +677,10 @@
         "first_entry_price": 21.75
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "7722",
         "name": "LINEPAY",
-        "price": 277.0,
+        "price": 270.0,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -737,10 +697,10 @@
         "first_entry_price": 302.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6541",
         "name": "泰福-KY",
-        "price": 39.85,
+        "price": 39.2,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -757,10 +717,10 @@
         "first_entry_price": 39.85
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6179",
         "name": "亞通",
-        "price": 24.7,
+        "price": 24.2,
         "exchange": "上櫃",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -777,10 +737,10 @@
         "first_entry_price": 24.15
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6873",
         "name": "泓德能源",
-        "price": 94.1,
+        "price": 89.0,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -797,10 +757,10 @@
         "first_entry_price": 89.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2615",
         "name": "萬海",
-        "price": 78.5,
+        "price": 77.3,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -817,10 +777,10 @@
         "first_entry_price": 74.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2528",
         "name": "皇普",
-        "price": 22.3,
+        "price": 22.25,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -837,10 +797,10 @@
         "first_entry_price": 22.55
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2211",
         "name": "長榮鋼",
-        "price": 97.7,
+        "price": 97.0,
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 99.99,
@@ -856,10 +816,10 @@
         "first_entry_price": 101.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6477",
         "name": "安集",
-        "price": 34.5,
+        "price": 34.3,
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 34.35,
@@ -875,7 +835,7 @@
         "first_entry_price": 34.7
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9908",
         "name": "大台北",
         "price": 29.35,
@@ -894,10 +854,10 @@
         "first_entry_price": 29.7
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2530",
         "name": "華建",
-        "price": 21.2,
+        "price": 20.65,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -914,7 +874,7 @@
         "first_entry_price": 21.85
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6411",
         "name": "晶焱",
         "price": 82.4,
@@ -934,10 +894,10 @@
         "first_entry_price": 75.8
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2915",
         "name": "潤泰全",
-        "price": 43.65,
+        "price": 43.3,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -954,10 +914,10 @@
         "first_entry_price": 46.85
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8478",
         "name": "東哥遊艇",
-        "price": 163.0,
+        "price": 161.5,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -974,10 +934,10 @@
         "first_entry_price": 156.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5203",
         "name": "訊連",
-        "price": 64.7,
+        "price": 64.3,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -994,10 +954,10 @@
         "first_entry_price": 67.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6591",
         "name": "動力-KY",
-        "price": 56.4,
+        "price": 55.5,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -1014,10 +974,10 @@
         "first_entry_price": 57.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6133",
         "name": "金橋",
-        "price": 21.9,
+        "price": 21.85,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -1034,10 +994,10 @@
         "first_entry_price": 22.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2015",
         "name": "豐興",
-        "price": 64.3,
+        "price": 63.4,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -1054,10 +1014,10 @@
         "first_entry_price": 62.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5607",
         "name": "遠雄港",
-        "price": 50.6,
+        "price": 49.75,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -1074,10 +1034,10 @@
         "first_entry_price": 48.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6589",
         "name": "台康生技",
-        "price": 45.1,
+        "price": 43.7,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -1094,10 +1054,10 @@
         "first_entry_price": 46.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9945",
         "name": "潤泰新",
-        "price": 23.6,
+        "price": 23.55,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -1114,10 +1074,10 @@
         "first_entry_price": 25.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2913",
         "name": "農林",
-        "price": 11.3,
+        "price": 11.2,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -1134,10 +1094,10 @@
         "first_entry_price": 11.25
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5306",
         "name": "桂盟",
-        "price": 80.8,
+        "price": 83.0,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
@@ -1154,30 +1114,50 @@
         "first_entry_price": 80.9
     },
     {
-        "date": "2026-05-11",
-        "code": "2101",
-        "name": "南港",
-        "price": 33.6,
+        "date": "2026-05-12",
+        "code": "2204",
+        "name": "中華",
+        "price": 54.0,
         "exchange": "上市",
-        "score": 93,
-        "trend_status": "🔥 L1_左側起漲",
-        "entry_price": 33.76,
-        "bias60": "-1.4%",
-        "bias24": "-3.4%",
-        "bias6": "0.9%",
-        "vol_ratio": "57.2%",
-        "eps": 0.0,
-        "yield_rate": 2.05,
-        "buy_days": 4,
+        "score": 95,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 53.46,
+        "bias60": "-2.8%",
+        "bias24": "-0.4%",
+        "bias6": "-0.4%",
+        "vol_ratio": "25.2%",
+        "eps": 1.57,
+        "yield_rate": 7.78,
+        "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-04-29",
-        "first_entry_price": 34.1
+        "first_entry_date": "2026-03-31",
+        "first_entry_price": 55.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
+        "code": "2258",
+        "name": "鴻華先進-創",
+        "price": 28.3,
+        "exchange": "上市",
+        "score": 95,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 28.02,
+        "bias60": "-10.6%",
+        "bias24": "-0.2%",
+        "bias6": "0.0%",
+        "vol_ratio": "27.6%",
+        "eps": -0.86,
+        "yield_rate": 0.0,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-04-24",
+        "first_entry_price": 29.4
+    },
+    {
+        "date": "2026-05-12",
         "code": "8473",
         "name": "山林水",
-        "price": 34.2,
+        "price": 33.9,
         "score": 93,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 37.08,
@@ -1193,10 +1173,10 @@
         "first_entry_price": 37.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2636",
         "name": "台驊控股",
-        "price": 68.5,
+        "price": 68.1,
         "exchange": "上市",
         "score": 93,
         "trend_status": "🔥 L1_左側起漲",
@@ -1213,10 +1193,10 @@
         "first_entry_price": 67.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2362",
         "name": "藍天",
-        "price": 40.35,
+        "price": 40.15,
         "exchange": "上市",
         "score": 93,
         "trend_status": "⏳ L0_左側築底",
@@ -1233,10 +1213,50 @@
         "first_entry_price": 38.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
+        "code": "2228",
+        "name": "劍麟",
+        "price": 86.4,
+        "exchange": "上市",
+        "score": 90,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 85.54,
+        "bias60": "-4.8%",
+        "bias24": "-3.5%",
+        "bias6": "-2.4%",
+        "vol_ratio": "63.7%",
+        "eps": 1.19,
+        "yield_rate": 10.42,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 88.9
+    },
+    {
+        "date": "2026-05-12",
+        "code": "2101",
+        "name": "南港",
+        "price": 33.35,
+        "exchange": "上市",
+        "score": 90,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 33.02,
+        "bias60": "-2.8%",
+        "bias24": "-4.1%",
+        "bias6": "-1.5%",
+        "vol_ratio": "19.4%",
+        "eps": 1.38,
+        "yield_rate": 2.1,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-04-29",
+        "first_entry_price": 34.1
+    },
+    {
+        "date": "2026-05-12",
         "code": "5508",
         "name": "永信建",
-        "price": 49.75,
+        "price": 49.2,
         "exchange": "上櫃",
         "score": 90,
         "trend_status": "⏳ L0_左側築底",
@@ -1253,10 +1273,10 @@
         "first_entry_price": 50.9
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1789",
         "name": "神隆",
-        "price": 19.25,
+        "price": 19.1,
         "exchange": "上市",
         "score": 90,
         "trend_status": "⏳ L0_左側築底",
@@ -1273,7 +1293,7 @@
         "first_entry_price": 20.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8436",
         "name": "大江",
         "price": 120.5,
@@ -1293,10 +1313,10 @@
         "first_entry_price": 124.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8222",
         "name": "寶一",
-        "price": 35.5,
+        "price": 35.8,
         "exchange": "上市",
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
@@ -1313,10 +1333,10 @@
         "first_entry_price": 36.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5484",
         "name": "慧友",
-        "price": 38.2,
+        "price": 38.7,
         "exchange": "上市",
         "score": 90,
         "trend_status": "⏳ L0_左側築底",
@@ -1333,10 +1353,10 @@
         "first_entry_price": 39.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1477",
         "name": "聚陽",
-        "price": 218.0,
+        "price": 225.0,
         "exchange": "上市",
         "score": 90,
         "trend_status": "⏳ L0_左側築底",
@@ -1353,10 +1373,10 @@
         "first_entry_price": 211.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8454",
         "name": "富邦媒",
-        "price": 194.0,
+        "price": 189.5,
         "score": 90,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 179.19,
@@ -1372,10 +1392,10 @@
         "first_entry_price": 177.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3060",
         "name": "銘異",
-        "price": 28.55,
+        "price": 28.1,
         "score": 90,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 29.11,
@@ -1391,10 +1411,10 @@
         "first_entry_price": 29.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5493",
         "name": "三聯",
-        "price": 86.6,
+        "price": 85.8,
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 83.46,
@@ -1410,10 +1430,10 @@
         "first_entry_price": 84.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6279",
         "name": "胡連",
-        "price": 120.5,
+        "price": 118.5,
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 107.41,
@@ -1429,10 +1449,10 @@
         "first_entry_price": 108.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6469",
         "name": "大樹",
-        "price": 73.5,
+        "price": 72.3,
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 79.89,
@@ -1448,10 +1468,10 @@
         "first_entry_price": 80.9
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6505",
         "name": "台塑化",
-        "price": 54.0,
+        "price": 53.1,
         "exchange": "上市",
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
@@ -1468,10 +1488,10 @@
         "first_entry_price": 54.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1712",
         "name": "興農",
-        "price": 41.45,
+        "price": 41.2,
         "exchange": "上市",
         "score": 90,
         "trend_status": "⏳ L0_左側築底",
@@ -1488,10 +1508,10 @@
         "first_entry_price": 42.15
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1231",
         "name": "聯華食",
-        "price": 87.0,
+        "price": 86.1,
         "exchange": "上市",
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
@@ -1508,10 +1528,10 @@
         "first_entry_price": 87.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5521",
         "name": "工信",
-        "price": 12.1,
+        "price": 11.8,
         "exchange": "上市",
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
@@ -1528,7 +1548,7 @@
         "first_entry_price": 11.7
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6220",
         "name": "岳豐",
         "price": 30.0,
@@ -1548,30 +1568,10 @@
         "first_entry_price": 30.4
     },
     {
-        "date": "2026-05-11",
-        "code": "2204",
-        "name": "中華",
-        "price": 54.1,
-        "exchange": "上市",
-        "score": 90,
-        "trend_status": "🔥 L1_左側起漲",
-        "entry_price": 53.86,
-        "bias60": "-2.1%",
-        "bias24": "0.2%",
-        "bias6": "0.2%",
-        "vol_ratio": "78.3%",
-        "eps": 1.57,
-        "yield_rate": 7.72,
-        "buy_days": 4,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-31",
-        "first_entry_price": 55.4
-    },
-    {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9911",
         "name": "櫻花",
-        "price": 84.2,
+        "price": 83.1,
         "exchange": "上市",
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
@@ -1588,18 +1588,18 @@
         "first_entry_price": 83.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1312",
         "name": "國喬",
-        "price": 11.8,
+        "price": 11.7,
         "exchange": "上市",
         "score": 90,
         "trend_status": "⏳ L0_左側築底",
-        "entry_price": 11.68,
-        "bias60": "-10.7%",
-        "bias24": "-8.2%",
-        "bias6": "-0.1%",
-        "vol_ratio": "46.0%",
+        "entry_price": 11.58,
+        "bias60": "-11.3%",
+        "bias24": "-8.4%",
+        "bias6": "-1.0%",
+        "vol_ratio": "7.3%",
         "eps": -1.11,
         "yield_rate": 0.0,
         "buy_days": 4,
@@ -1608,30 +1608,30 @@
         "first_entry_price": 12.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1304",
         "name": "台聚",
-        "price": 13.05,
+        "price": 12.8,
         "exchange": "上市",
         "score": 90,
         "trend_status": "⏳ L0_左側築底",
-        "entry_price": 12.92,
-        "bias60": "-6.5%",
-        "bias24": "-10.9%",
-        "bias6": "-1.3%",
-        "vol_ratio": "35.5%",
+        "entry_price": 12.67,
+        "bias60": "-8.4%",
+        "bias24": "-11.4%",
+        "bias6": "-2.2%",
+        "vol_ratio": "8.4%",
         "eps": -0.75,
-        "yield_rate": 1.53,
+        "yield_rate": 1.56,
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-05-11",
         "first_entry_price": 13.05
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2880",
         "name": "華南金",
-        "price": 33.25,
+        "price": 33.0,
         "exchange": "上市",
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
@@ -1648,10 +1648,30 @@
         "first_entry_price": 33.25
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
+        "code": "2201",
+        "name": "裕隆",
+        "price": 27.6,
+        "exchange": "上市",
+        "score": 90,
+        "trend_status": "🔥 L1_左側起漲",
+        "entry_price": 27.32,
+        "bias60": "-2.2%",
+        "bias24": "1.4%",
+        "bias6": "0.3%",
+        "vol_ratio": "23.4%",
+        "eps": 0.16,
+        "yield_rate": 4.71,
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-03-25",
+        "first_entry_price": 27.75
+    },
+    {
+        "date": "2026-05-12",
         "code": "6841",
         "name": "長佳智能",
-        "price": 60.4,
+        "price": 59.2,
         "score": 88,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 58.21,
@@ -1667,10 +1687,10 @@
         "first_entry_price": 58.8
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2428",
         "name": "興勤",
-        "price": 193.0,
+        "price": 195.0,
         "score": 88,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 153.94,
@@ -1686,10 +1706,10 @@
         "first_entry_price": 157.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3004",
         "name": "豐達科",
-        "price": 114.5,
+        "price": 113.0,
         "score": 88,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 99.99,
@@ -1705,10 +1725,10 @@
         "first_entry_price": 100.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9910",
         "name": "豐泰",
-        "price": 74.4,
+        "price": 73.8,
         "score": 88,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 79.3,
@@ -1724,10 +1744,10 @@
         "first_entry_price": 80.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "7765",
         "name": "中華資安",
-        "price": 249.5,
+        "price": 246.0,
         "score": 88,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 228.69,
@@ -1743,30 +1763,30 @@
         "first_entry_price": 228.5
     },
     {
-        "date": "2026-05-11",
-        "code": "1313",
-        "name": "聯成",
-        "price": 11.25,
+        "date": "2026-05-12",
+        "code": "1316",
+        "name": "上曜",
+        "price": 11.45,
         "exchange": "上市",
         "score": 88,
         "trend_status": "🔥 L1_左側起漲",
-        "entry_price": 11.14,
-        "bias60": "-5.3%",
-        "bias24": "-4.0%",
-        "bias6": "2.3%",
-        "vol_ratio": "52.2%",
-        "eps": -0.61,
+        "entry_price": 11.34,
+        "bias60": "-8.0%",
+        "bias24": "-1.3%",
+        "bias6": "0.7%",
+        "vol_ratio": "51.9%",
+        "eps": 0.22,
         "yield_rate": 0.0,
-        "buy_days": 4,
+        "buy_days": 2,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-05-05",
-        "first_entry_price": 10.95
+        "first_entry_date": "2026-04-02",
+        "first_entry_price": 12.05
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2354",
         "name": "鴻準",
-        "price": 61.6,
+        "price": 61.1,
         "score": 86,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 52.17,
@@ -1782,10 +1802,10 @@
         "first_entry_price": 52.7
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1522",
         "name": "堤維西",
-        "price": 31.6,
+        "price": 31.15,
         "score": 86,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 31.88,
@@ -1801,10 +1821,10 @@
         "first_entry_price": 31.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5314",
         "name": "世紀*",
-        "price": 72.6,
+        "price": 71.9,
         "score": 86,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 77.12,
@@ -1820,30 +1840,50 @@
         "first_entry_price": 77.9
     },
     {
-        "date": "2026-05-11",
-        "code": "1316",
-        "name": "上曜",
-        "price": 11.45,
+        "date": "2026-05-12",
+        "code": "2014",
+        "name": "中鴻",
+        "price": 17.9,
         "exchange": "上市",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
-        "entry_price": 11.09,
-        "bias60": "-10.5%",
-        "bias24": "-3.9%",
-        "bias6": "-0.1%",
-        "vol_ratio": "81.1%",
-        "eps": 0.22,
+        "entry_price": 17.72,
+        "bias60": "-1.2%",
+        "bias24": "-1.0%",
+        "bias6": "-0.2%",
+        "vol_ratio": "38.4%",
+        "eps": -0.1,
         "yield_rate": 0.0,
-        "buy_days": 2,
+        "buy_days": 5,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-04-02",
-        "first_entry_price": 12.05
+        "first_entry_date": "2026-05-05",
+        "first_entry_price": 17.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
+        "code": "1313",
+        "name": "聯成",
+        "price": 11.15,
+        "exchange": "上市",
+        "score": 85,
+        "trend_status": "🔥 L1_左側起漲",
+        "entry_price": 11.04,
+        "bias60": "-6.3%",
+        "bias24": "-4.3%",
+        "bias6": "0.8%",
+        "vol_ratio": "17.0%",
+        "eps": -0.61,
+        "yield_rate": 0.0,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-05-05",
+        "first_entry_price": 10.95
+    },
+    {
+        "date": "2026-05-12",
         "code": "2646",
         "name": "星宇航空",
-        "price": 20.5,
+        "price": 20.45,
         "exchange": "上市",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -1860,10 +1900,10 @@
         "first_entry_price": 20.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9802",
         "name": "鈺齊-KY",
-        "price": 83.1,
+        "price": 81.8,
         "exchange": "上市",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -1880,10 +1920,10 @@
         "first_entry_price": 77.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6670",
         "name": "復盛應用",
-        "price": 262.5,
+        "price": 265.0,
         "exchange": "上市",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -1900,10 +1940,10 @@
         "first_entry_price": 257.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5263",
         "name": "智崴",
-        "price": 104.0,
+        "price": 101.0,
         "exchange": "上櫃",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -1920,10 +1960,10 @@
         "first_entry_price": 94.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3596",
         "name": "智易",
-        "price": 184.0,
+        "price": 181.5,
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 166.32,
@@ -1939,7 +1979,7 @@
         "first_entry_price": 174.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2606",
         "name": "裕民",
         "price": 65.3,
@@ -1958,10 +1998,10 @@
         "first_entry_price": 58.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1808",
         "name": "潤隆",
-        "price": 28.9,
+        "price": 29.0,
         "score": 85,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 30.29,
@@ -1977,10 +2017,10 @@
         "first_entry_price": 30.65
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3312",
         "name": "弘憶股",
-        "price": 44.5,
+        "price": 43.8,
         "score": 85,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 35.74,
@@ -1996,10 +2036,10 @@
         "first_entry_price": 36.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4306",
         "name": "炎洲",
-        "price": 13.35,
+        "price": 13.2,
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 13.41,
@@ -2015,10 +2055,10 @@
         "first_entry_price": 13.55
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6126",
         "name": "信音",
-        "price": 33.0,
+        "price": 32.8,
         "exchange": "上櫃",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -2035,10 +2075,10 @@
         "first_entry_price": 31.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1710",
         "name": "東聯",
-        "price": 12.45,
+        "price": 12.25,
         "exchange": "上市",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -2055,10 +2095,10 @@
         "first_entry_price": 13.55
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3056",
         "name": "富華新",
-        "price": 13.55,
+        "price": 13.35,
         "exchange": "上市",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -2075,10 +2115,10 @@
         "first_entry_price": 14.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6180",
         "name": "橘子",
-        "price": 39.4,
+        "price": 39.05,
         "exchange": "上櫃",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -2095,10 +2135,10 @@
         "first_entry_price": 40.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6732",
         "name": "昇佳電子",
-        "price": 167.0,
+        "price": 171.5,
         "exchange": "上櫃",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -2115,10 +2155,10 @@
         "first_entry_price": 150.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6177",
         "name": "達麗",
-        "price": 47.05,
+        "price": 47.2,
         "exchange": "上市",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -2135,10 +2175,10 @@
         "first_entry_price": 46.85
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9955",
         "name": "佳龍",
-        "price": 30.1,
+        "price": 29.9,
         "exchange": "上市",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -2155,10 +2195,10 @@
         "first_entry_price": 29.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4105",
         "name": "東洋",
-        "price": 75.2,
+        "price": 75.0,
         "exchange": "上櫃",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -2175,10 +2215,10 @@
         "first_entry_price": 74.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3703",
         "name": "欣陸",
-        "price": 20.75,
+        "price": 20.5,
         "exchange": "上市",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -2195,10 +2235,30 @@
         "first_entry_price": 20.75
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
+        "code": "1434",
+        "name": "福懋",
+        "price": 15.65,
+        "exchange": "上市",
+        "score": 85,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 15.49,
+        "bias60": "-6.5%",
+        "bias24": "-3.6%",
+        "bias6": "-1.6%",
+        "vol_ratio": "68.6%",
+        "eps": 0.2,
+        "yield_rate": 5.11,
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-05-12",
+        "first_entry_price": 15.65
+    },
+    {
+        "date": "2026-05-12",
         "code": "6753",
         "name": "龍德造船",
-        "price": 131.5,
+        "price": 132.5,
         "score": 83,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 125.23,
@@ -2214,10 +2274,10 @@
         "first_entry_price": 129.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2637",
         "name": "慧洋-KY",
-        "price": 74.5,
+        "price": 73.0,
         "score": 83,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 67.22,
@@ -2233,10 +2293,10 @@
         "first_entry_price": 67.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6186",
         "name": "新潤",
-        "price": 39.65,
+        "price": 38.3,
         "score": 83,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 40.34,
@@ -2252,10 +2312,10 @@
         "first_entry_price": 40.75
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3712",
         "name": "永崴投控",
-        "price": 20.3,
+        "price": 20.05,
         "exchange": "上市",
         "score": 83,
         "trend_status": "🔥 L1_左側起漲",
@@ -2272,10 +2332,10 @@
         "first_entry_price": 20.65
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8464",
         "name": "億豐",
-        "price": 335.0,
+        "price": 322.5,
         "exchange": "上市",
         "score": 80,
         "trend_status": "⏳ L0_左側築底",
@@ -2292,10 +2352,10 @@
         "first_entry_price": 372.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2417",
         "name": "圓剛",
-        "price": 51.0,
+        "price": 49.3,
         "score": 80,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 34.65,
@@ -2311,10 +2371,10 @@
         "first_entry_price": 35.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2377",
         "name": "微星",
-        "price": 107.5,
+        "price": 109.0,
         "score": 80,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 88.31,
@@ -2330,10 +2390,10 @@
         "first_entry_price": 89.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2493",
         "name": "揚博",
-        "price": 129.5,
+        "price": 127.5,
         "score": 80,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 103.95,
@@ -2349,10 +2409,10 @@
         "first_entry_price": 105.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3029",
         "name": "零壹",
-        "price": 99.1,
+        "price": 97.9,
         "score": 80,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 96.53,
@@ -2368,10 +2428,10 @@
         "first_entry_price": 98.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3051",
         "name": "力特",
-        "price": 26.35,
+        "price": 25.95,
         "score": 80,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 20.54,
@@ -2387,10 +2447,10 @@
         "first_entry_price": 20.75
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2453",
         "name": "凌群",
-        "price": 54.8,
+        "price": 54.0,
         "exchange": "上市",
         "score": 80,
         "trend_status": "⏳ L0_左側築底",
@@ -2407,10 +2467,10 @@
         "first_entry_price": 53.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1529",
         "name": "樂事綠能",
-        "price": 22.45,
+        "price": 22.3,
         "exchange": "上市",
         "score": 80,
         "trend_status": "⏳ L0_左側築底",
@@ -2427,10 +2487,10 @@
         "first_entry_price": 22.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1524",
         "name": "耿鼎",
-        "price": 29.55,
+        "price": 29.15,
         "exchange": "上市",
         "score": 80,
         "trend_status": "🔥 L1_左側起漲",
@@ -2447,30 +2507,50 @@
         "first_entry_price": 28.4
     },
     {
-        "date": "2026-05-11",
-        "code": "2201",
-        "name": "裕隆",
-        "price": 27.75,
+        "date": "2026-05-12",
+        "code": "1436",
+        "name": "華友聯",
+        "price": 48.1,
         "exchange": "上市",
         "score": 80,
-        "trend_status": "🔥 L1_左側起漲",
-        "entry_price": 27.47,
-        "bias60": "-1.8%",
-        "bias24": "2.1%",
-        "bias6": "1.3%",
-        "vol_ratio": "79.0%",
-        "eps": 0.16,
-        "yield_rate": 4.68,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 47.62,
+        "bias60": "-10.5%",
+        "bias24": "-5.8%",
+        "bias6": "-1.8%",
+        "vol_ratio": "33.0%",
+        "eps": -0.31,
+        "yield_rate": 20.37,
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-03-25",
-        "first_entry_price": 27.75
+        "first_entry_date": "2026-05-12",
+        "first_entry_price": 48.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
+        "code": "2104",
+        "name": "國際中橡",
+        "price": 10.1,
+        "exchange": "上市",
+        "score": 80,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 10.0,
+        "bias60": "-13.9%",
+        "bias24": "-8.3%",
+        "bias6": "-1.8%",
+        "vol_ratio": "33.9%",
+        "eps": -0.88,
+        "yield_rate": 0.0,
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-05-12",
+        "first_entry_price": 10.1
+    },
+    {
+        "date": "2026-05-12",
         "code": "2543",
         "name": "皇昌",
-        "price": 43.25,
+        "price": 42.7,
         "score": 78,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 57.12,
@@ -2486,10 +2566,10 @@
         "first_entry_price": 57.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2439",
         "name": "美律",
-        "price": 86.4,
+        "price": 85.8,
         "score": 78,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 82.96,
@@ -2505,10 +2585,10 @@
         "first_entry_price": 85.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1608",
         "name": "華榮",
-        "price": 34.25,
+        "price": 33.65,
         "score": 78,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 31.43,
@@ -2524,10 +2604,10 @@
         "first_entry_price": 32.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3617",
         "name": "碩天",
-        "price": 202.5,
+        "price": 194.5,
         "score": 78,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 172.26,
@@ -2543,10 +2623,10 @@
         "first_entry_price": 174.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2352",
         "name": "佳世達",
-        "price": 25.7,
+        "price": 25.4,
         "score": 78,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 22.97,
@@ -2562,10 +2642,10 @@
         "first_entry_price": 23.8
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3483",
         "name": "力致",
-        "price": 90.9,
+        "price": 89.6,
         "score": 78,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 76.72,
@@ -2581,10 +2661,10 @@
         "first_entry_price": 77.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4968",
         "name": "立積",
-        "price": 121.0,
+        "price": 119.0,
         "score": 78,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 104.94,
@@ -2600,10 +2680,10 @@
         "first_entry_price": 105.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1904",
         "name": "正隆",
-        "price": 17.5,
+        "price": 17.45,
         "score": 78,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 17.92,
@@ -2619,10 +2699,10 @@
         "first_entry_price": 18.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4142",
         "name": "國光生",
-        "price": 17.65,
+        "price": 17.6,
         "exchange": "上市",
         "score": 78,
         "trend_status": "⏳ L0_左側築底",
@@ -2639,10 +2719,10 @@
         "first_entry_price": 18.15
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3622",
         "name": "洋華",
-        "price": 57.4,
+        "price": 56.6,
         "score": 76,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 56.53,
@@ -2658,10 +2738,10 @@
         "first_entry_price": 57.1
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2375",
         "name": "凱美",
-        "price": 91.5,
+        "price": 92.4,
         "score": 76,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 73.46,
@@ -2677,10 +2757,10 @@
         "first_entry_price": 74.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2365",
         "name": "昆盈",
-        "price": 36.95,
+        "price": 36.15,
         "score": 76,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 31.04,
@@ -2696,10 +2776,10 @@
         "first_entry_price": 31.35
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2312",
         "name": "金寶",
-        "price": 29.9,
+        "price": 28.95,
         "score": 76,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 21.98,
@@ -2715,10 +2795,10 @@
         "first_entry_price": 22.2
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4441",
         "name": "振大環球",
-        "price": 201.5,
+        "price": 210.5,
         "score": 76,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 190.08,
@@ -2734,10 +2814,10 @@
         "first_entry_price": 192.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2612",
         "name": "中航",
-        "price": 57.3,
+        "price": 56.1,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -2754,10 +2834,10 @@
         "first_entry_price": 56.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4164",
         "name": "承業醫",
-        "price": 29.0,
+        "price": 28.6,
         "score": 75,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 31.18,
@@ -2773,10 +2853,10 @@
         "first_entry_price": 30.95
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1342",
         "name": "八貫",
-        "price": 95.5,
+        "price": 94.8,
         "score": 75,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 83.85,
@@ -2792,10 +2872,10 @@
         "first_entry_price": 85.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2402",
         "name": "毅嘉",
-        "price": 69.0,
+        "price": 71.8,
         "score": 75,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 51.38,
@@ -2811,7 +2891,7 @@
         "first_entry_price": 51.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6605",
         "name": "帝寶",
         "price": 129.0,
@@ -2830,10 +2910,10 @@
         "first_entry_price": 134.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2597",
         "name": "潤弘",
-        "price": 160.0,
+        "price": 161.0,
         "score": 75,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 151.47,
@@ -2849,10 +2929,10 @@
         "first_entry_price": 156.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2106",
         "name": "建大",
-        "price": 17.35,
+        "price": 17.2,
         "score": 75,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 18.22,
@@ -2868,10 +2948,10 @@
         "first_entry_price": 18.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2359",
         "name": "所羅門",
-        "price": 122.5,
+        "price": 119.5,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -2888,10 +2968,10 @@
         "first_entry_price": 109.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3704",
         "name": "合勤控",
-        "price": 35.05,
+        "price": 35.95,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -2908,10 +2988,10 @@
         "first_entry_price": 34.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6112",
         "name": "邁達特",
-        "price": 44.25,
+        "price": 43.05,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -2928,10 +3008,10 @@
         "first_entry_price": 45.15
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5469",
         "name": "瀚宇博",
-        "price": 85.1,
+        "price": 83.0,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -2948,10 +3028,10 @@
         "first_entry_price": 90.7
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3047",
         "name": "訊舟",
-        "price": 14.65,
+        "price": 14.45,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -2968,10 +3048,10 @@
         "first_entry_price": 14.65
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8422",
         "name": "可寧衛*",
-        "price": 27.95,
+        "price": 27.5,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -2988,10 +3068,30 @@
         "first_entry_price": 27.95
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
+        "code": "1471",
+        "name": "首利",
+        "price": 10.75,
+        "exchange": "上市",
+        "score": 75,
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 10.64,
+        "bias60": "-12.5%",
+        "bias24": "-8.8%",
+        "bias6": "-3.6%",
+        "vol_ratio": "33.5%",
+        "eps": 0.08,
+        "yield_rate": 0.0,
+        "buy_days": 2,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-05-12",
+        "first_entry_price": 10.75
+    },
+    {
+        "date": "2026-05-12",
         "code": "2207",
         "name": "和泰車",
-        "price": 475.5,
+        "price": 473.0,
         "score": 73,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 493.02,
@@ -3007,10 +3107,10 @@
         "first_entry_price": 498.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "7780",
         "name": "大研生醫*",
-        "price": 18.5,
+        "price": 18.05,
         "exchange": "上市",
         "score": 73,
         "trend_status": "⏳ L0_左側築底",
@@ -3027,10 +3127,10 @@
         "first_entry_price": 19.95
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2476",
         "name": "鉅祥",
-        "price": 119.5,
+        "price": 117.5,
         "score": 70,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 80.69,
@@ -3046,10 +3146,10 @@
         "first_entry_price": 81.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3059",
         "name": "華晶科",
-        "price": 40.15,
+        "price": 39.1,
         "score": 70,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 36.28,
@@ -3065,10 +3165,10 @@
         "first_entry_price": 37.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2520",
         "name": "冠德",
-        "price": 30.6,
+        "price": 30.1,
         "score": 70,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 30.59,
@@ -3084,10 +3184,10 @@
         "first_entry_price": 30.9
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2889",
         "name": "國票金",
-        "price": 14.75,
+        "price": 14.7,
         "score": 70,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 15.3,
@@ -3103,10 +3203,10 @@
         "first_entry_price": 15.45
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3402",
         "name": "漢科",
-        "price": 139.5,
+        "price": 137.5,
         "score": 70,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 123.25,
@@ -3122,10 +3222,10 @@
         "first_entry_price": 124.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3050",
         "name": "鈺德",
-        "price": 12.35,
+        "price": 12.15,
         "score": 70,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 13.02,
@@ -3141,30 +3241,10 @@
         "first_entry_price": 13.15
     },
     {
-        "date": "2026-05-11",
-        "code": "2258",
-        "name": "鴻華先進-創",
-        "price": 28.1,
-        "exchange": "上市",
-        "score": 70,
-        "trend_status": "🔥 L1_左側起漲",
-        "entry_price": 29.11,
-        "bias60": "-12.3%",
-        "bias24": "3.2%",
-        "bias6": "1.4%",
-        "vol_ratio": "61.9%",
-        "eps": -0.86,
-        "yield_rate": 0.0,
-        "buy_days": 3,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-04-24",
-        "first_entry_price": 29.4
-    },
-    {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "7792",
         "name": "安葆",
-        "price": 316.0,
+        "price": 312.0,
         "exchange": "上櫃",
         "score": 70,
         "trend_status": "⏳ L0_左側築底",
@@ -3181,10 +3261,10 @@
         "first_entry_price": 340.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1786",
         "name": "科妍",
-        "price": 56.0,
+        "price": 53.4,
         "score": 68,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 63.56,
@@ -3200,10 +3280,10 @@
         "first_entry_price": 65.3
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "5225",
         "name": "東科-KY",
-        "price": 73.4,
+        "price": 71.7,
         "score": 68,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 77.42,
@@ -3219,7 +3299,7 @@
         "first_entry_price": 77.7
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "6176",
         "name": "瑞儀",
         "price": 104.0,
@@ -3238,10 +3318,10 @@
         "first_entry_price": 91.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4571",
         "name": "鈞興-KY",
-        "price": 197.5,
+        "price": 193.0,
         "score": 68,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 149.0,
@@ -3257,10 +3337,10 @@
         "first_entry_price": 150.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "1736",
         "name": "喬山",
-        "price": 124.0,
+        "price": 120.0,
         "score": 68,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 120.78,
@@ -3276,10 +3356,10 @@
         "first_entry_price": 122.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3019",
         "name": "亞光",
-        "price": 146.5,
+        "price": 143.5,
         "score": 68,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 124.74,
@@ -3295,10 +3375,10 @@
         "first_entry_price": 126.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3624",
         "name": "光頡",
-        "price": 63.0,
+        "price": 66.1,
         "score": 68,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 47.52,
@@ -3314,10 +3394,10 @@
         "first_entry_price": 48.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "8249",
         "name": "菱光",
-        "price": 51.0,
+        "price": 49.2,
         "score": 68,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 49.5,
@@ -3333,10 +3413,10 @@
         "first_entry_price": 50.0
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2374",
         "name": "佳能",
-        "price": 80.5,
+        "price": 79.2,
         "score": 65,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 71.58,
@@ -3352,10 +3432,10 @@
         "first_entry_price": 69.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2645",
         "name": "長榮航太",
-        "price": 154.5,
+        "price": 156.0,
         "score": 65,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 149.49,
@@ -3371,10 +3451,10 @@
         "first_entry_price": 148.5
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2542",
         "name": "興富發",
-        "price": 41.65,
+        "price": 41.2,
         "score": 65,
         "trend_status": "⭐ 底部起漲 (乖離6已翻正)",
         "entry_price": 35.29,
@@ -3390,10 +3470,10 @@
         "first_entry_price": 35.4
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "2363",
         "name": "矽統",
-        "price": 61.0,
+        "price": 59.8,
         "score": 65,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 48.41,
@@ -3409,10 +3489,10 @@
         "first_entry_price": 48.65
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "4114",
         "name": "健喬",
-        "price": 31.0,
+        "price": 31.15,
         "score": 65,
         "trend_status": "⏳ 築底量縮中 (乖離6仍為負)",
         "entry_price": 30.59,
@@ -3428,10 +3508,10 @@
         "first_entry_price": 30.9
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "9914",
         "name": "美利達",
-        "price": 57.5,
+        "price": 58.3,
         "score": 60,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 59.3,
@@ -3447,10 +3527,10 @@
         "first_entry_price": 61.6
     },
     {
-        "date": "2026-05-11",
+        "date": "2026-05-12",
         "code": "3322",
         "name": "建舜電",
-        "price": 13.15,
+        "price": 13.25,
         "exchange": "上櫃",
         "score": 55,
         "trend_status": "⏳ L0_左側築底",
