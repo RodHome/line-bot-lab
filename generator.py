@@ -221,6 +221,87 @@ def get_dividend_yield_for_crawler(code, current_price):
     except:
         return 0.0
 
+# ==========================================
+# 🔥 [新增模組] 抓取最新除息日
+# ==========================================
+def get_finmind_ex_dividend_date(code):
+    """查詢該檔股票最近一次的除息日"""
+    try:
+        start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        url = "https://api.finmindtrade.com/api/v4/data"
+        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
+        data = res.json().get('data', [])
+        if not data: return None
+        
+        # 依照日期排序，取最新的一筆配息資料
+        data.sort(key=lambda x: x.get('date', ''), reverse=True)
+        for d in data:
+            ex_date = d.get('ExDividendDate')
+            if ex_date:
+                return ex_date
+        return None
+    except:
+        return None
+
+# ==========================================
+# 🔥 [新增模組] 歷史標的共用同步大腦 (DRY 原則)
+# ==========================================
+def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=None):
+    """
+    統一處理左側與右側老標的之股價同步、除息日更新與動能重新計分
+    """
+    updated_history = []
+    print(f"🔄 正在同步 {file_name} 歷史標的最新現價與除息資訊...")
+    
+    if not os.path.exists(file_name):
+        return updated_history
+
+    try:
+        with open(file_name, 'r', encoding='utf-8') as f:
+            history_stocks = json.load(f)
+        
+        for old_s in history_stocks:
+            code = old_s['code']
+            # 若今日未被掃到，則啟動歷史標的更新機制
+            if code not in today_codes:
+                try:
+                    # 1. 統一判斷上市櫃並更新股價
+                    exchange_type = old_s.get('exchange', '上市')
+                    suffix = ".TWO" if exchange_type == '上櫃' else ".TW"
+                    ticker = yf.Ticker(f"{code}{suffix}")
+                    hist = ticker.history(period="1d")
+
+                    if not hist.empty:
+                        # 更新最新收盤價與資料日期
+                        new_p = round(float(hist['Close'].iloc[-1]), 2)
+                        old_s['price'] = new_p
+                        old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                        
+                        # 2. [新增] 檢查並寫入除息日
+                        ex_date = get_finmind_ex_dividend_date(code)
+                        if ex_date:
+                            old_s['ex_dividend_date'] = ex_date
+
+                        # 3. 若為右側標的，重新計算動能分數 (m_score)
+                        if strategy_type == 'RIGHT' and taiwan_50_list:
+                            old_s['cap_size'] = "大型權值股" if code in taiwan_50_list else "中小型股"
+                            yoy_val = old_s.get('yoy', 0)
+                            buy_val = old_s.get('buy_value', 0)
+                            buy_val_y = buy_val / 100000000
+                            m_score = (min(yoy_val, 100) * 1.5) + (min(buy_val_y, 10) * 5)
+                            if old_s['cap_size'] == "中小型股":
+                                m_score = m_score * 1.2
+                            old_s['m_score'] = round(m_score, 2)
+                        
+                        updated_history.append(old_s) 
+                        
+                except Exception as e:
+                    print(f"⚠️ 學長 {code} 更新股價失敗: {e}")
+    except Exception as e:
+        print(f"⚠️ 讀取 {file_name} 失敗: {e}")
+
+    return updated_history
+
 # ========================================================
 # --- 功能 1: 抓取所有股票代號與產業分類 (精準過濾版) ---
 def update_stock_list_json():
@@ -597,66 +678,23 @@ def generate_daily_recommendations():
     except Exception as e:
         print(f"❌ [Task 2] 發生錯誤: {e}")
 
+   # =========================================================
+    # 🔥 [重構] 右側歷史標的同步模組 (支援除息日檢查)
     # =========================================================
-    # 👇👇👇 請把【右側】的老標的同步模組貼在這裡 👇👇👇
+    today_codes = {s['code'] for s in final_list}
+    updated_history = sync_historical_data('daily_recommendations.json', today_codes, 'RIGHT', TAIWAN_50)
+    final_list.extend(updated_history)
+
     # =========================================================
-    print("🔄 正在同步右側歷史標的的最新現價...")
-    if os.path.exists('daily_recommendations.json'):
-        try:
-            with open('daily_recommendations.json', 'r', encoding='utf-8') as f:
-                history_stocks = json.load(f)
-            
-            today_codes = {s['code'] for s in final_list}
-            for old_s in history_stocks:
-                code = old_s['code']
-                if code not in today_codes:
-                    try:
-                        exchange_type = old_s.get('exchange')
-                        
-                        if exchange_type == '上櫃':
-                            ticker = yf.Ticker(f"{code}.TWO")
-                            hist = ticker.history(period="1d")
-                        elif exchange_type == '上市':
-                            ticker = yf.Ticker(f"{code}.TW")
-                            hist = ticker.history(period="1d")
-                        else:
-                            # 舊資料過渡期保護
-                            ticker = yf.Ticker(f"{code}.TW")
-                            hist = ticker.history(period="1d")
-                            if hist.empty:
-                                ticker = yf.Ticker(f"{code}.TWO")
-                                hist = ticker.history(period="1d")
+    # 🔥 [重構] 右側歷史標的同步模組 (支援除息日檢查)
+    # =========================================================
+    today_codes = {s['code'] for s in final_list}
+    updated_history = sync_historical_data('daily_recommendations.json', today_codes, 'RIGHT', TAIWAN_50)
+    final_list.extend(updated_history)
 
-                        if not hist.empty:
-                            new_p = round(float(hist['Close'].iloc[-1]), 2)
-                            old_s['price'] = new_p
-                            old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                            
-                            # 👇 新增：幫舊股票回補標籤與分數
-                            old_s['cap_size'] = "大型權值股" if code in TAIWAN_50 else "中小型股"
-                            yoy_val = old_s.get('yoy', 0)
-                            buy_val = old_s.get('buy_value', 0)
-                            buy_val_y = buy_val / 100000000
-                            m_score = (min(yoy_val, 100) * 1.5) + (min(buy_val_y, 10) * 5)
-                            if old_s['cap_size'] == "中小型股":
-                                m_score = m_score * 1.2
-                            old_s['m_score'] = round(m_score, 2)
-                            
-                            final_list.append(old_s) 
-                            
-                    except Exception as e:
-                        print(f"⚠️ 右側學長 {code} 更新股價失敗: {e}")
-        except Exception as e:
-            print(f"⚠️ 讀取 daily_recommendations.json 失敗: {e}")
-
-    # 👇 關鍵修改：融合存檔時，改用 m_score 排序 (原本是 buy_value)
+    # 📦 呼叫融合大腦，結合歷史 30 天記憶後存檔 (統一使用 m_score 排序)
     merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'm_score')
-    # =========================================================
-    # 👆👆👆 貼到這裡結束 👆👆👆
-    # =========================================================
     
-    # 📦 [修改] 呼叫融合大腦，結合歷史 30 天記憶後存檔
-    merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'buy_value')
     if merged_list:
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
             json.dump(merged_list, f, ensure_ascii=False, indent=4)
@@ -1001,36 +1039,12 @@ def generate_left_side_value():
     # 👆👆👆 貼到這裡結束 👆👆👆
     # =========================================================
 
-    # 執行融合 (除名機制就在這裡面：維持最近 30 個交易日)
     # ---------------------------------------------------------
-    # 🔥 [關鍵修正] 老標的現價同步模組
+    # 🔥 [重構] 左側歷史標的同步模組 (支援除息日檢查)
     # ---------------------------------------------------------
-    print("🔄 正在同步所有歷史標的的最新市場現價...")
-    if os.path.exists('left_side_value.json'):
-        try:
-            with open('left_side_value.json', 'r', encoding='utf-8') as f:
-                history_stocks = json.load(f)
-            
-            today_codes = {s['code'] for s in final_list}
-            for old_s in history_stocks:
-                code = old_s['code']
-                # 如果這檔老股票今天沒被雷達掃到(代表它起漲或條件變了)
-                # 我們依然要強迫更新它的價格，績效才不會失真
-                if code not in today_codes:
-                    try:
-                        suffix = ".TW" if len(code) == 4 else ".TWO"
-                        ticker = yf.Ticker(f"{code}{suffix}")
-                        # 抓取最後一筆成交價
-                        hist = ticker.history(period="1d")
-                        if not hist.empty:
-                            new_p = round(float(hist['Close'].iloc[-1]), 2)
-                            old_s['price'] = new_p
-                            # 💡 重要：更新它的資料日期為今天，否則會被 30 天機制除名
-                            old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                            final_list.append(old_s) 
-                    except: continue
-        except Exception as e:
-            print(f"⚠️ 同步歷史價格失敗: {e}")
+    today_codes = {s['code'] for s in final_list}
+    updated_history = sync_historical_data('left_side_value.json', today_codes, 'LEFT')
+    final_list.extend(updated_history)
 
     # 執行融合與除名機制
     merged_list = merge_history_data(final_list, 'left_side_value.json', 'score')
