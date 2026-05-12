@@ -229,14 +229,14 @@ def get_finmind_ex_dividend_date(code):
     try:
         start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         url = "https://api.finmindtrade.com/api/v4/data"
-        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
+        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": VIP_TOKEN}, timeout=5)
         data = res.json().get('data', [])
         if not data: return None
         
         # 依照日期排序，取最新的一筆配息資料
         data.sort(key=lambda x: x.get('date', ''), reverse=True)
         for d in data:
-            ex_date = d.get('ExDividendDate')
+            ex_date = d.get('CashExDividendTradingDate') or d.get('StockExDividendTradingDate')
             if ex_date:
                 return ex_date
         return None
@@ -655,6 +655,7 @@ def generate_daily_recommendations():
                             "sector": stock_sector,
                             "cap_size": stock_cap_size, # 👈 寫入標籤
                             "m_score": round(m_score, 2), # 👈 寫入分數
+                            "ex_dividend_date": ex_date, # 👈 寫入除息日
                             "price": price,
                             "turnover": turnover,
                             "chips_display": f"{chips_sum}張 ({buy_value_y:.1f}億)",
@@ -678,13 +679,6 @@ def generate_daily_recommendations():
     except Exception as e:
         print(f"❌ [Task 2] 發生錯誤: {e}")
 
-   # =========================================================
-    # 🔥 [重構] 右側歷史標的同步模組 (支援除息日檢查)
-    # =========================================================
-    today_codes = {s['code'] for s in final_list}
-    updated_history = sync_historical_data('daily_recommendations.json', today_codes, 'RIGHT', TAIWAN_50)
-    final_list.extend(updated_history)
-
     # =========================================================
     # 🔥 [重構] 右側歷史標的同步模組 (支援除息日檢查)
     # =========================================================
@@ -701,6 +695,7 @@ def generate_daily_recommendations():
         print(f"💾 已儲存 daily_recommendations.json (包含歷史共 {len(merged_list)} 檔)")
     else:
         print("⚠️ 歷史與今日皆無資料可存。")
+   
 
 #----------3/13增加左側交易-------------
 # ========================================================
@@ -974,6 +969,7 @@ def generate_left_side_value():
             "score": score,
             "trend_status": trend_status,
             "entry_price": entry_price,
+            "ex_dividend_date": ex_date,  # 👈 寫入除息
             "bias60": f"{bias_pct:.1f}%",
             "bias24": f"{item['bias24']*100:.1f}%", 
             "bias6": f"{item['bias6']*100:.1f}%",   
@@ -995,53 +991,12 @@ def generate_left_side_value():
     else:
         print("⚠️ 今日掃描無股票通過三層漏斗。")
 
-    # =========================================================
-    # 👇👇👇 請把【左側】的老標的同步模組貼在這裡 👇👇👇
-    # =========================================================
-    print("🔄 正在同步左側歷史標的的最新現價...")
-    if os.path.exists('left_side_value.json'):
-        try:
-            with open('left_side_value.json', 'r', encoding='utf-8') as f:
-                history_stocks = json.load(f)
-            
-            today_codes = {s['code'] for s in final_list}
-            for old_s in history_stocks:
-                code = old_s['code']
-                if code not in today_codes:
-                    try:
-                        exchange_type = old_s.get('exchange')
-                        
-                        if exchange_type == '上櫃':
-                            ticker = yf.Ticker(f"{code}.TWO")
-                            hist = ticker.history(period="1d")
-                        elif exchange_type == '上市':
-                            ticker = yf.Ticker(f"{code}.TW")
-                            hist = ticker.history(period="1d")
-                        else:
-                            # 舊資料過渡期保護
-                            ticker = yf.Ticker(f"{code}.TW")
-                            hist = ticker.history(period="1d")
-                            if hist.empty:
-                                ticker = yf.Ticker(f"{code}.TWO")
-                                hist = ticker.history(period="1d")
+    else:
+        print("⚠️ 今日掃描無股票通過三層漏斗。")
 
-                        if not hist.empty:
-                            new_p = round(float(hist['Close'].iloc[-1]), 2)
-                            old_s['price'] = new_p
-                            old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                            final_list.append(old_s) 
-                            
-                    except Exception as e:
-                        print(f"⚠️ 左側學長 {code} 更新股價失敗: {e}")
-        except Exception as e:
-            print(f"⚠️ 讀取 left_side_value.json 失敗: {e}")
     # =========================================================
-    # 👆👆👆 貼到這裡結束 👆👆👆
-    # =========================================================
-
-    # ---------------------------------------------------------
     # 🔥 [重構] 左側歷史標的同步模組 (支援除息日檢查)
-    # ---------------------------------------------------------
+    # =========================================================
     today_codes = {s['code'] for s in final_list}
     updated_history = sync_historical_data('left_side_value.json', today_codes, 'LEFT')
     final_list.extend(updated_history)
@@ -1049,9 +1004,12 @@ def generate_left_side_value():
     # 執行融合與除名機制
     merged_list = merge_history_data(final_list, 'left_side_value.json', 'score')
     
-    with open('left_side_value.json', 'w', encoding='utf-8') as f:
-        json.dump(merged_list, f, ensure_ascii=False, indent=4)
+    if merged_list:
+        with open('left_side_value.json', 'w', encoding='utf-8') as f:
+            json.dump(merged_list, f, ensure_ascii=False, indent=4)
         print(f"💾 已強制更新 left_side_value.json (包含歷史共 {len(merged_list)} 檔)")
+    else:
+        print("⚠️ 歷史與今日皆無資料可存。")
   
 # ========================================================
 # 🔥 新增功能 4: 【金剛不壞：存股打折加碼雷達】(獨立產線)
