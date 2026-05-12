@@ -646,6 +646,8 @@ def generate_daily_recommendations():
                             m_score = m_score * 1.2
                             
                         date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
+                        # 👉 補上這行：強制查詢今日新標的除息日
+                        ex_date = get_finmind_ex_dividend_date(code)
 
                         final_list.append({
                             "date": date_str,
@@ -958,6 +960,9 @@ def generate_left_side_value():
             
         entry_price = round(item['price'] * 0.99, 2)
         print(f"✅ 最終清單入選 | 分數: {score} | {trend_status}")
+
+        # 👉 補上這行：強制查詢今日新標的除息日
+        ex_date = get_finmind_ex_dividend_date(code)
 
         final_list.append({
             "date": item['real_date'],
