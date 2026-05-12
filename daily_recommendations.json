@@ -259,8 +259,8 @@
         "ex_dividend_date": "2025-08-28",
         "price": 4900.0,
         "turnover": 13219135825.0,
-        "chips_display": "871張 (42.7億)",
-        "buy_value": 4267900000.0,
+        "chips_display": "1426張 (69.9億)",
+        "buy_value": 6987400000.0,
         "yoy": 93.62,
         "tag": "投信作帳",
         "debug_info": {
@@ -744,7 +744,8 @@
         "first_entry_date": "2026-04-13",
         "first_entry_price": 81.3,
         "cap_size": "中小型股",
-        "m_score": 157.18
+        "m_score": 157.18,
+        "ex_dividend_date": "2026-06-29"
     },
     {
         "date": "2026-05-12",
@@ -1154,8 +1155,8 @@
         "ex_dividend_date": "2025-08-18",
         "price": 56.0,
         "turnover": 5304160088.0,
-        "chips_display": "42580張 (23.8億)",
-        "buy_value": 2384480000.0,
+        "chips_display": "41691張 (23.3億)",
+        "buy_value": 2334696000.0,
         "yoy": 34.61,
         "tag": "外資大買",
         "debug_info": {
@@ -2143,6 +2144,31 @@
     },
     {
         "date": "2026-05-12",
+        "code": "3008",
+        "name": "大立光",
+        "exchange": "上市",
+        "sector": "光電業",
+        "cap_size": "大型權值股",
+        "m_score": 83.86,
+        "ex_dividend_date": "2026-03-19",
+        "price": 2795.0,
+        "turnover": 8683689830.0,
+        "chips_display": "536張 (15.0億)",
+        "buy_value": 1498120000.0,
+        "yoy": 22.57,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 5362271000,
+            "last_rev": 4374813000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(5362271000 - 4374813000) / 4374813000"
+        },
+        "first_entry_date": "2026-04-13",
+        "first_entry_price": 2430.0
+    },
+    {
+        "date": "2026-05-12",
         "code": "3529",
         "name": "力旺",
         "exchange": "上櫃",
@@ -2393,6 +2419,31 @@
     },
     {
         "date": "2026-05-12",
+        "code": "1717",
+        "name": "長興",
+        "exchange": "上市",
+        "sector": "化學工業",
+        "cap_size": "中小型股",
+        "m_score": 71.45,
+        "ex_dividend_date": "2026-04-24",
+        "price": 82.7,
+        "turnover": 6372448891.0,
+        "chips_display": "9688張 (8.0億)",
+        "buy_value": 801197600.0,
+        "yoy": 12.99,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 4233389000,
+            "last_rev": 3746640000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(4233389000 - 3746640000) / 3746640000"
+        },
+        "first_entry_date": "2026-05-12",
+        "first_entry_price": 82.7
+    },
+    {
+        "date": "2026-05-12",
         "code": "6669",
         "name": "緯穎",
         "exchange": "上市",
@@ -2515,31 +2566,6 @@
         "cap_size": "中小型股",
         "m_score": 67.54,
         "ex_dividend_date": "2025-07-03"
-    },
-    {
-        "date": "2026-05-12",
-        "code": "3008",
-        "name": "大立光",
-        "exchange": "上市",
-        "sector": "光電業",
-        "cap_size": "大型權值股",
-        "m_score": 66.16,
-        "price": 2795.0,
-        "turnover": 6222815000.0,
-        "chips_display": "586張 (15.3億)",
-        "buy_value": 1532390000.0,
-        "yoy": 10.77,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 5419732000,
-            "last_rev": 4892942000,
-            "this_period": "2026/3",
-            "last_period": "2025/3",
-            "formula": "(5419732000 - 4892942000) / 4892942000"
-        },
-        "first_entry_date": "2026-04-13",
-        "first_entry_price": 2430.0,
-        "ex_dividend_date": "2026-03-19"
     },
     {
         "date": "2026-05-12",
