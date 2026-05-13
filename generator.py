@@ -711,13 +711,44 @@ def generate_daily_recommendations():
     updated_history = sync_historical_data('daily_recommendations.json', today_codes, 'RIGHT', TAIWAN_50)
     final_list.extend(updated_history)
 
-    # 📦 呼叫融合大腦，結合歷史 30 天記憶後存檔 (統一使用 m_score 排序)
+    # 📦 呼叫融合大腦，結合歷史記憶
     merged_list = merge_history_data(final_list, 'daily_recommendations.json', 'm_score')
     
+    # =========================================================
+    # 🔥 [新增] 右側無痕濾網 (15天期限 + 入榜理由消失，不留多餘欄位)
+    # =========================================================
+    filtered_momentum = []
+    today_dt = datetime.now()
+    
     if merged_list:
+        for item in merged_list:
+            # 1. 隱形計算天數
+            try:
+                first_date_str = item.get('first_entry_date', item.get('date'))
+                first_date = datetime.strptime(first_date_str, '%Y-%m-%d')
+                days_diff = (today_dt - first_date).days
+            except:
+                days_diff = 0
+                
+            # ⏳ 天數濾網：動能股不拖泥帶水，超過 30 天剔除
+            if days_diff > 30:
+                continue
+                
+            # 2. 隱形計算漲跌幅 (判斷入榜理由)
+            first_price = float(item.get('first_entry_price', item.get('price', 1)))
+            current_price = float(item.get('price', 1))
+            roi = (current_price - first_price) / first_price if first_price > 0 else 0
+            
+            # 📈 邏輯濾網：暴漲 20% (超漲過熱) 或 跌破動能 -8% (假突破) 直接剔除
+            if roi >= 0.20 or roi <= -0.08:
+                continue
+                
+            filtered_momentum.append(item)
+
+        # 📦 最終結算存檔 (儲存乾淨的 filtered_momentum)
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
-            json.dump(merged_list, f, ensure_ascii=False, indent=4)
-        print(f"💾 已儲存 daily_recommendations.json (包含歷史共 {len(merged_list)} 檔)")
+            json.dump(filtered_momentum, f, ensure_ascii=False, indent=4)
+        print(f"💾 已儲存 daily_recommendations.json (經無痕濾網淘汰後保留 {len(filtered_momentum)} 檔)")
     else:
         print("⚠️ 歷史與今日皆無資料可存。")
    
@@ -1029,10 +1060,41 @@ def generate_left_side_value():
     # 執行融合與除名機制
     merged_list = merge_history_data(final_list, 'left_side_value.json', 'score')
     
+    # =========================================================
+    # 🔥 [新增] 左側無痕濾網 (30天期限 + 入榜理由消失，不留多餘欄位)
+    # =========================================================
+    filtered_list = []
+    today_dt = datetime.now()
+    
     if merged_list:
+        for item in merged_list:
+            # 1. 隱形計算天數
+            try:
+                first_date_str = item.get('first_entry_date', item.get('date'))
+                first_date = datetime.strptime(first_date_str, '%Y-%m-%d')
+                days_diff = (today_dt - first_date).days
+            except:
+                days_diff = 0
+                
+            # ⏳ 天數濾網：超過 30 天直接剔除
+            if days_diff > 30:
+                continue
+                
+            # 2. 隱形計算漲跌幅 (判斷入榜理由)
+            first_price = float(item.get('first_entry_price', item.get('price', 1)))
+            current_price = float(item.get('price', 1))
+            roi = (current_price - first_price) / first_price if first_price > 0 else 0
+            
+            # 📉 邏輯濾網：強彈 15% (坑填平) 或 破底跌 10% (接刀失敗) 直接剔除
+            if roi >= 0.15 or roi <= -0.10:
+                continue
+                
+            filtered_list.append(item)
+
+        # 📦 最終結算存檔 (儲存乾淨的 filtered_list)
         with open('left_side_value.json', 'w', encoding='utf-8') as f:
-            json.dump(merged_list, f, ensure_ascii=False, indent=4)
-        print(f"💾 已強制更新 left_side_value.json (包含歷史共 {len(merged_list)} 檔)")
+            json.dump(filtered_list, f, ensure_ascii=False, indent=4)
+        print(f"💾 已強制更新 left_side_value.json (經無痕濾網淘汰後保留 {len(filtered_list)} 檔)")
     else:
         print("⚠️ 歷史與今日皆無資料可存。")
   
