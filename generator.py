@@ -207,19 +207,42 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
         
     return eps_latest, yield_rate, annual_div
 
-# 🔥 [新增模組] 左側爬蟲專屬殖利率計算機 (使用免費 GUEST_TOKEN，不扣 VIP 額度)
+# ==========================================
+# 🔥 [重構模組] 左側專屬殖利率計算機 (雙軌分流 + 來源公式)
+# ==========================================
 def get_dividend_yield_for_crawler(code, current_price):
-    try:
-        start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-        url = "https://api.finmindtrade.com/api/v4/data"
-        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
-        data = res.json().get('data', [])
-        total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
-        if total_dividend > 0 and current_price > 0:
-            return round((total_dividend / current_price) * 100, 2)
-        return 0.0
-    except:
-        return 0.0
+    is_etf = str(code).startswith('00')
+    
+    if is_etf:
+        # 軌道 A: ETF 使用 365 天加總法推算
+        try:
+            start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+            url = "https://api.finmindtrade.com/api/v4/data"
+            res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
+            data = res.json().get('data', [])
+            total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
+            if total_dividend > 0 and current_price > 0:
+                y_rate = round((total_dividend / current_price) * 100, 2)
+                formula = f"ETF推算: 近一年配息 {total_dividend} / 現價 {current_price}"
+                return y_rate, formula
+            return 0.0, "ETF推算: 查無近一年配息"
+        except Exception as e:
+            return 0.0, f"ETF推算錯誤: {e}"
+    else:
+        # 軌道 B: 個股直接抓取官方最新盤後殖利率
+        try:
+            start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            url = "https://api.finmindtrade.com/api/v4/data"
+            res = requests.get(url, params={"dataset": "TaiwanStockPER", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
+            data = res.json().get('data', [])
+            if data:
+                data.sort(key=lambda x: x.get('date', ''), reverse=True)
+                y_rate = float(data[0].get('dividend_yield', 0.0))
+                formula = f"官方數據 (TaiwanStockPER): {y_rate}%"
+                return y_rate, formula
+            return 0.0, "官方數據: 查無盤後資料"
+        except Exception as e:
+            return 0.0, f"官方數據錯誤: {e}"
 
 # ==========================================
 # 🔥 [新增模組] 抓取最新除息日
@@ -903,8 +926,8 @@ def generate_left_side_value():
         
         # 2. 查基本面與殖利率
         eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
-        # 🔥 修復 Bug：呼叫專屬計算機，確保殖利率不是 0
-        yield_rate = get_dividend_yield_for_crawler(code, item['price']) 
+        # 🔥 接收殖利率與計算公式
+        yield_rate, yield_formula = get_dividend_yield_for_crawler(code, item['price'])
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
         
@@ -981,6 +1004,7 @@ def generate_left_side_value():
             "vol_ratio": f"{item['vol_ratio']*100:.1f}%",
             "eps": eps,
             "yield_rate": yield_rate,
+            "yield_formula": yield_formula,  # 👈 新增這行：把公式印出來！
             "buy_days": buy_days_5d,
             "tag": "左側黃金坑"
         })
