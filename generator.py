@@ -208,63 +208,63 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     return eps_latest, yield_rate, annual_div
 
 # ==========================================
-# 🔥 [重構模組] 左側專屬殖利率計算機 (雙軌分流 + 來源公式)
+# 🔥 [終極重構] 殖利率與除息日一體化運算引擎 (自己的殖利率自己算)
 # ==========================================
-def get_dividend_yield_for_crawler(code, current_price):
+def get_latest_dividend_info(code, current_price):
     is_etf = str(code).startswith('00')
+    today_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     
-    if is_etf:
-        # 軌道 A: ETF 使用 365 天加總法推算
-        try:
-            start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-            url = "https://api.finmindtrade.com/api/v4/data"
-            res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
-            data = res.json().get('data', [])
-            total_dividend = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
-            if total_dividend > 0 and current_price > 0:
-                y_rate = round((total_dividend / current_price) * 100, 2)
-                formula = f"ETF推算: 近一年配息 {total_dividend} / 現價 {current_price}"
-                return y_rate, formula
-            return 0.0, "ETF推算: 查無近一年配息"
-        except Exception as e:
-            return 0.0, f"ETF推算錯誤: {e}"
-    else:
-        # 軌道 B: 個股直接抓取官方最新盤後殖利率
-        try:
-            start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-            url = "https://api.finmindtrade.com/api/v4/data"
-            res = requests.get(url, params={"dataset": "TaiwanStockPER", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
-            data = res.json().get('data', [])
-            if data:
-                data.sort(key=lambda x: x.get('date', ''), reverse=True)
-                y_rate = float(data[0].get('dividend_yield', 0.0))
-                formula = f"官方數據 (TaiwanStockPER): {y_rate}%"
-                return y_rate, formula
-            return 0.0, "官方數據: 查無盤後資料"
-        except Exception as e:
-            return 0.0, f"官方數據錯誤: {e}"
-
-# ==========================================
-# 🔥 [新增模組] 抓取最新除息日
-# ==========================================
-def get_finmind_ex_dividend_date(code):
-    """查詢該檔股票最近一次的除息日"""
+    # 預設狀態：直接套用你的「過期遮蔽歸零」邏輯
+    yield_rate = 0.0
+    formula = "⚠️ 已除息或尚未宣告" 
+    ex_date_for_json = None
+    is_upcoming = False
+    
+    start_date = (datetime.now() - timedelta(days=400)).strftime('%Y-%m-%d')
+    url = "https://api.finmindtrade.com/api/v4/data"
+    
     try:
-        start = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
-        url = "https://api.finmindtrade.com/api/v4/data"
-        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": VIP_TOKEN}, timeout=5)
+        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start_date, "token": VIP_TOKEN}, timeout=10)
         data = res.json().get('data', [])
-        if not data: return None
-        
-        # 依照日期排序，取最新的一筆配息資料
+        if not data:
+            return yield_rate, formula, ex_date_for_json, is_upcoming
+            
         data.sort(key=lambda x: x.get('date', ''), reverse=True)
-        for d in data:
-            ex_date = d.get('CashExDividendTradingDate') or d.get('StockExDividendTradingDate')
-            if ex_date:
-                return ex_date
-        return None
-    except:
-        return None
+        latest_record = data[0]
+        raw_ex_date = latest_record.get('CashExDividendTradingDate') or latest_record.get('StockExDividendTradingDate')
+        
+        # 🎯 任務 1：檢查除息日。如果有未來除息日，才放行
+        if raw_ex_date and raw_ex_date >= today_str:
+            ex_date_for_json = raw_ex_date
+            is_upcoming = True
+        else:
+            # 💡 [保留你的神邏輯]：除息日過期，直接回傳預設的 0.0 與遮蔽文字
+            return yield_rate, formula, ex_date_for_json, is_upcoming
+
+        # 🎯 任務 2：只有在即將除息 (is_upcoming=True) 時，才計算真實最新殖利率
+        if current_price > 0:
+            if is_etf:
+                total_cash = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
+                if total_cash > 0:
+                    yield_rate = round((total_cash / current_price) * 100, 2)
+                    formula = f"ETF推算(近一年): {round(total_cash, 3)} / 現價 {current_price}"
+            else:
+                target_year = latest_record.get('year')
+                if target_year:
+                    total_cash = sum([
+                        float(d.get('CashEarningsDistribution') or 0) + 
+                        float(d.get('CashStatutorySurplus') or 0) + 
+                        float(d.get('CashCapitalReserve') or 0)
+                        for d in data if str(d.get('year', '')) == str(target_year)
+                    ])
+                    if total_cash > 0:
+                        yield_rate = round((total_cash / current_price) * 100, 2)
+                        formula = f"最新宣告({target_year}): {round(total_cash, 3)} / 現價 {current_price}"
+
+        return yield_rate, formula, ex_date_for_json, is_upcoming
+
+    except Exception as e:
+        return 0.0, f"股利運算錯誤: {e}", None, False
 
 # ==========================================
 # 🔥 [新增模組] 歷史標的共用同步大腦 (DRY 原則)
@@ -300,10 +300,18 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                         old_s['price'] = new_p
                         old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
                         
-                        # 2. [新增] 檢查並寫入除息日
-                        ex_date = get_finmind_ex_dividend_date(code)
-                        if ex_date:
+                        # 2. 檢查並更新除息日狀態
+                        _, _, ex_date, is_upcoming = get_latest_dividend_info(code, new_p)
+                        if is_upcoming:
                             old_s['ex_dividend_date'] = ex_date
+                        else:
+                            # 拔除過期日期，並遮蔽左側殖利率
+                            old_s.pop('ex_dividend_date', None)
+                            if strategy_type == 'LEFT':
+                                old_s['yield_rate'] = 0.0
+                                old_s['yield_formula'] = "⚠️ 已除息或尚未宣告"
+
+                  
 
                         # 3. 若為右側標的，重新計算動能分數 (m_score)
                         if strategy_type == 'RIGHT' and taiwan_50_list:
@@ -670,8 +678,8 @@ def generate_daily_recommendations():
                             m_score = m_score * 1.2
                             
                         date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
-                        # 👉 補上這行：強制查詢今日新標的除息日
-                        ex_date = get_finmind_ex_dividend_date(code)
+                        # 👉 呼叫新引擎取得除息日 (只取第三個變數)
+                        _, _, ex_date, _ = get_latest_dividend_info(code, price)
 
                         final_list.append({
                             "date": date_str,
@@ -958,10 +966,11 @@ def generate_left_side_value():
         
         # 2. 查基本面與殖利率
         eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
-        # 🔥 接收殖利率與計算公式
-        yield_rate, yield_formula = get_dividend_yield_for_crawler(code, item['price'])
         yoy_data = get_finmind_revenue_yoy(code)
         yoy = yoy_data['yoy']
+        
+        # 🔥 [一鍵呼叫新引擎]：同時取得精準殖利率、公式、乾淨的除息日、與是否加分
+        yield_rate, yield_formula, ex_date, is_upcoming = get_latest_dividend_info(code, item['price'])
         
         # 🎯 啟動計分模型 (Base: 40)
         score = 40 
@@ -976,10 +985,15 @@ def generate_left_side_value():
             
         if item['is_anti_knife']: score += 5  # 有防守 K 線加分
         
-        # 3. 獲利與成長加分 (補上之前漏掉的)
+       # 3. 獲利與成長加分 (補上之前漏掉的)
         if eps > 0: score += 10
         if yoy > 10.0: score += 10
         if yield_rate >= 4.0: score += 10
+        
+        # 🔥 [新增] 即將除息額外加分！
+        if is_upcoming:
+            score += 10
+            print(f"   💰 具備即將除息優勢 ({ex_date})，額外加 10 分！")
         
         # 籌碼加分
         if buy_ratio > 5.0: score += 10
@@ -1016,8 +1030,7 @@ def generate_left_side_value():
         entry_price = round(item['price'] * 0.99, 2)
         print(f"✅ 最終清單入選 | 分數: {score} | {trend_status}")
 
-        # 👉 補上這行：強制查詢今日新標的除息日
-        ex_date = get_finmind_ex_dividend_date(code)
+        
 
         final_list.append({
             "date": item['real_date'],
