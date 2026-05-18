@@ -350,12 +350,18 @@ def fetch_data_light(stock_id):
     # 數據縫合
     latest_price = 0
     source_name = "歷史"
-    update_time = get_taiwan_time_str()
+    
+    # 🔥 1. 取得絕對正確的台灣時間 (破解 Render 的 UTC 時差)
+    tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+    today_str = tw_now.strftime('%Y-%m-%d')
+    update_time = tw_now.strftime('%H:%M:%S') 
     
     try:
-        if stock_rt and stock_rt['success']:
+        if stock_rt and stock_rt.get('success'):
             real_price = stock_rt['realtime']['latest_trade_price']
-            rt_time = stock_rt['realtime'].get('latest_trade_time', '')
+            
+            # 🔥 2. 修復：twstock 的真實時間是放在 info 裡面的 time
+            rt_time = stock_rt.get('info', {}).get('time', '')
             if rt_time: update_time = rt_time 
             
             if real_price and real_price != "-":
@@ -377,10 +383,15 @@ def fetch_data_light(stock_id):
     lows = [d['min'] for d in hist_data]
     volumes = [d['Trading_Volume'] for d in hist_data]
 
-    today_str = datetime.now().strftime('%Y-%m-%d')
     hist_last_date = hist_data[-1]['date']
 
-    if hist_last_date != today_str:
+    # 🔥 3. 判斷今天台股是否有真實交易資料
+    is_market_open_today = False
+    if today_str in update_time:
+        is_market_open_today = True
+
+    # 🔥 4. 完美陣列縫合：有開盤且跨日才新增，否則覆蓋最後一筆
+    if is_market_open_today and hist_last_date != today_str:
         closes.append(latest_price)
         highs.append(latest_price)
         lows.append(latest_price)
