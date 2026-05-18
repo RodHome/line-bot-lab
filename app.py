@@ -267,7 +267,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                     "generationConfig": gen_config,
                     "safetySettings": safety_settings # 👈 把安全設定塞進去
                 }
-                response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=20)
 
                 # 狀況 A：這把鑰匙額度用光了 (429) 👉 換下一把鑰匙試試看！
                 if response.status_code == 429:
