@@ -276,7 +276,7 @@
                     html += `
                         <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
                             <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">法人買超(萬)</span>
-                            <span class="text-sm font-black text-red-400">${s.buy_value}</span>
+                            <span class="text-sm font-black text-red-400">${Math.round(parseFloat(s.buy_value) / 10000).toLocaleString()}</span>
                         </div>
                         <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800/30 text-center">
                             <span class="text-[10px] text-slate-600 block mb-0.5 font-bold uppercase">營收 YoY</span>
