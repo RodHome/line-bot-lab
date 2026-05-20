@@ -228,7 +228,7 @@
                 } else {
                     // 右側專屬標籤
                     const yoyVal = parseFloat(s.yoy);
-                    const buyVal = parseInt(s.buy_value);
+                    const buyVal = Math.round(parseFloat(s.buy_value) / 10000); // 轉換為萬元
                     if (yoyVal > 20) html += `<span class="badge-right px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm">🔥 業績爆發</span>`;
                     if (buyVal > 5000) html += `<span class="bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[10px] font-bold">💰 資金狂潮</span>`;
                     if (s.tag) html += `<span class="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold">${s.tag}</span>`;
