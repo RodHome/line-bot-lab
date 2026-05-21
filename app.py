@@ -325,9 +325,23 @@ def fetch_data_light(stock_id):
         except: return []
 
     def get_realtime():
+        # 🛡️ 替換為富果 API，突破 IP 封鎖，且不影響其他功能
+        fugle_token = os.environ.get('FUGLE_TOKEN')
+        if not fugle_token: return None
         try:
-            return twstock.realtime.get(stock_id)
-        except: return None
+            url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
+            headers = {"X-API-KEY": fugle_token}
+            res = requests.get(url, headers=headers, timeout=5)
+            if res.status_code == 200:
+                data = res.json().get('data', {}).get('quote', {})
+                price = data.get('lastPrice')
+                # 轉時間戳 (富果回傳的是微秒級 Unix Time)
+                ts = data.get('lastUpdated', 0) / 1000000000 
+                dt = datetime.fromtimestamp(ts, tz=timezone.utc) + timedelta(hours=8)
+                return {"success": True, "price": price, "time": dt.strftime('%H:%M:%S')}
+        except Exception as e:
+            print(f"[Warn] Fugle 抓取失敗: {e}")
+        return None
 
     # 並行執行
     hist_data = []
@@ -341,7 +355,7 @@ def fetch_data_light(stock_id):
             hist_data = future_hist.result(timeout=5)
             stock_rt = future_rt.result(timeout=5)
 
-        print(f"🕵️ twstock 抓到的資料: {stock_rt}")
+        
     
     except Exception as e:
         print(f"[Warn] 並行擷取失敗，改為序列執行: {e}")
@@ -361,7 +375,7 @@ def fetch_data_light(stock_id):
     
     try:
         if stock_rt and stock_rt.get('success'):
-            real_price = stock_rt['realtime']['latest_trade_price']
+            latest_price = float(stock_rt['price'])
             
             # 🔥 2. 修復：twstock 的真實時間是放在 info 裡面的 time
             rt_time = stock_rt.get('info', {}).get('time', '')
