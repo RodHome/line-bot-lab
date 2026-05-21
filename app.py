@@ -324,24 +324,30 @@ def fetch_data_light(stock_id):
     # 2. 強制使用 Fugle 取得即時報價，完全移除 twstock 依賴
     def get_realtime():
         fugle_token = os.environ.get('FUGLE_TOKEN')
-        print(f"🕵️ [偵錯] Token 長度: {len(fugle_token) if fugle_token else 0}")
         if not fugle_token: return None
         try:
             url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
             headers = {"X-API-KEY": fugle_token}
             res = requests.get(url, headers=headers, timeout=5)
+            
             if res.status_code == 200:
-                print(f"🕵️ [Fugle探針] 回傳完整 JSON: {res.json()}")
-                data = res.json().get('data', {}).get('quote', {})
-                price = data.get('lastPrice')
-                # 轉時間戳
-                ts = data.get('lastUpdated', 0) / 1000000000 
-                dt = datetime.fromtimestamp(ts, tz=timezone.utc) + timedelta(hours=8)
-                # 這裡印出 Log 讓你確認真的抓到了
-                print(f"🕵️ [Fugle探針] 成功: 價格={price}, 更新時間={dt.strftime('%H:%M:%S')}")
-                return {"success": True, "price": price, "time": dt.strftime('%H:%M:%S')}
+                json_data = res.json()
+                # 富果 API v1 的結構：直接在 data 下，不需要再 .get('quote')
+                data = json_data.get('data', {})
+                
+                # 🛡️ 多重保險：依序找可能出現價格的欄位
+                price = data.get('lastPrice') or data.get('closePrice') or data.get('lastTrade', {}).get('price')
+                
+                if price is not None:
+                    # 轉時間戳
+                    ts = data.get('lastUpdated', 0) / 1000000000 
+                    dt = datetime.fromtimestamp(ts, tz=timezone.utc) + timedelta(hours=8)
+                    print(f"🕵️ [Fugle探針] 成功: 價格={price}, 更新時間={dt.strftime('%H:%M:%S')}")
+                    return {"success": True, "price": float(price), "time": dt.strftime('%H:%M:%S')}
+                else:
+                    print(f"🕵️ [Fugle探針] 欄位取值失敗，回傳資料結構: {data}")
             else:
-                print(f"🕵️ [Fugle探針] 失敗: {res.status_code}")
+                print(f"🕵️ [Fugle探針] API 失敗: {res.status_code}")
         except Exception as e:
             print(f"🕵️ [Fugle探針] 異常: {e}")
         return None
