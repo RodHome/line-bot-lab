@@ -324,12 +324,14 @@ def fetch_data_light(stock_id):
     # 2. 強制使用 Fugle 取得即時報價，完全移除 twstock 依賴
     def get_realtime():
         fugle_token = os.environ.get('FUGLE_TOKEN')
+        print(f"🕵️ [偵錯] Token 長度: {len(fugle_token) if fugle_token else 0}")
         if not fugle_token: return None
         try:
             url = f"https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/{stock_id}"
             headers = {"X-API-KEY": fugle_token}
             res = requests.get(url, headers=headers, timeout=5)
             if res.status_code == 200:
+                print(f"🕵️ [Fugle探針] 回傳完整 JSON: {res.json()}")
                 data = res.json().get('data', {}).get('quote', {})
                 price = data.get('lastPrice')
                 # 轉時間戳
