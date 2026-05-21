@@ -652,16 +652,31 @@ def generate_daily_recommendations():
                         stock_exchange = item.get('exchange', '未知')
                         
                         # =========================================================
-                        # 🛡️ 新增濾網：乖離率天花板 (防追高)
+                        # 🛡️ 升級濾網：乖離率天花板 + K線避雷針 (防追高與假突破)
                         # =========================================================
                         try:
                             suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
                             hist = yf.Ticker(f"{code}{suffix}").history(period="1mo")
                             if not hist.empty and len(hist) > 0:
+                                latest_k = hist.iloc[-1]
+                                c_price = latest_k['Close']
+                                o_price = latest_k['Open']
+                                h_price = latest_k['High']
+                                
+                                # 1. 乖離過大淘汰
                                 ma20 = hist['Close'].mean()
-                                bias20 = (price - ma20) / ma20 * 100
+                                bias20 = (c_price - ma20) / ma20 * 100
                                 if bias20 > 15.0:
                                     print(f"⚠️ {code} 月線乖離過大({bias20:.1f}%)，避免當韭菜，淘汰！")
+                                    continue
+                                
+                                # 2. 長上影線避雷針淘汰 (防主力出貨)
+                                upper_shadow = h_price - max(o_price, c_price)
+                                body = abs(c_price - o_price)
+                                
+                                # 上影線 > 實體 1.5 倍，且非一字線，即淘汰
+                                if body > 0 and (upper_shadow / body) > 1.5:
+                                    print(f"⚠️ {code} 出現長上影線避雷針，防禦假突破，淘汰！")
                                     continue
                         except Exception as e:
                             pass
@@ -921,7 +936,19 @@ def generate_left_side_value():
             # 判斷有無防守紅K或下影線 (存起來當第三層加分項)
             is_red_candle = close_today > open_today
             lower_shadow = min(open_today, close_today) - low_today
+            upper_shadow = highs[-1] - max(open_today, close_today)
             body = abs(close_today - open_today)
+            
+            # 取得昨日開收盤價 (防呆確保資料長度 > 1)
+            close_yest = closes[-2] if len(closes) > 1 else close_today
+            open_yest = opens[-2] if len(opens) > 1 else open_today
+
+            # 1. 槌子線：下影線 > 實體 2 倍，且上影線 < 實體 0.5 倍
+            is_hammer = (lower_shadow > body * 2.0) and (upper_shadow < body * 0.5)
+            # 2. 吞噬紅K (破底翻)：昨收黑，今開低收高且實體包覆昨日實體
+            is_bullish_engulfing = (close_yest < open_yest) and (open_today < close_yest) and (close_today > open_yest)
+            
+            item['is_strong_reversal'] = bool(is_hammer or is_bullish_engulfing)
             item['is_anti_knife'] = bool(is_red_candle or (lower_shadow > max(body, 0.01) * 1.5))
 
             item['bias60'] = bias60
@@ -975,15 +1002,34 @@ def generate_left_side_value():
         # 🎯 啟動計分模型 (Base: 40)
         score = 40 
         
-        # 🛡️ 放寬 EPS 懲罰：只針對「虧損股」扣 5 分，不亂殺轉機股
+        # 🛡️ 智能虧損股漏斗：嚴格檢視 EPS < 0 標的
         if eps < 0:
-            score -= 5 
+            # 考驗1：破底且無主力防守反轉，淘汰
+            if item.get('is_breaking_low') and not item.get('is_strong_reversal'):
+                print("❌ 虧損且破底無防守，淘汰")
+                continue
+            # 考驗2：法人買盤不夠異常集中，淘汰
+            if buy_days_5d < 4 and buy_ratio < 5.0:
+                print("❌ 虧損且籌碼集中度不足，淘汰")
+                continue
+            # 考驗3：營收未見底回升，淘汰
+            if yoy <= 0:
+                print("❌ 虧損且營收未反轉，淘汰")
+                continue
+            # 通過嚴格考驗的轉機股，扣減基本面分數
+            score -= 5
+            print("   ⚠️ 虧損轉機股通關，扣 5 分")
             
-        # 🛡️ 破底扣分：還在破底的刀子扣 10 分 (取代原本的直接淘汰)
-        if item.get('is_breaking_low'):
+        # 🛡️ 破底扣分：獲利正常但仍在破底，扣 10 分
+        elif item.get('is_breaking_low'):
             score -= 10
             
-        if item['is_anti_knife']: score += 5  # 有防守 K 線加分
+        # ⭐ 底部型態加分：大資金防守重磅加分
+        if item.get('is_strong_reversal'): 
+            score += 15
+            print(f"   ⭐ 偵測到強力底部反轉型態！")
+        elif item.get('is_anti_knife'): 
+            score += 5
         
        # 3. 獲利與成長加分 (補上之前漏掉的)
         if eps > 0: score += 10
