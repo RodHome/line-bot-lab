@@ -341,7 +341,7 @@ def fetch_data_light(stock_id):
             hist_data = future_hist.result(timeout=5)
             stock_rt = future_rt.result(timeout=5)
 
-    print(f"🕵️ twstock 抓到的資料: {stock_rt}")
+        print(f"🕵️ twstock 抓到的資料: {stock_rt}")
     
     except Exception as e:
         print(f"[Warn] 並行擷取失敗，改為序列執行: {e}")
