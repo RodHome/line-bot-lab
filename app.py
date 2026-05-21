@@ -3,7 +3,6 @@ import json
 import time
 import math
 import concurrent.futures
-import twstock
 from datetime import datetime, timedelta, time as dtime, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -12,8 +11,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v19.0 
-BOT_VERSION = "v19.0 (Prompt)"
+# 🤖 [版本號] v19.1 
+BOT_VERSION = "v19.1 (移除twstock)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -312,20 +311,18 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 def fetch_data_light(stock_id):
-    # 定義內部子任務
+    # 1. 歷史資料抓取維持原樣
     def get_history():
         token = os.environ.get('FINMIND_TOKEN', '')
         url_hist = "https://api.finmindtrade.com/api/v4/data"
         try:
             start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
-            res = requests.get(url_hist, params={
-                "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
-            }, timeout=4)
+            res = requests.get(url_hist, params={"dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token}, timeout=4)
             return res.json().get('data', [])
         except: return []
 
+    # 2. 強制使用 Fugle 取得即時報價，完全移除 twstock 依賴
     def get_realtime():
-        # 🛡️ 替換為富果 API，突破 IP 封鎖，且不影響其他功能
         fugle_token = os.environ.get('FUGLE_TOKEN')
         if not fugle_token: return None
         try:
@@ -335,91 +332,41 @@ def fetch_data_light(stock_id):
             if res.status_code == 200:
                 data = res.json().get('data', {}).get('quote', {})
                 price = data.get('lastPrice')
-                # 轉時間戳 (富果回傳的是微秒級 Unix Time)
+                # 轉時間戳
                 ts = data.get('lastUpdated', 0) / 1000000000 
                 dt = datetime.fromtimestamp(ts, tz=timezone.utc) + timedelta(hours=8)
+                # 這裡印出 Log 讓你確認真的抓到了
+                print(f"🕵️ [Fugle探針] 成功: 價格={price}, 更新時間={dt.strftime('%H:%M:%S')}")
                 return {"success": True, "price": price, "time": dt.strftime('%H:%M:%S')}
+            else:
+                print(f"🕵️ [Fugle探針] 失敗: {res.status_code}")
         except Exception as e:
-            print(f"[Warn] Fugle 抓取失敗: {e}")
+            print(f"🕵️ [Fugle探針] 異常: {e}")
         return None
 
     # 並行執行
-    hist_data = []
-    stock_rt = None
-    try:
-        # max_workers=2 為 Zeabur 安全值
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            future_hist = executor.submit(get_history)
-            future_rt = executor.submit(get_realtime)
-            
-            hist_data = future_hist.result(timeout=5)
-            stock_rt = future_rt.result(timeout=5)
-
-        
-    
-    except Exception as e:
-        print(f"[Warn] 並行擷取失敗，改為序列執行: {e}")
-        hist_data = get_history()
-        stock_rt = get_realtime()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        future_hist = executor.submit(get_history)
+        future_rt = executor.submit(get_realtime)
+        hist_data = future_hist.result(timeout=5)
+        stock_rt = future_rt.result(timeout=5)
 
     if not hist_data: return None
 
-    # 數據縫合
-    latest_price = 0
-    source_name = "歷史"
-    
-    # 🔥 1. 取得絕對正確的台灣時間 (破解 Render 的 UTC 時差)
-    tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
-    today_str = tw_now.strftime('%Y-%m-%d')
-    update_time = tw_now.strftime('%H:%M:%S') 
-    
-    try:
-        if stock_rt and stock_rt.get('success'):
-            latest_price = float(stock_rt['price'])
-            
-            # 🔥 2. 修復：twstock 的真實時間是放在 info 裡面的 time
-            rt_time = stock_rt.get('info', {}).get('time', '')
-            if rt_time: update_time = rt_time 
-            
-            if real_price and real_price != "-":
-                latest_price = float(real_price)
-                source_name = "TWSE"
-            else:
-                bid = stock_rt['realtime']['best_bid_price'][0]
-                ask = stock_rt['realtime']['best_ask_price'][0]
-                if bid and ask and bid != "-" and ask != "-":
-                    latest_price = round((float(bid) + float(ask)) / 2, 2)
-                    source_name = "TWSE(試)"
-    except: pass
-
-    if latest_price == 0:
-        latest_price = hist_data[-1]['close']
+    # 數據縫合：以 Fugle 為唯一即時源
+    latest_price = stock_rt['price'] if (stock_rt and stock_rt.get('success')) else hist_data[-1]['close']
+    update_time = stock_rt['time'] if (stock_rt and stock_rt.get('success')) else "歷史數據"
+    source_name = "Fugle即時" if (stock_rt and stock_rt.get('success')) else "歷史"
 
     closes = [d['close'] for d in hist_data]
-    highs = [d['max'] for d in hist_data]
-    lows = [d['min'] for d in hist_data]
-    volumes = [d['Trading_Volume'] for d in hist_data]
+    # 🔥 強制更新最新價格 (不論昨天收盤價是多少)
+    closes[-1] = latest_price
 
-    hist_last_date = hist_data[-1]['date']
-
-    # 🔥 3. 判斷今天台股是否有真實交易資料
-    is_market_open_today = False
-    if today_str in update_time:
-        is_market_open_today = True
-
-    # 🔥 4. 完美陣列縫合：有開盤且跨日才新增，否則覆蓋最後一筆
-    if is_market_open_today and hist_last_date != today_str:
-        closes.append(latest_price)
-        highs.append(latest_price)
-        lows.append(latest_price)
-        volumes.append(0)
-    else:
-        closes[-1] = latest_price
-
-    ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
-    ma10 = round(sum(closes[-10:]) / 10, 2) if len(closes) >= 10 else 0  # 👈 新增這行
-    ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
-    ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
+    # 均線計算使用更新後的 closes
+    ma5 = round(sum(closes[-5:]) / 5, 2)
+    ma10 = round(sum(closes[-10:]) / 10, 2)
+    ma20 = round(sum(closes[-20:]) / 20, 2)
+    ma60 = round(sum(closes[-60:]) / 60, 2)
 
     prev_close = closes[-2] if len(closes) > 1 else latest_price
     change = latest_price - prev_close
@@ -427,18 +374,14 @@ def fetch_data_light(stock_id):
     sign = "+" if change > 0 else ""
     color = "#D32F2F" if change >= 0 else "#2E7D32"
 
-    last_day = hist_data[-1]
-    res_price, sup_price = calculate_cdp(last_day['max'], last_day['min'], last_day['close'])
-
     return {
-        "code": stock_id, 
-        "close": latest_price, 
+        "code": stock_id, "close": latest_price, 
         "update_time": f"{update_time} ({source_name})",
-        "resistance": res_price, "support": sup_price,
-        "ma5": ma5, "ma10": ma10, "ma20": ma20, "ma60": ma60,  # 👈 補上 "ma10": ma10
+        "ma5": ma5, "ma10": ma10, "ma20": ma20, "ma60": ma60,
         "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
         "color": color,
-        "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
+        "raw_closes": closes, "raw_highs": [d['max'] for d in hist_data],
+        "raw_lows": [d['min'] for d in hist_data], "raw_volumes": [d['Trading_Volume'] for d in hist_data],
         "open": hist_data[-1]['open']
     }
 
