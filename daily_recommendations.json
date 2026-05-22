@@ -9,9 +9,9 @@
         "m_score": 240.0,
         "ex_dividend_date": null,
         "price": 1155.0,
-        "turnover": 5530960000.0,
-        "chips_display": "5087張 (58.8億)",
-        "buy_value": 5875485000.0,
+        "turnover": 5914740495.0,
+        "chips_display": "7860張 (90.8億)",
+        "buy_value": 9078300000.0,
         "yoy": 102.23,
         "tag": "外資大買",
         "debug_info": {
@@ -82,9 +82,9 @@
         "m_score": 228.52,
         "ex_dividend_date": null,
         "price": 5005.0,
-        "turnover": 13644765000.0,
-        "chips_display": "732張 (36.6億)",
-        "buy_value": 3663660000.0,
+        "turnover": 15188295575.0,
+        "chips_display": "1523張 (76.2億)",
+        "buy_value": 7622615000.0,
         "yoy": 93.62,
         "tag": "外資大買",
         "debug_info": {
@@ -108,8 +108,8 @@
         "ex_dividend_date": null,
         "price": 17780.0,
         "turnover": 5533595000.0,
-        "chips_display": "71張 (12.6億)",
-        "buy_value": 1262380000.0,
+        "chips_display": "121張 (21.5億)",
+        "buy_value": 2151380000.0,
         "yoy": 81.59,
         "tag": "外資大買",
         "debug_info": {
@@ -172,6 +172,31 @@
     },
     {
         "date": "2026-05-22",
+        "code": "3231",
+        "name": "緯創",
+        "exchange": "上市",
+        "sector": "AI伺服器",
+        "cap_size": "大型權值股",
+        "m_score": 200.0,
+        "ex_dividend_date": null,
+        "price": 144.5,
+        "turnover": 10098281418.0,
+        "chips_display": "36261張 (52.4億)",
+        "buy_value": 5239714500.0,
+        "yoy": 111.99,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 283437176000,
+            "last_rev": 133703546000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(283437176000 - 133703546000) / 133703546000"
+        },
+        "first_entry_date": "2026-05-22",
+        "first_entry_price": 144.5
+    },
+    {
+        "date": "2026-05-22",
         "code": "2388",
         "name": "威盛",
         "exchange": "上市",
@@ -193,56 +218,6 @@
         },
         "first_entry_date": "2026-05-20",
         "first_entry_price": 81.7
-    },
-    {
-        "date": "2026-05-22",
-        "code": "6531",
-        "name": "愛普*",
-        "exchange": "上市",
-        "sector": "半導體業",
-        "cap_size": "中小型股",
-        "m_score": 197.87,
-        "ex_dividend_date": null,
-        "price": 963.0,
-        "turnover": 7095092000.0,
-        "chips_display": "531張 (5.1億)",
-        "buy_value": 511353000.0,
-        "yoy": 92.88,
-        "tag": "投信作帳",
-        "debug_info": {
-            "this_rev": 804148000,
-            "last_rev": 416921000,
-            "this_period": "2026/4",
-            "last_period": "2025/4",
-            "formula": "(804148000 - 416921000) / 416921000"
-        },
-        "first_entry_date": "2026-05-22",
-        "first_entry_price": 963.0
-    },
-    {
-        "date": "2026-05-22",
-        "code": "3491",
-        "name": "昇達科",
-        "exchange": "上櫃",
-        "sector": "通信網路業",
-        "cap_size": "中小型股",
-        "m_score": 195.88,
-        "ex_dividend_date": null,
-        "price": 1930.0,
-        "turnover": 6398490000.0,
-        "chips_display": "386張 (7.4億)",
-        "buy_value": 744980000.0,
-        "yoy": 83.99,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 349053000,
-            "last_rev": 189709000,
-            "this_period": "2026/4",
-            "last_period": "2025/4",
-            "formula": "(349053000 - 189709000) / 189709000"
-        },
-        "first_entry_date": "2026-05-15",
-        "first_entry_price": 1690.0
     },
     {
         "date": "2026-05-22",
@@ -294,6 +269,31 @@
     },
     {
         "date": "2026-05-22",
+        "code": "3491",
+        "name": "昇達科",
+        "exchange": "上櫃",
+        "sector": "通信網路業",
+        "cap_size": "中小型股",
+        "m_score": 189.28,
+        "ex_dividend_date": null,
+        "price": 1930.0,
+        "turnover": 6398490000.0,
+        "chips_display": "329張 (6.3億)",
+        "buy_value": 634970000.0,
+        "yoy": 83.99,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 349053000,
+            "last_rev": 189709000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(349053000 - 189709000) / 189709000"
+        },
+        "first_entry_date": "2026-05-15",
+        "first_entry_price": 1690.0
+    },
+    {
+        "date": "2026-05-22",
         "code": "6139",
         "name": "亞翔",
         "exchange": "上市",
@@ -315,6 +315,31 @@
         },
         "first_entry_date": "2026-05-18",
         "first_entry_price": 721.0
+    },
+    {
+        "date": "2026-05-22",
+        "code": "6531",
+        "name": "愛普*",
+        "exchange": "上市",
+        "sector": "半導體業",
+        "cap_size": "中小型股",
+        "m_score": 186.83,
+        "ex_dividend_date": null,
+        "price": 963.0,
+        "turnover": 7696639626.0,
+        "chips_display": "340張 (3.3億)",
+        "buy_value": 327420000.0,
+        "yoy": 92.88,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 804148000,
+            "last_rev": 416921000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(804148000 - 416921000) / 416921000"
+        },
+        "first_entry_date": "2026-05-22",
+        "first_entry_price": 963.0
     },
     {
         "date": "2026-05-22",
@@ -468,7 +493,6 @@
         "sector": "半導體業",
         "cap_size": "中小型股",
         "m_score": 154.68,
-        "ex_dividend_date": null,
         "price": 6035.0,
         "turnover": 7027120000.0,
         "chips_display": "498張 (30.1億)",
@@ -496,8 +520,8 @@
         "ex_dividend_date": null,
         "price": 531.0,
         "turnover": 14367514500.0,
-        "chips_display": "3266張 (17.3億)",
-        "buy_value": 1734246000.0,
+        "chips_display": "3942張 (20.9億)",
+        "buy_value": 2093202000.0,
         "yoy": 48.89,
         "tag": "投信作帳",
         "debug_info": {
@@ -557,6 +581,31 @@
         },
         "first_entry_date": "2026-05-19",
         "first_entry_price": 40.65
+    },
+    {
+        "date": "2026-05-22",
+        "code": "8046",
+        "name": "南電",
+        "exchange": "上市",
+        "sector": "電子零組件業",
+        "cap_size": "中小型股",
+        "m_score": 131.05,
+        "ex_dividend_date": null,
+        "price": 934.0,
+        "turnover": 16320251196.0,
+        "chips_display": "4594張 (42.9億)",
+        "buy_value": 4290796000.0,
+        "yoy": 39.47,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 4450857000,
+            "last_rev": 3191344000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(4450857000 - 3191344000) / 3191344000"
+        },
+        "first_entry_date": "2026-05-21",
+        "first_entry_price": 872.0
     },
     {
         "date": "2026-05-22",
@@ -662,10 +711,11 @@
         "sector": "半導體業",
         "cap_size": "中小型股",
         "m_score": 118.43,
+        "ex_dividend_date": null,
         "price": 63.8,
-        "turnover": 22974440367.0,
-        "chips_display": "38648張 (24.3億)",
-        "buy_value": 2427094400.0,
+        "turnover": 13789563114.0,
+        "chips_display": "45527張 (29.0億)",
+        "buy_value": 2904622600.0,
         "yoy": 32.46,
         "tag": "外資大買",
         "debug_info": {
@@ -701,31 +751,6 @@
         },
         "first_entry_date": "2026-05-08",
         "first_entry_price": 650.0
-    },
-    {
-        "date": "2026-05-22",
-        "code": "8046",
-        "name": "南電",
-        "exchange": "上市",
-        "sector": "電子零組件業",
-        "cap_size": "中小型股",
-        "m_score": 112.74,
-        "ex_dividend_date": null,
-        "price": 934.0,
-        "turnover": 15501688000.0,
-        "chips_display": "744張 (6.9億)",
-        "buy_value": 694896000.0,
-        "yoy": 39.47,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 4450857000,
-            "last_rev": 3191344000,
-            "this_period": "2026/4",
-            "last_period": "2025/4",
-            "formula": "(4450857000 - 3191344000) / 3191344000"
-        },
-        "first_entry_date": "2026-05-21",
-        "first_entry_price": 872.0
     },
     {
         "date": "2026-05-22",
@@ -821,7 +846,8 @@
             "formula": "(2314440000 - 1854372000) / 1854372000"
         },
         "first_entry_date": "2026-05-15",
-        "first_entry_price": 588.0
+        "first_entry_price": 588.0,
+        "ex_dividend_date": "2026-06-08"
     },
     {
         "date": "2026-05-22",
@@ -833,9 +859,9 @@
         "m_score": 94.61,
         "ex_dividend_date": null,
         "price": 250.0,
-        "turnover": 13696307000.0,
-        "chips_display": "72543張 (181.4億)",
-        "buy_value": 18135750000.0,
+        "turnover": 14068289262.0,
+        "chips_display": "33714張 (84.3億)",
+        "buy_value": 8428500000.0,
         "yoy": 29.74,
         "tag": "外資大買",
         "debug_info": {
@@ -895,6 +921,31 @@
         },
         "first_entry_date": "2026-04-22",
         "first_entry_price": 1035.0
+    },
+    {
+        "date": "2026-05-22",
+        "code": "3037",
+        "name": "欣興",
+        "exchange": "上市",
+        "sector": "電子零組件業",
+        "cap_size": "大型權值股",
+        "m_score": 91.46,
+        "ex_dividend_date": null,
+        "price": 970.0,
+        "turnover": 40442520937.0,
+        "chips_display": "12892張 (125.1億)",
+        "buy_value": 12505240000.0,
+        "yoy": 27.64,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 13932815000,
+            "last_rev": 10915988000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(13932815000 - 10915988000) / 10915988000"
+        },
+        "first_entry_date": "2026-05-22",
+        "first_entry_price": 970.0
     },
     {
         "date": "2026-05-22",
@@ -991,6 +1042,31 @@
         },
         "first_entry_date": "2026-05-19",
         "first_entry_price": 80.4
+    },
+    {
+        "date": "2026-05-22",
+        "code": "1717",
+        "name": "長興",
+        "exchange": "上市",
+        "sector": "化學工業",
+        "cap_size": "中小型股",
+        "m_score": 83.38,
+        "ex_dividend_date": null,
+        "price": 83.0,
+        "turnover": 5627996562.0,
+        "chips_display": "39257張 (32.6億)",
+        "buy_value": 3258331000.0,
+        "yoy": 12.99,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 4233389000,
+            "last_rev": 3746640000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(4233389000 - 3746640000) / 3746640000"
+        },
+        "first_entry_date": "2026-05-22",
+        "first_entry_price": 83.0
     },
     {
         "date": "2026-05-22",
@@ -1136,31 +1212,6 @@
         },
         "first_entry_date": "2026-05-15",
         "first_entry_price": 735.0
-    },
-    {
-        "date": "2026-05-22",
-        "code": "1717",
-        "name": "長興",
-        "exchange": "上市",
-        "sector": "化學工業",
-        "cap_size": "中小型股",
-        "m_score": 60.83,
-        "ex_dividend_date": null,
-        "price": 83.0,
-        "turnover": 5574650200.0,
-        "chips_display": "7519張 (6.2億)",
-        "buy_value": 624077000.0,
-        "yoy": 12.99,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 4233389000,
-            "last_rev": 3746640000,
-            "this_period": "2026/4",
-            "last_period": "2025/4",
-            "formula": "(4233389000 - 3746640000) / 3746640000"
-        },
-        "first_entry_date": "2026-05-22",
-        "first_entry_price": 83.0
     },
     {
         "date": "2026-05-22",
