@@ -12,6 +12,21 @@ import yfinance as yf
 GUEST_TOKEN = "" # 訪客鑰匙 (消耗 IP 免費 300 次)
 VIP_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
 
+# 🔥 [新增模組] 計算 RSI
+def calculate_rsi(prices, period=14):
+    if len(prices) < period + 1: return 50
+    gains = []; losses = []
+    for i in range(1, len(prices)):
+        change = prices[i] - prices[i-1]
+        gains.append(max(0, change))
+        losses.append(max(0, -change))
+    avg_gain = sum(gains[-period:]) / period
+    avg_loss = sum(losses[-period:]) / period
+    if avg_loss == 0: return 100
+    rs = avg_gain / avg_loss
+    return round(100 - (100 / (1 + rs)), 1)
+
+
 # 🔥 [新增模組] 長線記憶融合大腦 (30天回測水庫與初始價格鎖定)
 def merge_history_data(today_data, file_name, sort_key):
     history_dict = {}
@@ -714,8 +729,9 @@ def generate_daily_recommendations():
                             "debug_info": yoy_data['debug_info']
                         })
                 
-                # 🔥 4. 將過關的菁英，依照「買超金額」由大到小排序
-                final_list.sort(key=lambda x: x['buy_value'], reverse=True)
+                # 🔥 4. 將過關的菁英，改為依照「動能總分 (m_score)」由大到小排序
+                final_list.sort(key=lambda x: x['m_score'], reverse=True)
+                              
                 
                 # 為了避免 JSON 太大，我們只保留最強的前 15 檔給 app.py 抽樣
                 final_list = final_list[:15]
@@ -913,6 +929,11 @@ def generate_left_side_value():
             ma6 = sum(closes[-6:]) / 6    
             ma5 = sum(closes[-5:]) / 5     # 👈 新增：計算 5MA
             item['is_above_5ma'] = bool(close_today > ma5) # 👈 新增：判斷是否站上 5MA
+
+            # 👇👇👇 請在這裡補上這兩行，把 RSI 算出來並存入 item 👇👇👇
+            item['rsi_today'] = calculate_rsi(closes)
+            item['rsi_yest'] = calculate_rsi(closes[:-1])
+            # 👆👆👆 補上結束 👆👆👆
             
             bias60 = (close_today - ma60) / ma60
             bias24 = (close_today - ma24) / ma24
@@ -923,7 +944,11 @@ def generate_left_side_value():
             
             vol_today = volumes[-1]
             ma20_vol = sum(volumes[-20:]) / 20
-            vol_ratio = vol_today / ma20_vol if ma20_vol > 0 else 1 
+
+            # 🛡️ 流動性硬門檻：20日均量低於 500 張 (500,000股) 直接淘汰
+            if ma20_vol < 500000: continue 
+
+            vol_ratio = vol_today / ma20_vol if ma20_vol > 0 else 1
             
             # 🔥 放寬：量縮 0.9 以內、振幅 15% 以內、5日漲幅 8% 以內
             if vol_ratio >= 0.9: continue
@@ -1057,6 +1082,18 @@ def generate_left_side_value():
         if bias_pct < -8.0: score += 15
         elif bias_pct < -5.0: score += 10
         elif bias_pct < -3.0: score += 5
+
+        # ⭐ 底部型態加分：大資金防守重磅加分
+        if item.get('is_strong_reversal'): 
+           score += 15
+           print(f"   ⭐ 偵測到強力底部反轉型態！")
+        elif item.get('is_anti_knife'): 
+           score += 5
+
+        # 👇 [新增這段] RSI 落底反轉加分
+        if item['rsi_yest'] < 35 and item['rsi_today'] > item['rsi_yest']:
+           score += 15
+           print(f"   🚀 RSI超賣區勾頭向上 ({item['rsi_yest']} -> {item['rsi_today']})，加 15 分！")
 
         # ---------------------------------------------------------
         # 🛡️ 資格層與輸出層 (決定誰有資格活下來)
