@@ -488,7 +488,6 @@ def get_stock_id(text):
     return None
 
 def check_stock_worker_turbo(item):
-    # 支援新版字典結構或舊版字串
     if isinstance(item, dict):
         code = item.get('code')
         item_data = item
@@ -497,31 +496,35 @@ def check_stock_worker_turbo(item):
         item_data = {}
 
     try:
-        # 1. 抓取「即時」股價與均線 (計算依然在 fetch_data_light 裡運作)
+        # 1. 抓取「即時」股價與均線
         data = fetch_data_light(code)
         if not data: return None
         
-        # 🔥 補回技術面護城河：就算基本面再好，跌破月線 (20日均線) 就無情淘汰！
-        if data['close'] < data['ma20']: 
+        # 🔥 即時防追高保鑣：盤中現價如果偏離月線 > 15%，直接淘汰！
+        ma20 = data.get('ma20', 0)
+        if ma20 > 0:
+            live_bias = (data['close'] - ma20) / ma20 * 100
+            if live_bias > 15:
+                print(f"🚨 {code} 盤中乖離過高 ({live_bias:.1f}%)，啟動防追高攔截！")
+                return None
+        
+        # 原本的破月線淘汰
+        if data['close'] < ma20: 
             return None 
 
         name = CODE_TO_NAME.get(code, code)
         sector = STOCK_META.get(code, {}).get('sector', '熱門股')
         
-        # 2. 提取後台算好的強大數據
         chips_display = item_data.get('chips_display', 'N/A')
         buy_value = item_data.get('buy_value', 0)
         yoy = item_data.get('yoy', 'N/A')
         tag = item_data.get('tag', '強勢股')
         
-        # 3. 取得技術指標
         signals = get_technical_signals(data, 1001 if buy_value > 0 else 0)
         signal_str = " | ".join(signals)
 
-        # 格式化 YoY 顯示字串
         yoy_display = f"+{yoy}%" if isinstance(yoy, (int, float)) and yoy > 0 else f"{yoy}%"
         
-        # 🔥 新增：提取初始推薦日與價格，並計算「推薦至今累積漲幅」
         first_date = item_data.get('first_entry_date', 'N/A')
         first_price = item_data.get('first_entry_price')
         
@@ -541,34 +544,39 @@ def check_stock_worker_turbo(item):
             "tag": tag,
             "first_date": first_date,           
             "first_price": first_price,         
-            "period_profit": period_profit      
+            "period_profit": period_profit,
+            "m_score": item_data.get('m_score', 0) # 👈 保留分數供後續排序
         }
     except Exception as e: 
         print(f"Worker Error: {e}")
         return None
 
 def scan_recommendations_turbo(filter_type=None):
-    # 1. 取得今日的推薦大水庫 (由 generator 算好帶有 cap_size 的 JSON)
     twse_list = fetch_twse_candidates()
     if not twse_list: return []
 
-    # 2. 進行分類過濾
+    # 確保原始清單照分數排序
+    twse_list.sort(key=lambda x: x.get('m_score', 0), reverse=True)
+
+    # 🔥 新版分類邏輯 (支援 Top5 與 盲盒)
     pool = []
-    if filter_type and filter_type in ["大型權值股", "中小型股"]:
-        pool = [s for s in twse_list if s.get('cap_size') == filter_type]
-    elif filter_type:
-        for item in twse_list:
-            code = item.get('code')
-            sector = STOCK_META.get(code, {}).get('sector', '')
-            if filter_type in sector:
-                pool.append(item)
+    if filter_type == "權值Top5":
+        pool = [s for s in twse_list if s.get('cap_size') == "大型權值股"]
+    elif filter_type == "中小Top5":
+        pool = [s for s in twse_list if s.get('cap_size') == "中小型股"]
+    elif filter_type == "中小盲盒":
+        # 排除前 5 名，只取第 6 名以後的來抽盲盒
+        small_caps = [s for s in twse_list if s.get('cap_size') == "中小型股"]
+        pool = small_caps[5:] if len(small_caps) > 5 else small_caps
     else:
         pool = twse_list
 
-    # 3. 🔥 恢復舊版盲抽作法：從過濾後的母池中，隨機抽出最多 8 檔候選
-    candidates_pool = random.sample(pool, min(8, len(pool)))
+    # 🔥 決定候選池：若是盲盒就隨機抽，若是 Top5 就抓前 10 名當「先發+候補球員」
+    if filter_type == "中小盲盒":
+        candidates_pool = random.sample(pool, min(8, len(pool)))
+    else:
+        candidates_pool = pool[:10]
 
-    # 4. 交給 worker 進行最後的現價與均線確認
     valid_candidates = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         results = executor.map(check_stock_worker_turbo, candidates_pool)
@@ -576,10 +584,11 @@ def scan_recommendations_turbo(filter_type=None):
     for res in results:
         if res: valid_candidates.append(res)
         
-    # 5. 確保這隨機抽出的 8 檔在過濾後，依照分數強弱排序，最後取前 5 名
-    if valid_candidates:
+    # 如果不是抽盲盒，要把遞補上來的球員再次依照分數排序，確保最強的在前面
+    if filter_type != "中小盲盒" and valid_candidates:
         valid_candidates.sort(key=lambda x: x.get('m_score', 0), reverse=True)
         
+    # 最終只回傳 5 檔
     return valid_candidates[:5]
 
 # --- Line Bot Handlers ---
@@ -668,14 +677,13 @@ def handle_message(event):
     if msg == "推薦" or msg == "選股":
         menu_flex = {
             "type": "bubble",
-            
             "body": {
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
-                    {"type": "text", "text": "🎯 請選擇選股標的", "weight": "bold", "size": "md", "align": "center"},
-                    {"type": "button", "style": "primary", "color": "#1d4ed8", "action": {"type": "message", "label": "🐘 大型權值股", "text": "推薦 權值股"}},
-                    {"type": "button", "style": "primary", "color": "#ea580c", "action": {"type": "message", "label": "🚀 中小型飆股", "text": "推薦 中小型股"}},
-                    
+                    {"type": "text", "text": "🎯 請選擇選股策略", "weight": "bold", "size": "md", "align": "center"},
+                    {"type": "button", "style": "primary", "color": "#1d4ed8", "action": {"type": "message", "label": "🏢 大型權值 (嚴選 Top 5)", "text": "推薦 權值Top5"}, "margin": "sm"},
+                    {"type": "button", "style": "primary", "color": "#ea580c", "action": {"type": "message", "label": "🚀 中小型股 (嚴選 Top 5)", "text": "推薦 中小Top5"}, "margin": "sm"},
+                    {"type": "button", "style": "secondary", "color": "#ea580c", "action": {"type": "message", "label": "🎲 中小型股 (潛力盲盒)", "text": "推薦 中小盲盒"}, "margin": "sm"}
                 ]
             }
         }
@@ -1512,6 +1520,32 @@ def handle_message(event):
             f"{indicator_line}"
         )
         
+        # 🔥 新增：防震安撫邏輯 (Python 動態精算)
+        anti_shake_msg = ""
+        ma10 = data.get('ma10', 0)
+        ma20 = data.get('ma20', 0)
+        live_price = data['close']
+        
+        volumes = data.get('raw_volumes', [])
+        if len(volumes) >= 6:
+            yest_vol = volumes[-2]
+            vol_5ma = sum(volumes[-6:-1]) / 5
+            
+            # 判斷量價關係 (當今日盤中價格下跌時)
+            if live_price < data.get('open', live_price) or live_price < data.get('raw_closes', [live_price])[-2]:
+                if yest_vol < vol_5ma:
+                    anti_shake_msg += "💡 【籌碼】目前下跌屬「量縮回檔」，主力未大舉倒貨，無需過度恐慌。\n"
+                elif yest_vol > vol_5ma * 1.5:
+                    anti_shake_msg += "⚠️ 【籌碼】出現「爆量下跌」，請提高警覺，嚴防主力出貨。\n"
+                    
+        if ma20 > 0:
+            live_bias20 = (live_price - ma20) / ma20 * 100
+            if live_bias20 > 10:
+                anti_shake_msg += f"📈 【位階】月線乖離達 {live_bias20:.1f}%，屬極度強勢區，短線獲利了結賣壓出籠為正常現象。\n"
+                
+        defense_price = ma10 if live_price > ma10 else ma20
+        anti_shake_msg += f"🛡️ 【防守】波段防守價為 {defense_price} 元。收盤不破此價位，盤中震盪皆視為洗盤，建議抱緊處理！\n"
+
         # --- 處理底部排版與斷行 ---
         final_banner = f"{history_banner}\n" if history_banner else ""
         final_warning = f"{warning_block}" if warning_block else ""
@@ -1524,11 +1558,13 @@ def handle_message(event):
         f"🚩 **指標快篩** :\n"
         f"{signal_str}\n"
         f"------------------\n"
+        f"{anti_shake_msg}"         # 👈 將防震安撫文字加在這裡
+        f"------------------\n"
         f"{ai_reply_text}\n"
         f"------------------\n"    
-        f"{final_banner}"           # 👈 戰績說明 (自帶換行)
-        f"{final_warning}"          # 👈 警告區塊 (自帶換行)
-        f"(🤖 {final_model})\n"     # 👈 補回模型名稱 (自帶換行)
+        f"{final_banner}"           
+        f"{final_warning}"          
+        f"(🤖 {final_model})\n"     
         f"(版本: {BOT_VERSION})"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
