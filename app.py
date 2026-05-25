@@ -1241,14 +1241,20 @@ def handle_message(event):
                 # 零股/整股 格式化顯示 (如 1050股 或 1050.5股)
                 qty_str = f"{int(qty)}股" if float(qty).is_integer() else f"{qty}股"
 
+                ma5 = data.get('ma5', 0) # 👈 把周線也抓出來用
+                
                 # 🧠 濾網核心：只回報「危險」或「須動作」的標的
                 alert_msg = None
                 if s_type == "波段":
                     if live_price < ma20:
-                        if profit_pct > 0:
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：破月線！獲利 {sign}{profit_pct}%\n   建議：【停利出場】保護獲利"
+                        # 🛡️ 加入 5MA 判斷，防洗盤與避免殺在反彈過程
+                        if live_price >= ma5:
+                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：跌深反彈 (站上周線，未過月線)\n   建議：🔍【觀察中】遇月線壓力({ma20})不過再出，目前盈虧 {sign}{profit_pct}%"
                         else:
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：破月線！虧損 {profit_pct}%\n   建議：【嚴格停損】切勿凹單"
+                            if profit_pct > 0:
+                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：弱勢破線 (低於周線與月線)\n   建議：【停利出場】保護獲利 ({sign}{profit_pct}%)"
+                            else:
+                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：弱勢破線 (低於周線與月線)\n   建議：【嚴格停損】切勿凹單 ({profit_pct}%)"
                 elif s_type == "定存":
                     if profit_pct <= -10:
                         alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：跌幅達 {profit_pct}%\n   建議：🛒 已到打折加碼區，可考慮分批建倉"
