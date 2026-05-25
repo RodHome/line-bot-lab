@@ -1192,6 +1192,90 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 存股資料讀取失敗。"))
             return
     
+    # ==========================================
+    # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(VIP專屬)
+    # ==========================================
+    if msg in ["盤點", "庫存", "持股檢查", "庫存盤點"]:
+        # 🔒 VIP 門禁系統開始
+        MY_VIP_ID = "Uba1e61555838f40ee9dcafb2be5aa4f6"  # 👈 記得換成你真正的 ID
+        
+        if event.source.user_id != MY_VIP_ID:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 權限不足：此為 VIP 專屬資產管理功能。"))
+            return
+        # 🔒 VIP 門禁系統結束
+
+        try:
+            # 1. 讀取 GitHub 上的專屬庫存名單
+            PORTFOLIO_URL = "https://raw.githubusercontent.com/RodHome/line-bot-lab/main/my_portfolio.json"
+            res = requests.get(PORTFOLIO_URL, headers={'Cache-Control': 'no-cache'}, timeout=5)
+            
+            if res.status_code != 200:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 無法連線至庫存名單，請確認 GitHub 檔案是否存在。"))
+                return
+                
+            portfolio = res.json()
+            if not portfolio:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="💼 目前庫存名單為空喔！"))
+                return
+
+            # 2. 定義單檔股票的極簡過濾邏輯
+            def check_my_stock_light(item):
+                code = str(item['code'])
+                cost = float(item.get('cost', 0))
+                qty = item.get('quantity', 0)
+                s_type = item.get('type', '波段')
+                broker = item.get('broker', '未指定')
+                
+                # 呼叫你強大的雙引擎抓現價與均線
+                data = fetch_data_light(code)
+                if not data: return None
+
+                name = CODE_TO_NAME.get(code, code)
+                live_price = data['close']
+                ma20 = data.get('ma20', 0)
+                
+                # 計算即時損益
+                profit_pct = round((live_price - cost) / cost * 100, 1) if cost > 0 else 0
+                sign = "+" if profit_pct > 0 else ""
+                
+                # 零股/整股 格式化顯示 (如 1050股 或 1050.5股)
+                qty_str = f"{int(qty)}股" if float(qty).is_integer() else f"{qty}股"
+
+                # 🧠 濾網核心：只回報「危險」或「須動作」的標的
+                alert_msg = None
+                if s_type == "波段":
+                    if live_price < ma20:
+                        if profit_pct > 0:
+                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：破月線！獲利 {sign}{profit_pct}%\n   建議：【停利出場】保護獲利"
+                        else:
+                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：破月線！虧損 {profit_pct}%\n   建議：【嚴格停損】切勿凹單"
+                elif s_type == "定存":
+                    if profit_pct <= -10:
+                        alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：跌幅達 {profit_pct}%\n   建議：🛒 已到打折加碼區，可考慮分批建倉"
+                
+                return alert_msg
+
+            # 3. 🚀 並行處理所有庫存 (極速體檢，設定 8 執行緒防 Timeout)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+                # 執行檢查，並自動濾掉回傳 None (代表安全) 的股票
+                results = [res for res in executor.map(check_my_stock_light, portfolio) if res is not None]
+
+            # 4. 組裝最終報告
+            if not results:
+                final_reply = "🛡️ 報告主人！目前波段持股全數在月線之上，安全無虞！繼續抱緊處理。"
+            else:
+                final_reply = "⚠️ 【庫存警示與動作清單】\n" + "━"*18 + "\n"
+                final_reply += "\n\n".join(results)
+                final_reply += f"\n" + "━"*18 + f"\n🕒 盤點時間: {get_taiwan_time_str()}"
+
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=final_reply))
+            return
+            
+        except Exception as e:
+            print(f"庫存盤點發生錯誤: {e}")
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 庫存大體檢發生錯誤，請確認 JSON 格式正確。"))
+            return
+
     #=================3/17==========================
     # [功能 2] 個股/ETF 診斷 (優化版)
     stock_id = get_stock_id(msg)
