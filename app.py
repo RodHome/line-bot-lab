@@ -1256,8 +1256,22 @@ def handle_message(event):
                             else:
                                 alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：弱勢破線 (低於周線與月線)\n   建議：【嚴格停損】切勿凹單 ({profit_pct}%)"
                 elif s_type == "定存":
-                    if profit_pct <= -10:
-                        alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：跌幅達 {profit_pct}%\n   建議：🛒 已到打折加碼區，可考慮分批建倉"
+                    if ma20 > 0:
+                        # 完美對齊 generator.py 的乖離率算法
+                        bias_20 = (live_price - ma20) / ma20 * 100
+                        bias_5 = (live_price - ma5) / ma5 * 100 if ma5 > 0 else 0
+                        
+                        # 🔴 高檔過熱：月線乖離 > 8%
+                        if bias_20 > 8.0:
+                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：短線過熱 (月線乖離 {bias_20:.1f}%)\n   建議：🔴【短線過熱】可考慮分批獲利了結 (總盈虧 {sign}{profit_pct}%)"
+                        
+                        # 🛒 打折加碼：月線乖離 < -2%
+                        elif bias_20 < -2.0:
+                            # 🛡️ 移植防飛刀邏輯
+                            knife_str = "⭐ 週線翻正，跌勢止穩" if bias_5 > 0 else "⚠️ 跌勢未止，請分批慢接"
+                            action_str = "🚨【大舉進場】長線買點浮現" if bias_20 < -8.0 else "🛒【小幅加碼】股價委屈"
+                            
+                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：{action_str} (月線乖離 {bias_20:.1f}%)\n   建議：{knife_str} (總盈虧 {sign}{profit_pct}%)"
                 
                 return alert_msg
 
