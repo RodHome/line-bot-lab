@@ -4,6 +4,7 @@ import time
 import math
 import concurrent.futures
 import twstock
+import yfinance as yf # 👈 加上這一行
 from datetime import datetime, timedelta, time as dtime, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
@@ -369,6 +370,23 @@ def fetch_data_light(stock_id):
                     source_name = "TWSE(試)"
     except: pass
 
+    # 🔥 第二道防線：如果 twstock 被擋，啟動 Yahoo 即時備援引擎！
+    if latest_price == 0:
+        try:
+            # 先當作上市股票 (.TW) 查詢
+            df = yf.Ticker(f"{stock_id}.TW").history(period="1d")
+            if df.empty:
+                # 找不到就換成上櫃股票 (.TWO) 查詢 (完美解決 6125 廣運問題！)
+                df = yf.Ticker(f"{stock_id}.TWO").history(period="1d")
+                
+            if not df.empty:
+                latest_price = round(float(df['Close'].iloc[-1]), 2)
+                source_name = "Yahoo備援"
+                update_time = get_taiwan_time_str()
+        except Exception as e:
+            print(f"Yahoo 備援失敗: {e}")
+
+    # 🛡️ 第三道防線：如果連 Yahoo 都掛了，才拿昨天的收盤價墊底
     if latest_price == 0:
         latest_price = hist_data[-1]['close']
 
