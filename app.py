@@ -710,7 +710,9 @@ def handle_message(event):
 
     if msg.startswith("推薦 ") or msg.startswith("選股 "):
         choice = msg.split(" ", 1)[1]
-        target_type = "大型權值股" if "權值" in choice else ("中小型股" if "中小" in choice else choice)
+        
+        # 🔥 修正盲盒與 Top5 分類失效的 Bug，直接傳遞精確指令
+        target_type = choice 
         
         good_stocks = scan_recommendations_turbo(target_type)
         
