@@ -102,6 +102,7 @@
                 renderData(currentMode); 
 
             } catch (e) {
+                console.error("網頁崩潰的真正原因:", e); // 👈 加上這行
                 document.getElementById('stock-grid').innerHTML = `<div class="col-span-full text-center text-red-400 p-10 bg-red-900/10 rounded-2xl border border-red-900/20">🚨 資料讀取失敗，請確認 JSON 檔案是否存在。</div>`;
             }
         }
