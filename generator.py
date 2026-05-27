@@ -7,10 +7,23 @@ import time
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 import yfinance as yf
+import math   # 👈 1. 新增這行！(處理 NaN 必備)
 
 # 🔥 雙鑰匙負載平衡系統：合併訪客與會員額度 (總計 900次/小時)
 GUEST_TOKEN = "" # 訪客鑰匙 (消耗 IP 免費 300 次)
 VIP_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
+
+# 👇👇👇 2. 新增這段「除毒淨水器」函數 👇👇👇
+def clean_nan(data):
+    if isinstance(data, list):
+        return [clean_nan(item) for item in data]
+    elif isinstance(data, dict):
+        return {k: clean_nan(v) for k, v in data.items()}
+    elif isinstance(data, float) and math.isnan(data):
+        return None  # 把 NaN 變成安全的 null
+    else:
+        return data
+# 👆👆👆 新增結束 👆👆👆
 
 # 🔥 [新增模組] 計算 RSI
 def calculate_rsi(prices, period=14):
@@ -786,8 +799,9 @@ def generate_daily_recommendations():
             filtered_momentum.append(item)
 
         # 📦 最終結算存檔 (儲存乾淨的 filtered_momentum)
+        clean_filtered_momentum = clean_nan(filtered_momentum) # 👈 啟動淨水器
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
-            json.dump(filtered_momentum, f, ensure_ascii=False, indent=4)
+            json.dump(clean_filtered_momentum, f, ensure_ascii=False, indent=4, allow_nan=False) # 👈 加入 allow_nan=False 嚴格防呆
         print(f"💾 已儲存 daily_recommendations.json (經無痕濾網淘汰後保留 {len(filtered_momentum)} 檔)")
     else:
         print("⚠️ 歷史與今日皆無資料可存。")
@@ -1189,8 +1203,9 @@ def generate_left_side_value():
             filtered_list.append(item)
 
         # 📦 最終結算存檔 (儲存乾淨的 filtered_list)
+        clean_filtered_list = clean_nan(filtered_list) # 👈 啟動淨水器
         with open('left_side_value.json', 'w', encoding='utf-8') as f:
-            json.dump(filtered_list, f, ensure_ascii=False, indent=4)
+            json.dump(clean_filtered_list, f, ensure_ascii=False, indent=4, allow_nan=False) # 👈 加入 allow_nan=False
         print(f"💾 已強制更新 left_side_value.json (經無痕濾網淘汰後保留 {len(filtered_list)} 檔)")
     else:
         print("⚠️ 歷史與今日皆無資料可存。")
@@ -1342,8 +1357,9 @@ def generate_deposit_stocks():
         # 依照乖離率由低到高排序 (越便宜、跌越多的排越上面)
         deposit_list.sort(key=lambda x: x['bias_20'])
         
+        clean_deposit_list = clean_nan(deposit_list) # 👈 啟動淨水器
         with open('deposit_stocks.json', 'w', encoding='utf-8') as f:
-            json.dump(deposit_list, f, ensure_ascii=False, indent=4)
+            json.dump(clean_deposit_list, f, ensure_ascii=False, indent=4, allow_nan=False) # 👈 加入 allow_nan=False
         print(f"💾 任務完成！已儲存 deposit_stocks.json (共分析 {len(deposit_list)} 檔存股)")
 
 # ========================================================
