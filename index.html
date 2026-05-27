@@ -83,7 +83,10 @@
                 ]);
 
                 if (resLeft && resLeft.ok) {
-                    leftData = await resLeft.json();
+                    // 先讀成純文字，把 NaN 替換成 null 後，再轉回 JSON
+                    const textLeft = await resLeft.text();
+                    leftData = JSON.parse(textLeft.replace(/NaN/g, 'null'));
+                    
                     if (leftData.length > 0) {
                         baseDateLeft = new Date(leftData[0].date);
                         document.getElementById('updateTimeL').innerText = `🛡️ 左側同步: ${leftData[0].date}`;
@@ -91,7 +94,10 @@
                 }
 
                 if (resRight && resRight.ok) {
-                    rightData = await resRight.json();
+                    // 同理，處理右側資料
+                    const textRight = await resRight.text();
+                    rightData = JSON.parse(textRight.replace(/NaN/g, 'null'));
+                    
                     if (rightData.length > 0) {
                         baseDateRight = new Date(rightData[0].date);
                         document.getElementById('updateTimeR').innerText = `🚀 右側同步: ${rightData[0].date}`;
