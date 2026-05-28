@@ -5,16 +5,47 @@ import math
 import concurrent.futures
 import twstock
 import yfinance as yf # 👈 加上這一行
+import pandas as pd
 from datetime import datetime, timedelta, time as dtime, timezone
 from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendMessage
 
+# 🌐 您的專屬 Google Sheet 雲端資料庫網址
+GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv"
+
+def get_portfolio_from_sheets():
+    """從 Google 試算表動態抓取庫存資料"""
+    try:
+        df = pd.read_csv(GOOGLE_SHEET_CSV_URL)
+        
+        # 確保第一欄(股票代號)強制轉為字串並補齊4碼，防止 0056 變成 56
+        col_code = df.columns[0]
+        df[col_code] = df[col_code].astype(str).str.zfill(4)
+        
+        # 將您 Excel 裡的中文標題，對應回程式看得懂的英文 key
+        rename_map = {
+            df.columns[0]: 'code',
+            df.columns[1]: 'name',
+            df.columns[2]: 'cost',
+            df.columns[3]: 'quantity',
+            df.columns[4]: 'type',
+            df.columns[5]: 'broker'
+        }
+        df = df.rename(columns=rename_map)
+        
+        # 轉換為與原本 JSON 完全相同的格式
+        return df.to_dict(orient='records')
+    except Exception as e:
+        print(f"⚠️ 讀取 Google 試算表失敗: {e}")
+        return []
+
+
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v19.1 
-BOT_VERSION = "v19.1 (導入gemini-3.5)"
+# 🤖 [版本號] v19.2 
+BOT_VERSION = "v19.2 (庫存掃描改版)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -1207,90 +1238,137 @@ def handle_message(event):
         # 🔒 VIP 門禁系統結束
 
         try:
-            # 1. 讀取 GitHub 上的專屬庫存名單
-            PORTFOLIO_URL = "https://raw.githubusercontent.com/RodHome/line-bot-lab/main/my_portfolio.json"
-            res = requests.get(PORTFOLIO_URL, headers={'Cache-Control': 'no-cache'}, timeout=5)
-            
-            if res.status_code != 200:
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 無法連線至庫存名單，請確認 GitHub 檔案是否存在。"))
-                return
-                
-            portfolio = res.json()
+            # 1. 呼叫雲端試算表取得最新庫存
+            portfolio = get_portfolio_from_sheets()
             if not portfolio:
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="💼 目前庫存名單為空喔！"))
-                return
+                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 雲端庫存試算表讀取失敗，請確認網址。"))
+                 return
 
-            # 2. 定義單檔股票的極簡過濾邏輯
+            # 2. 定義單檔股票的防震卡牌邏輯
             def check_my_stock_light(item):
                 code = str(item['code'])
                 cost = float(item.get('cost', 0))
-                qty = item.get('quantity', 0)
                 s_type = item.get('type', '波段')
-                broker = item.get('broker', '未指定')
                 
-                # 呼叫你強大的雙引擎抓現價與均線
+                # 呼叫雙引擎抓現價與均線
                 data = fetch_data_light(code)
                 if not data: return None
 
-                name = CODE_TO_NAME.get(code, code)
+                name = CODE_TO_NAME.get(code, item.get('name', code))
                 live_price = data['close']
                 ma20 = data.get('ma20', 0)
                 
-                # 計算即時損益
                 profit_pct = round((live_price - cost) / cost * 100, 1) if cost > 0 else 0
                 sign = "+" if profit_pct > 0 else ""
                 
-                # 零股/整股 格式化顯示 (如 1050股 或 1050.5股)
-                qty_str = f"{int(qty)}股" if float(qty).is_integer() else f"{qty}股"
-
-                ma5 = data.get('ma5', 0) # 👈 把周線也抓出來用
+                tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+                is_tail_session = (tw_now.hour > 13) or (tw_now.hour == 13 and tw_now.minute >= 20)
                 
-                # 🧠 濾網核心：只回報「危險」或「須動作」的標的
-                alert_msg = None
+                eval_status = "正常持股"
+                eval_advice = "🟢 正常多頭軌道，續抱處理"
+                status_color = "#10B981" # 翡翠綠
+                
                 if s_type == "波段":
-                    if live_price < ma20:
-                        # 🛡️ 加入 5MA 判斷，防洗盤與避免殺在反彈過程
-                        if live_price >= ma5:
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：跌深反彈 (站上周線，未過月線)\n   建議：🔍【觀察中】遇月線壓力({ma20})不過再出，目前盈虧 {sign}{profit_pct}%"
-                        else:
-                            if profit_pct > 0:
-                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：弱勢破線 (低於周線與月線)\n   建議：【停利出場】保護獲利 ({sign}{profit_pct}%)"
+                    if ma20 > 0:
+                        is_broken_ma20 = live_price < (ma20 * 0.98) # 跌破 2% 緩衝
+                        
+                        # --- 🛡️ 雙軌防禦邏輯 ---
+                        if profit_pct < 5.0:
+                            # 【階段一：成本保衛戰】(獲利未拉開，以成本防守為主)
+                            if profit_pct <= -7.0: # 觸及 7% 停損底線
+                                eval_status = "觸及停損底線"
+                                eval_advice = f"🚨 帳面虧損已達 {profit_pct}%，請嚴格執行紀律停損，保留資金！"
+                                status_color = "#EF4444" # 警告紅
+                            elif is_broken_ma20:
+                                eval_status = "破線轉弱"
+                                eval_advice = "⚠️ 跌破月線且無獲利保護，建議分批減碼降低風險。"
+                                status_color = "#F59E0B" # 橘黃
                             else:
-                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：弱勢破線 (低於周線與月線)\n   建議：【嚴格停損】切勿凹單 ({profit_pct}%)"
+                                eval_status = "建倉觀察中"
+                                eval_advice = "🟢 股價於成本區間震盪，防守底線設為成本 -7%。"
+                        else:
+                            # 【階段二：波段順勢戰】(獲利 > 5%，交給均線順勢操作)
+                            if is_broken_ma20:
+                                if is_tail_session:
+                                    eval_status = "波段停利確認"
+                                    eval_advice = "💰【收盤確認破線】趨勢改變，請將獲利放進口袋！"
+                                    status_color = "#EF4444" # 警告紅
+                                else:
+                                    eval_status = "盤中洗盤警告"
+                                    eval_advice = "⚠️ 盤中跌破防守線，已有獲利保護，可等 13:20 尾盤再確認。"
+                                    status_color = "#F59E0B" # 橘黃
+                            else:
+                                eval_status = "波段獲利奔跑"
+                                eval_advice = f"🔥 獲利達 {sign}{profit_pct}%！均線防守完好，讓利潤繼續奔跑。"
+                                
                 elif s_type == "定存":
                     if ma20 > 0:
-                        # 完美對齊 generator.py 的乖離率算法
                         bias_20 = (live_price - ma20) / ma20 * 100
-                        bias_5 = (live_price - ma5) / ma5 * 100 if ma5 > 0 else 0
-                        
-                        # 🔴 高檔過熱：月線乖離 > 8%
                         if bias_20 > 8.0:
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：短線過熱 (月線乖離 {bias_20:.1f}%)\n   建議：🔴【短線過熱】可考慮分批獲利了結 (總盈虧 {sign}{profit_pct}%)"
-                        
-                        # 🛒 打折加碼：月線乖離 < -2%
+                            eval_status = "短線過熱"
+                            eval_advice = "🔴 股價過熱，可分批獲利了結，拉回再接。"
+                            status_color = "#F59E0B" # 橘黃
                         elif bias_20 < -2.0:
-                            # 🛡️ 移植防飛刀邏輯
-                            knife_str = "⭐ 週線翻正，跌勢止穩" if bias_5 > 0 else "⚠️ 跌勢未止，請分批慢接"
-                            action_str = "🚨【大舉進場】長線買點浮現" if bias_20 < -8.0 else "🛒【小幅加碼】股價委屈"
-                            
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：{action_str} (月線乖離 {bias_20:.1f}%)\n   建議：{knife_str} (總盈虧 {sign}{profit_pct}%)"
-                
-                return alert_msg
+                            status_color = "#3B82F6" # 科技藍
+                            if bias_20 < -8.0:
+                                eval_status = "長線超跌特價"
+                                eval_advice = "🚨【大舉進場】市場超跌，長線買點浮現！"
+                            else:
+                                eval_status = "股價委屈打折"
+                                eval_advice = "🛒【小幅加碼】進入打折區，可零股慢接。"
 
-            # 3. 🚀 並行處理所有庫存 (極速體檢，設定 8 執行緒防 Timeout)
+                return {
+                  "type": "bubble", "size": "nano",
+                  "header": {
+                    "type": "box", "layout": "vertical", "backgroundColor": status_color,
+                    "contents": [
+                      {"type": "text", "text": f"{name}", "weight": "bold", "color": "#ffffff", "size": "sm"},
+                      {"type": "text", "text": f"{code} · {s_type}", "color": "#ffffff", "size": "xxs", "alpha": 0.8}
+                    ]
+                  },
+                  "body": {
+                    "type": "box", "layout": "vertical", "spacing": "sm", "backgroundColor": "#111827",
+                    "contents": [
+                      {"type": "box", "layout": "horizontal", "contents": [
+                          {"type": "text", "text": "現/成", "size": "xxs", "color": "#9CA3AF"},
+                          {"type": "text", "text": f"${live_price}/${cost}", "size": "xxs", "color": "#F3F4F6", "align": "right"}
+                      ]},
+                      {"type": "box", "layout": "horizontal", "contents": [
+                          {"type": "text", "text": "盈虧", "size": "xxs", "color": "#9CA3AF"},
+                          {"type": "text", "text": f"{sign}{profit_pct}%", "size": "xxs", "color": "#EF4444" if profit_pct < 0 else "#10B981", "align": "right", "weight": "bold"}
+                      ]},
+                      {"type": "separator", "color": "#374151"},
+                      {"type": "text", "text": f"【{eval_status}】", "size": "xxs", "weight": "bold", "color": status_color},
+                      {"type": "text", "text": f"{eval_advice}", "size": "xxs", "color": "#D1D5DB", "wrap": True}
+                    ]
+                  },
+                  "footer": {
+                    "type": "box", "layout": "vertical", "backgroundColor": "#1F2937",
+                    "contents": [
+                      # 🔥 超猛功能：點擊後不但帶出代號，連「成本」都一併傳過去呼叫 AI！
+                      {"type": "button", "action": {"type": "message", "label": "🔍 深度診斷", "text": f"{code} 成本 {cost}"}, "style": "primary", "color": "#4B5563", "size": "xs", "height": "sm"}
+                    ]
+                  }
+                }
+
+            # 3. 🚀 並行處理所有庫存 (極速體檢)
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-                # 執行檢查，並自動濾掉回傳 None (代表安全) 的股票
-                results = [res for res in executor.map(check_my_stock_light, portfolio) if res is not None]
+                flex_bubbles = [res for res in executor.map(check_my_stock_light, portfolio) if res is not None]
 
-            # 4. 組裝最終報告
-            if not results:
-                final_reply = "🛡️ 報告主人！目前波段持股全數在月線之上，安全無虞！繼續抱緊處理。"
-            else:
-                final_reply = "⚠️ 【庫存警示與動作清單】\n" + "━"*18 + "\n"
-                final_reply += "\n\n".join(results)
-                final_reply += f"\n" + "━"*18 + f"\n🕒 盤點時間: {get_taiwan_time_str()}"
-
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=final_reply))
+            # 4. 組裝最終報告 (🔥 LINE Carousel 限制每封最多 10 個 bubble，自動幫您切割)
+            if not flex_bubbles:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="庫存為空，或抓取資料失敗。"))
+                return
+            
+            messages = []
+            for i in range(0, len(flex_bubbles), 10):
+                chunk = flex_bubbles[i:i+10]
+                messages.append(FlexSendMessage(
+                    alt_text="您的庫存盤點初評",
+                    contents={"type": "carousel", "contents": chunk}
+                ))
+                
+            line_bot_api.reply_message(event.reply_token, messages)
             return
             
         except Exception as e:
