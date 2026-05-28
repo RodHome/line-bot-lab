@@ -17,7 +17,7 @@ GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZT
 def get_portfolio_from_sheets():
     """從 Google 試算表動態抓取庫存資料"""
     try:
-        df = pd.read_csv(GOOGLE_SHEET_CSV_URL)
+        df = pd.read_csv(GOOGLE_SHEET_CSV_URL, thousands=',')
         
         # 確保第一欄(股票代號)強制轉為字串並補齊4碼，防止 0056 變成 56
         col_code = df.columns[0]
@@ -1247,7 +1247,8 @@ def handle_message(event):
             # 2. 定義單檔股票的防震卡牌邏輯
             def check_my_stock_light(item):
                 code = str(item['code'])
-                cost = float(item.get('cost', 0))
+                raw_cost = str(item.get('cost', '0')).replace(',', '').strip()
+                cost = float(raw_cost)
                 s_type = item.get('type', '波段')
                 
                 # 呼叫雙引擎抓現價與均線
