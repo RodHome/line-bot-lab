@@ -1255,7 +1255,7 @@ def handle_message(event):
                 data = fetch_data_light(code)
                 if not data: return None
 
-                name = CODE_TO_NAME.get(code, item.get('name', code))
+                name = item.get('name', code)
                 live_price = data['close']
                 ma20 = data.get('ma20', 0)
                 
