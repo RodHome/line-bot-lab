@@ -691,14 +691,15 @@ def generate_daily_recommendations():
                                 o_price = latest_k['Open']
                                 h_price = latest_k['High']
                                 
-                                # 1. 乖離過大淘汰
+                                is_overheated = False
+                                # 1. 乖離過大警示 (改為不淘汰，後續給予懲罰扣分與專屬標籤)
                                 ma20 = hist['Close'].mean()
                                 bias20 = (c_price - ma20) / ma20 * 100
                                 if bias20 > 15.0:
-                                    print(f"⚠️ {code} 月線乖離過大({bias20:.1f}%)，避免當韭菜，淘汰！")
-                                    continue
+                                    print(f"⚠️ {code} 月線乖離過大({bias20:.1f}%)，動能極強但風險高，標記為過熱！")
+                                    is_overheated = True
                                 
-                                # 2. 長上影線避雷針淘汰 (防主力出貨)
+                                # 2. 長上影線避雷針淘汰 (防主力出貨，這個還是要留著防假突破)
                                 upper_shadow = h_price - max(o_price, c_price)
                                 body = abs(c_price - o_price)
                                 
@@ -720,6 +721,12 @@ def generate_daily_recommendations():
                         if stock_cap_size == "中小型股":
                             m_score = m_score * 1.2
                             
+                        # 🔥 針對過熱妖股的處理：扣減 20% 分數避免擠掉剛起漲的安全股，並給予專屬標籤
+                        final_tag = "外資大買" if acc_f > acc_t else "投信作帳"
+                        if is_overheated:
+                            m_score = m_score * 0.8 
+                            final_tag = "🔥過熱妖股"
+                            
                         date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
                         # 👉 呼叫新引擎取得除息日 (只取第三個變數)
                         _, _, ex_date, _ = get_latest_dividend_info(code, price)
@@ -738,7 +745,7 @@ def generate_daily_recommendations():
                             "chips_display": f"{chips_sum}張 ({buy_value_y:.1f}億)",
                             "buy_value": buy_value,
                             "yoy": yoy,
-                            "tag": "外資大買" if acc_f > acc_t else "投信作帳",
+                            "tag": final_tag,
                             "debug_info": yoy_data['debug_info']
                         })
                 
@@ -787,9 +794,16 @@ def generate_daily_recommendations():
             if days_diff > 30:
                 continue
                 
-            # 2. 隱形計算漲跌幅 (判斷入榜理由)
-            first_price = float(item.get('first_entry_price', item.get('price', 1)))
-            current_price = float(item.get('price', 1))
+           # 2. 隱形計算漲跌幅 (判斷入榜理由)
+            raw_fp = item.get('first_entry_price')
+            if raw_fp is None: raw_fp = item.get('price')
+            if raw_fp is None: raw_fp = 1
+            first_price = float(raw_fp)
+            
+            raw_cp = item.get('price')
+            if raw_cp is None: raw_cp = 1
+            current_price = float(raw_cp)
+            
             roi = (current_price - first_price) / first_price if first_price > 0 else 0
             
             # 📈 邏輯濾網：暴漲 20% (超漲過熱) 或 跌破動能 -8% (假突破) 直接剔除
@@ -1192,8 +1206,15 @@ def generate_left_side_value():
                 continue
                 
             # 2. 隱形計算漲跌幅 (判斷入榜理由)
-            first_price = float(item.get('first_entry_price', item.get('price', 1)))
-            current_price = float(item.get('price', 1))
+            raw_fp = item.get('first_entry_price')
+            if raw_fp is None: raw_fp = item.get('price')
+            if raw_fp is None: raw_fp = 1
+            first_price = float(raw_fp)
+            
+            raw_cp = item.get('price')
+            if raw_cp is None: raw_cp = 1
+            current_price = float(raw_cp)
+            
             roi = (current_price - first_price) / first_price if first_price > 0 else 0
             
             # 📉 邏輯濾網：強彈 15% (坑填平) 或 破底跌 10% (接刀失敗) 直接剔除
