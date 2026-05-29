@@ -171,12 +171,25 @@
                 const entryDate = new Date(s.first_entry_date);
                 const diffDays = Math.ceil(Math.abs(baseDate - entryDate) / (1000 * 60 * 60 * 24));
                 
-                // 統一計算 ROI (相容 left 的 price 和 right 的 close)
-                const currentPrice = parseFloat(s.price || s.close || s.first_entry_price); 
-                const entryPrice = parseFloat(s.first_entry_price);
-                s.roiNum = ((currentPrice - entryPrice) / entryPrice * 100);
-                s.daysAgo = diffDays;
-                s.currentPriceDisplay = currentPrice;
+                // 🛡️ [防護修正] 嚴謹的數值與空值防護
+                let currentPrice = parseFloat(s.price || s.close);
+                let entryPrice = parseFloat(s.first_entry_price);
+
+                // 若現價異常，嘗試用初始價替補，或歸零
+                if (isNaN(currentPrice) || currentPrice <= 0) currentPrice = entryPrice || 0;
+                
+                // 若初始價異常(null/NaN)，強制等於現價(讓績效顯示0%)，避免出現 NaN%
+                let isEntryPriceInvalid = isNaN(entryPrice) || entryPrice <= 0;
+                if (isEntryPriceInvalid) {
+                    entryPrice = currentPrice;
+                }
+
+                s.roiNum = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice * 100) : 0;
+                s.daysAgo = isNaN(diffDays) ? 0 : diffDays;
+                s.currentPriceDisplay = currentPrice > 0 ? currentPrice.toFixed(2) : "N/A";
+                
+                // 若為異常初始價，畫面上顯示「計算中」取代 $null
+                s.firstPriceDisplay = isEntryPriceInvalid ? "計算中" : `$${entryPrice.toFixed(2)}`;
 
                 if (mode === 'NEW' && diffDays > 3) return; 
                 if (mode === 'HISTORY' && (diffDays <= 3 || diffDays > 15)) return;
@@ -190,7 +203,6 @@
                 const roi = s.roiNum.toFixed(1);
                 const roiColor = s.roiNum == 0 ? "text-slate-500" : (s.roiNum > 0 ? "text-red-400" : "text-emerald-400");
                 
-                // 👇 新增：處理市值 Badge
                 let capBadgeHtml = '';
                 if (s.cap_size === '大型權值股') {
                     capBadgeHtml = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-900/50 text-blue-300 border border-blue-700/50 ml-2">🐘 權值股</span>`;
@@ -198,7 +210,6 @@
                     capBadgeHtml = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-orange-900/50 text-orange-300 border border-orange-700/50 ml-2">🚀 中小型</span>`;
                 }
 
-                // --- 共通區塊：頭部 (名稱、代號、價格) ---
                 html += `
                 <div class="card rounded-2xl p-6 flex flex-col h-full relative overflow-hidden">
                     ${s.roiNum > 20 ? '<div class="absolute -right-6 top-6 bg-red-600 text-white text-[10px] font-black py-1 px-8 transform rotate-45 shadow-lg">飆股</div>' : ''}
@@ -215,11 +226,9 @@
                         </div>
                     </div>`;
 
-                // --- 差異化區塊：智慧標籤與狀態 ---
                 html += `<div class="flex flex-wrap gap-1.5 mb-4 min-h-[24px]">`;
                 
                 if (currentStrategy === 'LEFT') {
-                    // 左側專屬標籤
                     const volValue = parseFloat(s.vol_ratio);
                     const buyDays = parseInt(s.buy_days);
                     if (buyDays >= 4 && volValue < 70) html += `<span class="badge-left px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm">💎 飆股基因</span>`;
@@ -233,21 +242,19 @@
                         </div>
                     </div>`;
                 } else {
-                    // 右側專屬標籤
                     const yoyVal = parseFloat(s.yoy);
-                    const buyVal = Math.round(parseFloat(s.buy_value) / 10000); // 轉換為萬元
+                    const buyVal = Math.round(parseFloat(s.buy_value) / 10000); 
                     if (yoyVal > 20) html += `<span class="badge-right px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-sm">🔥 業績爆發</span>`;
                     if (buyVal > 5000) html += `<span class="bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded text-[10px] font-bold">💰 資金狂潮</span>`;
                     if (s.tag) html += `<span class="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold">${s.tag}</span>`;
                     
-                    // 👇 新增：右側顯示動能評分
                     html += `</div><div class="flex justify-between items-center mb-6">
                         <span class="px-2 py-0.5 rounded text-[10px] font-black border bg-red-500/10 text-red-400 border-red-500/20">🚀 右側動能</span>
                         ${s.m_score ? `<span class="text-[12px] font-bold text-yellow-400 border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 rounded">⚡ 動能: ${s.m_score}</span>` : ''}
                     </div>`;
                 }
 
-                // --- 共通區塊：戰績面板 ---
+                // 🛡️ [防護修正] 套用安全變數 s.firstPriceDisplay
                 html += `
                     <div class="bg-slate-950/60 rounded-xl p-4 border border-slate-800/50 mb-6">
                         <div class="flex justify-between items-center mb-3 text-[10px] text-slate-500 font-bold">
@@ -257,7 +264,7 @@
                         <div class="flex justify-between items-end">
                             <div>
                                 <span class="text-[10px] text-slate-600 block">初始價</span>
-                                <span class="text-slate-400 font-bold">$${s.first_entry_price}</span>
+                                <span class="text-slate-400 font-bold">${s.firstPriceDisplay}</span>
                             </div>
                             <div class="text-right">
                                 <span class="text-[10px] text-slate-600 block font-bold">累積績效</span>
@@ -266,7 +273,6 @@
                         </div>
                     </div>`;
 
-                // --- 差異化區塊：底部數據欄 ---
                 html += `<div class="grid grid-cols-2 gap-3 mt-auto">`;
                 
                 if (currentStrategy === 'LEFT') {
