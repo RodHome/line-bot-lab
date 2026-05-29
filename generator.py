@@ -41,6 +41,7 @@ def calculate_rsi(prices, period=14):
 
 
 # 🔥 [新增模組] 長線記憶融合大腦 (30天回測水庫與初始價格鎖定)
+# 🔥 [新增模組] 長線記憶融合大腦 (30天回測水庫與初始價格鎖定)
 def merge_history_data(today_data, file_name, sort_key):
     history_dict = {}
     # 1. 嘗試讀取現有的舊檔案
@@ -61,9 +62,17 @@ def merge_history_data(today_data, file_name, sort_key):
         code = item['code']
         item_date = item.get('date', today_date_str)
         
-        # 鎖定初次入榜日與初次價格
+        # 🛡️ [防護修正] 嚴格檢驗歷史價格，若為 None、字串 null 或異常，強制以今日價格覆蓋
+        raw_first_price = history_dict.get(code, {}).get('first_entry_price')
+        try:
+            if raw_first_price is None or str(raw_first_price).lower() == 'null' or float(raw_first_price) <= 0:
+                first_price = float(item.get('price', 0.0))
+            else:
+                first_price = float(raw_first_price)
+        except (ValueError, TypeError):
+            first_price = float(item.get('price', 0.0))
+            
         first_date = history_dict.get(code, {}).get('first_entry_date', item_date)
-        first_price = history_dict.get(code, {}).get('first_entry_price', item.get('price', 0.0))
         
         new_item = item.copy()
         new_item['first_entry_date'] = first_date
