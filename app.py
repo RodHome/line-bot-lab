@@ -518,15 +518,16 @@ def check_stock_worker_turbo(item):
         data = fetch_data_light(code)
         if not data: return None
         
-        # 🔥 即時防追高保鑣：盤中現價如果偏離月線 > 15%，直接淘汰！
+        # 🔥 修改點：取消防追高強制淘汰，改為動態標記過熱
         ma20 = data.get('ma20', 0)
+        is_live_overheated = False
         if ma20 > 0:
             live_bias = (data['close'] - ma20) / ma20 * 100
             if live_bias > 15:
-                print(f"🚨 {code} 盤中乖離過高 ({live_bias:.1f}%)，啟動防追高攔截！")
-                return None
+                print(f"🚨 {code} 盤中乖離過高 ({live_bias:.1f}%)，標記為短線過熱！")
+                is_live_overheated = True # <--- 不再 return None，而是記下狀態
         
-        # 原本的破月線淘汰
+        # 原本的破月線淘汰 (保留，趨勢轉弱還是要刪)
         if data['close'] < ma20: 
             return None 
 
@@ -539,6 +540,12 @@ def check_stock_worker_turbo(item):
         tag = item_data.get('tag', '強勢股')
         
         signals = get_technical_signals(data, 1001 if buy_value > 0 else 0)
+        
+        # 🔥 新增：如果盤中發現過熱，或爬蟲端已經標記妖股，強制塞入警示標籤給 AI 看
+        if is_live_overheated or tag == "🔥過熱妖股":
+            signals.append("🚨短線過熱")
+            tag = "🔥過熱妖股" # 確保畫面上的 UI 標籤也會顯示
+            
         signal_str = " | ".join(signals)
 
         yoy_display = f"+{yoy}%" if isinstance(yoy, (int, float)) and yoy > 0 else f"{yoy}%"
