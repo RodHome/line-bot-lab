@@ -513,6 +513,31 @@
     },
     {
         "date": "2026-06-01",
+        "code": "3231",
+        "name": "緯創",
+        "exchange": "上市",
+        "sector": "AI伺服器",
+        "cap_size": "大型權值股",
+        "m_score": 160.0,
+        "ex_dividend_date": null,
+        "price": 174.0,
+        "turnover": 16460576166.0,
+        "chips_display": "50612張 (88.1億)",
+        "buy_value": 8806488000.0,
+        "yoy": 111.99,
+        "tag": "🔥過熱妖股",
+        "debug_info": {
+            "this_rev": 283437176000,
+            "last_rev": 133703546000,
+            "this_period": "2026/4",
+            "last_period": "2025/4",
+            "formula": "(283437176000 - 133703546000) / 133703546000"
+        },
+        "first_entry_date": "2026-06-01",
+        "first_entry_price": 174.0
+    },
+    {
+        "date": "2026-06-01",
         "code": "6223",
         "name": "旺矽",
         "exchange": "上櫃",
