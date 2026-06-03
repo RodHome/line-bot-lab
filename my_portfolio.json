@@ -1,8 +1,8 @@
 [
   {
     "code": "0056",
-    "cost": 35.74,
-    "quantity": 4100,
+    "cost": 35.71,
+    "quantity": 4000,
     "type": "定存",
     "broker": "元大證券"
   },
@@ -14,16 +14,16 @@
     "broker": "元大證券"
   },
   {
-    "code": "2328",
-    "cost": 54.05,
-    "quantity": 3000,
+    "code": "2417",
+    "cost": 50.94,
+    "quantity": 2000,
     "type": "波段",
     "broker": "元大證券"
   },
   {
     "code": "2408",
-    "cost": 257.19,
-    "quantity": 1000,
+    "cost": 283.47,
+    "quantity": 1200,
     "type": "波段",
     "broker": "元大證券"
   },
@@ -38,6 +38,13 @@
     "code": "3653",
     "cost": 3561.78,
     "quantity": 40,
+    "type": "波段",
+    "broker": "元大證券"
+  },
+  {
+    "code": "3481",
+    "cost": 54.85,
+    "quantity": 1000,
     "type": "波段",
     "broker": "元大證券"
   },
@@ -106,8 +113,8 @@
   },
   {
     "code": "2880",
-    "cost": 22.23,
-    "quantity": 6350,
+    "cost": 22.32,
+    "quantity": 6000,
     "type": "定存",
     "broker": "國泰證券"
   },
@@ -120,8 +127,8 @@
   },
   {
     "code": "2884",
-    "cost": 24.04,
-    "quantity": 12500,
+    "cost": 24.01,
+    "quantity": 12000,
     "type": "定存",
     "broker": "國泰證券"
   },
