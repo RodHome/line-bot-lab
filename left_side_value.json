@@ -1,6 +1,6 @@
 [
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "7818",
         "name": "溢泰實業",
         "price": 61.9,
@@ -21,7 +21,7 @@
         "first_entry_price": 65.3
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "3230",
         "name": "錦明",
         "price": 28.8,
@@ -42,7 +42,7 @@
         "first_entry_price": 30.55
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4123",
         "name": "晟德",
         "price": 37.65,
@@ -63,7 +63,7 @@
         "first_entry_price": 38.35
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6199",
         "name": "天品",
         "price": 96.7,
@@ -84,7 +84,7 @@
         "first_entry_price": 90.4
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "8183",
         "name": "精星",
         "price": 31.3,
@@ -105,7 +105,7 @@
         "first_entry_price": 32.35
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6550",
         "name": "北極星藥業-KY",
         "price": 13.2,
@@ -126,7 +126,7 @@
         "first_entry_price": 13.45
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5521",
         "name": "工信",
         "price": 10.55,
@@ -148,28 +148,7 @@
         "first_entry_price": 10.2
     },
     {
-        "date": "2026-06-12",
-        "code": "2610",
-        "name": "華航",
-        "price": 20.4,
-        "exchange": "上市",
-        "score": 110,
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 18.56,
-        "bias60": "-1.8%",
-        "bias24": "2.8%",
-        "bias6": "0.6%",
-        "vol_ratio": "67.5%",
-        "eps": 0.85,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 4,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-05-13",
-        "first_entry_price": 18.75
-    },
-    {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4164",
         "name": "承業醫",
         "price": 30.9,
@@ -191,7 +170,7 @@
         "ex_dividend_date": "2026-06-29"
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2006",
         "name": "東和鋼鐵",
         "price": 68.5,
@@ -212,7 +191,7 @@
         "first_entry_price": 67.6
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6177",
         "name": "達麗",
         "price": 47.15,
@@ -233,7 +212,7 @@
         "first_entry_price": 44.95
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6179",
         "name": "亞通",
         "price": 24.0,
@@ -266,7 +245,7 @@
         "bias60": "-4.3%",
         "bias24": "0.6%",
         "bias6": "0.8%",
-        "vol_ratio": "61.2%",
+        "vol_ratio": "60.4%",
         "eps": 0.12,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -288,7 +267,7 @@
         "bias60": "-5.2%",
         "bias24": "1.0%",
         "bias6": "0.4%",
-        "vol_ratio": "47.0%",
+        "vol_ratio": "46.5%",
         "eps": -0.31,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -310,7 +289,7 @@
         "bias60": "-7.4%",
         "bias24": "-0.1%",
         "bias6": "-0.7%",
-        "vol_ratio": "78.6%",
+        "vol_ratio": "77.5%",
         "eps": 2.18,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -332,7 +311,7 @@
         "bias60": "-2.8%",
         "bias24": "-3.3%",
         "bias6": "-1.3%",
-        "vol_ratio": "41.0%",
+        "vol_ratio": "40.5%",
         "eps": 0.13,
         "yield_rate": 5.55,
         "yield_formula": "最新宣告(114年後半年度): 6.496 / 現價 117.0",
@@ -342,7 +321,7 @@
         "first_entry_price": 117.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2497",
         "name": "怡利電",
         "price": 63.9,
@@ -363,7 +342,7 @@
         "first_entry_price": 59.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4766",
         "name": "南寶",
         "price": 369.5,
@@ -385,7 +364,7 @@
         "ex_dividend_date": "2026-06-23"
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5608",
         "name": "四維航",
         "price": 15.1,
@@ -406,7 +385,7 @@
         "first_entry_price": 14.9
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "1808",
         "name": "潤隆",
         "price": 31.9,
@@ -427,7 +406,7 @@
         "first_entry_price": 29.2
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6469",
         "name": "大樹",
         "price": 76.5,
@@ -448,7 +427,7 @@
         "first_entry_price": 71.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5388",
         "name": "中磊",
         "price": 85.3,
@@ -469,7 +448,7 @@
         "first_entry_price": 84.6
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2845",
         "name": "遠東銀",
         "price": 12.95,
@@ -490,7 +469,7 @@
         "first_entry_price": 12.25
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2530",
         "name": "華建",
         "price": 20.0,
@@ -523,7 +502,7 @@
         "bias60": "-2.9%",
         "bias24": "1.0%",
         "bias6": "1.3%",
-        "vol_ratio": "72.4%",
+        "vol_ratio": "71.4%",
         "eps": 1.07,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -545,7 +524,7 @@
         "bias60": "-9.8%",
         "bias24": "-2.5%",
         "bias6": "0.1%",
-        "vol_ratio": "54.4%",
+        "vol_ratio": "53.5%",
         "eps": -0.48,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -555,7 +534,7 @@
         "first_entry_price": 49.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "1316",
         "name": "上曜",
         "price": 11.3,
@@ -576,7 +555,7 @@
         "first_entry_price": 10.6
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4909",
         "name": "新復興",
         "price": 49.2,
@@ -609,7 +588,7 @@
         "bias60": "-0.8%",
         "bias24": "0.7%",
         "bias6": "0.6%",
-        "vol_ratio": "56.6%",
+        "vol_ratio": "55.9%",
         "eps": 1.92,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -619,7 +598,7 @@
         "first_entry_price": 120.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6188",
         "name": "廣明",
         "price": 81.2,
@@ -640,7 +619,7 @@
         "first_entry_price": 83.1
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4162",
         "name": "智擎",
         "price": 57.6,
@@ -661,7 +640,7 @@
         "first_entry_price": 55.2
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "8927",
         "name": "北基",
         "price": 20.75,
@@ -682,7 +661,7 @@
         "first_entry_price": 19.15
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2617",
         "name": "台航",
         "price": 30.0,
@@ -703,7 +682,7 @@
         "first_entry_price": 29.6
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4178",
         "name": "永笙-KY",
         "price": 17.8,
@@ -736,7 +715,7 @@
         "bias60": "-0.6%",
         "bias24": "2.4%",
         "bias6": "1.5%",
-        "vol_ratio": "79.9%",
+        "vol_ratio": "79.5%",
         "eps": 0.52,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -746,7 +725,7 @@
         "first_entry_price": 28.6
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "8011",
         "name": "台通",
         "price": 18.3,
@@ -768,7 +747,7 @@
         "first_entry_price": 18.25
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4142",
         "name": "國光生",
         "price": 17.65,
@@ -789,7 +768,7 @@
         "first_entry_price": 17.85
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6753",
         "name": "龍德造船",
         "price": 120.0,
@@ -810,7 +789,7 @@
         "first_entry_price": 125.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "1305",
         "name": "華夏",
         "price": 12.65,
@@ -831,7 +810,7 @@
         "first_entry_price": 12.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "8446",
         "name": "華研",
         "price": 88.6,
@@ -852,28 +831,7 @@
         "first_entry_price": 84.0
     },
     {
-        "date": "2026-06-12",
-        "code": "5225",
-        "name": "東科-KY",
-        "price": 71.6,
-        "exchange": "上市",
-        "score": 90,
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 70.09,
-        "bias60": "-12.8%",
-        "bias24": "-6.3%",
-        "bias6": "-0.8%",
-        "vol_ratio": "77.1%",
-        "eps": 1.54,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 3,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-05-13",
-        "first_entry_price": 71.5
-    },
-    {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2537",
         "name": "聯上發",
         "price": 11.4,
@@ -894,7 +852,7 @@
         "first_entry_price": 10.05
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2106",
         "name": "建大",
         "price": 18.05,
@@ -916,7 +874,7 @@
         "first_entry_price": 17.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "3010",
         "name": "華立",
         "price": 132.0,
@@ -950,7 +908,7 @@
         "bias60": "-1.7%",
         "bias24": "2.4%",
         "bias6": "0.7%",
-        "vol_ratio": "70.3%",
+        "vol_ratio": "70.1%",
         "eps": 0.4,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -972,7 +930,7 @@
         "bias60": "-0.8%",
         "bias24": "1.3%",
         "bias6": "-0.4%",
-        "vol_ratio": "44.5%",
+        "vol_ratio": "43.1%",
         "eps": 4.35,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -994,7 +952,7 @@
         "bias60": "-1.6%",
         "bias24": "3.0%",
         "bias6": "0.4%",
-        "vol_ratio": "40.8%",
+        "vol_ratio": "40.2%",
         "eps": 0.55,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -1016,7 +974,7 @@
         "bias60": "-9.0%",
         "bias24": "1.8%",
         "bias6": "0.9%",
-        "vol_ratio": "76.6%",
+        "vol_ratio": "76.4%",
         "eps": -0.2,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -1038,7 +996,7 @@
         "bias60": "-1.3%",
         "bias24": "-0.0%",
         "bias6": "0.2%",
-        "vol_ratio": "78.1%",
+        "vol_ratio": "77.4%",
         "eps": 0.38,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -1049,6 +1007,28 @@
     },
     {
         "date": "2026-06-12",
+        "code": "2646",
+        "name": "星宇航空",
+        "price": 20.6,
+        "exchange": "上市",
+        "score": 90,
+        "trend_status": "🔥 L1_左側起漲",
+        "entry_price": 20.39,
+        "ex_dividend_date": null,
+        "bias60": "-0.4%",
+        "bias24": "1.2%",
+        "bias6": "1.6%",
+        "vol_ratio": "89.6%",
+        "eps": 0.3,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-06-12",
+        "first_entry_price": 20.6
+    },
+    {
+        "date": "2026-06-13",
         "code": "3413",
         "name": "京鼎",
         "price": 307.5,
@@ -1069,7 +1049,7 @@
         "first_entry_price": 299.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "3501",
         "name": "維熹",
         "price": 42.2,
@@ -1090,7 +1070,7 @@
         "first_entry_price": 42.6
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5371",
         "name": "中光電",
         "price": 68.0,
@@ -1112,7 +1092,7 @@
         "first_entry_price": 72.1
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2442",
         "name": "新美齊",
         "price": 19.85,
@@ -1133,7 +1113,7 @@
         "first_entry_price": 18.7
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4137",
         "name": "麗豐-KY",
         "price": 109.0,
@@ -1154,28 +1134,7 @@
         "first_entry_price": 106.5
     },
     {
-        "date": "2026-06-12",
-        "code": "4532",
-        "name": "瑞智",
-        "price": 24.45,
-        "exchange": "上市",
-        "score": 85,
-        "trend_status": "🔥 L1_左側起漲",
-        "entry_price": 23.17,
-        "bias60": "-2.8%",
-        "bias24": "0.3%",
-        "bias6": "0.3%",
-        "vol_ratio": "65.0%",
-        "eps": 0.48,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 3,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-05-13",
-        "first_entry_price": 23.05
-    },
-    {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5469",
         "name": "瀚宇博",
         "price": 83.7,
@@ -1196,7 +1155,7 @@
         "first_entry_price": 82.9
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2645",
         "name": "長榮航太",
         "price": 166.5,
@@ -1217,7 +1176,7 @@
         "first_entry_price": 158.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4566",
         "name": "時碩工業",
         "price": 63.2,
@@ -1238,7 +1197,7 @@
         "first_entry_price": 63.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2634",
         "name": "漢翔",
         "price": 47.15,
@@ -1260,7 +1219,7 @@
         "first_entry_price": 45.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6605",
         "name": "帝寶",
         "price": 141.0,
@@ -1281,7 +1240,7 @@
         "first_entry_price": 131.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2101",
         "name": "南港",
         "price": 33.35,
@@ -1302,7 +1261,7 @@
         "first_entry_price": 32.45
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "8464",
         "name": "億豐",
         "price": 348.5,
@@ -1323,7 +1282,7 @@
         "first_entry_price": 316.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4746",
         "name": "台耀",
         "price": 51.5,
@@ -1344,7 +1303,7 @@
         "first_entry_price": 52.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2515",
         "name": "中工",
         "price": 12.85,
@@ -1365,7 +1324,7 @@
         "first_entry_price": 13.15
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2010",
         "name": "春源",
         "price": 24.6,
@@ -1386,7 +1345,7 @@
         "first_entry_price": 24.1
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "1210",
         "name": "大成",
         "price": 55.3,
@@ -1407,7 +1366,7 @@
         "first_entry_price": 52.8
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5314",
         "name": "世紀*",
         "price": 58.4,
@@ -1428,7 +1387,7 @@
         "first_entry_price": 62.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2393",
         "name": "億光",
         "price": 70.9,
@@ -1461,7 +1420,7 @@
         "bias60": "-4.7%",
         "bias24": "-0.8%",
         "bias6": "-0.1%",
-        "vol_ratio": "73.1%",
+        "vol_ratio": "72.9%",
         "eps": 0.09,
         "yield_rate": 1.31,
         "yield_formula": "最新宣告(114年): 0.258 / 現價 19.65",
@@ -1471,29 +1430,7 @@
         "first_entry_price": 19.8
     },
     {
-        "date": "2026-06-12",
-        "code": "2820",
-        "name": "華票",
-        "price": 17.7,
-        "exchange": "上市",
-        "score": 75,
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 16.73,
-        "bias60": "-0.1%",
-        "bias24": "-0.4%",
-        "bias6": "-0.0%",
-        "vol_ratio": "79.2%",
-        "eps": 0.29,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 2,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-05-13",
-        "first_entry_price": 16.9,
-        "ex_dividend_date": "2026-07-02"
-    },
-    {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5457",
         "name": "宣德",
         "price": 35.55,
@@ -1514,7 +1451,7 @@
         "first_entry_price": 31.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4714",
         "name": "永捷",
         "price": 13.55,
@@ -1536,7 +1473,7 @@
         "first_entry_price": 14.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6186",
         "name": "新潤",
         "price": 41.05,
@@ -1557,7 +1494,7 @@
         "first_entry_price": 40.0
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2889",
         "name": "國票金",
         "price": 15.0,
@@ -1578,7 +1515,7 @@
         "first_entry_price": 14.75
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6592",
         "name": "和潤企業",
         "price": 65.3,
@@ -1600,7 +1537,7 @@
         "ex_dividend_date": "2026-06-30"
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4105",
         "name": "東洋",
         "price": 74.1,
@@ -1621,7 +1558,7 @@
         "first_entry_price": 75.1
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5452",
         "name": "佶優",
         "price": 32.2,
@@ -1642,7 +1579,7 @@
         "first_entry_price": 32.85
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2641",
         "name": "正德",
         "price": 18.8,
@@ -1664,7 +1601,7 @@
         "ex_dividend_date": "2026-06-23"
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2034",
         "name": "允強",
         "price": 20.25,
@@ -1685,7 +1622,7 @@
         "first_entry_price": 20.3
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "5315",
         "name": "光聯",
         "price": 22.2,
@@ -1706,7 +1643,7 @@
         "first_entry_price": 22.5
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "2387",
         "name": "精元",
         "price": 40.1,
@@ -1714,7 +1651,6 @@
         "score": 68,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 39.7,
-        "ex_dividend_date": null,
         "bias60": "-0.9%",
         "bias24": "-0.6%",
         "bias6": "-2.1%",
@@ -1728,7 +1664,7 @@
         "first_entry_price": 39.1
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "4167",
         "name": "松瑞藥",
         "price": 19.85,
@@ -1749,7 +1685,7 @@
         "first_entry_price": 19.65
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "3717",
         "name": "聯嘉投控",
         "price": 20.25,
@@ -1770,7 +1706,7 @@
         "first_entry_price": 21.45
     },
     {
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "code": "6477",
         "name": "安集",
         "price": 33.5,
