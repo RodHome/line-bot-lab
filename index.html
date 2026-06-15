@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ 雙引擎雷達戰情室 V3.0</title>
+    <title>⚡ 雙引擎雷達戰情室 V3.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f1a; color: #f8fafc; }
@@ -46,11 +46,11 @@
         </div>
     </header>
 
-    <div class="flex gap-4 mb-8 justify-center md:justify-start">
+    <div class="flex gap-4 mb-8 justify-center md:justify-start flex-wrap items-center">
         <button onclick="switchStrategy('LEFT')" id="tab-LEFT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-left">🛡️ 左側黃金坑</button>
         <button onclick="switchStrategy('RIGHT')" id="tab-RIGHT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive">🚀 右側動能飆股</button>
         <button onclick="document.getElementById('paramModal').style.display='flex'" class="md:ml-auto px-5 py-2.5 rounded-xl font-bold text-sm border-2 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2">
-        <span>📘</span> 參數邏輯說明
+            <span>📘</span> 參數邏輯說明
         </button>
     </div>
 
@@ -355,38 +355,52 @@
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>拒絕價值陷阱。針對 <code style="color:#a78bfa">EPS < 0</code> 虧損股啟動極致安檢。缺一不可，否則直接淘汰，嚴防接到正在下墜的破底刀。</p>
                     </div>
                 </div>
-                <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #ef4444; border-radius: 2px;"></span>三大產線選股邏輯</h4>
-                <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
-                    <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
-                        <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🛡️ 策略一：左側黃金坑 (潛伏錯殺底)</h5>
+                
+                <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 4px; height: 18px; background-color: #ef4444; border-radius: 2px;"></span>
+                    三大產線選股邏輯
+                </h4>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    
+                    <div style="background-color: #0f172a; border: 1px solid #3b82f6; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1);">
+                        <h5 style="color: #60a5fa; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🛡️ 策略一：左側黃金坑 (潛伏底)</h5>
                         <ol style="margin: 0; padding-left: 20px; color: #9ca3af; font-size: 13.5px; line-height: 1.6;">
-                            <li><strong>流動性降維：</strong>成交額 1000萬~5億元 (避開當沖熱區)，排除 ETF。</li>
-                            <li><strong>技術面尋底：</strong>股價在季線下方，且橫盤築底 (近10日振幅<15%、近5日漲幅<8%)。</li>
-                            <li><strong>主力吃貨與評分：</strong>近 5 日法人買盤佔比 > 2.0%。依據 RSI 底背離、底部型態加分。</li>
-                            <li><strong>無痕停利損：</strong>上榜超過 30 天、獲利達 +15%、或破底跌破 -10% 時自動除名。</li>
+                            <li><strong>流動性降維：</strong>成交額 1000萬~5億元，排除 ETF。</li>
+                            <li><strong>技術面尋底：</strong>股價在季線下方，且橫盤築底未破底。</li>
+                            <li><strong>主力吃貨與評分：</strong>近 5 日法人買盤佔比 > 2.0%。依 RSI 底背離等加分。</li>
+                            <li><strong>無痕停利損：</strong>上榜逾 30 天、獲利達 +15%、或跌破 -10% 時除名。</li>
                         </ol>
                     </div>
-                    <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
-                        <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🚀 策略二：右側動能飆股 (追擊突破口)</h5>
+
+                    <div style="background-color: #0f172a; border: 1px solid #ef4444; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.1);">
+                        <h5 style="color: #f87171; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🚀 策略二：右側動能飆股 (突破口)</h5>
                         <ol style="margin: 0; padding-left: 20px; color: #9ca3af; font-size: 13.5px; line-height: 1.6;">
                             <li><strong>資金熱區初選：</strong>成交額 > 1億元，現價 > 10元，且當日收紅。</li>
-                            <li><strong>大戶業績定錨：</strong>最新單月營收 YoY > 10%，近 5 日外資＋投信買超 > 3億元。</li>
+                            <li><strong>大戶業績定錨：</strong>最新營收 YoY > 10%，近 5 日法人買超 > 3億元。</li>
                             <li><strong>避雷針防護：</strong>若上影線大於實體 1.5 倍 (假突破出貨)，絕對淘汰。</li>
-                            <li><strong>無痕停利損：</strong>上榜超過 30 天、獲利達 +20%、或跌破 -8% 時自動除名。</li>
+                            <li><strong>無痕停利損：</strong>上榜逾 30 天、獲利達 +20%、或跌破 -8% 時除名。</li>
                         </ol>
                     </div>
-                    <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
-                        <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🏦 策略三：存股打折加碼 (核心資產防禦)</h5>
-                        <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 13.5px;">針對指定 21 檔核心定存股，以「20日均線乖離率」為基準判定：</p>
-                        <ul style="margin: 0; padding-left: 20px; color: #9ca3af; font-size: 13.5px; line-height: 1.6; list-style-type: none;">
+
+                </div>
+
+                <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
+                    <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🏦 策略三：存股打折加碼 (核心資產防禦)</h5>
+                    <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 13.5px;">針對指定 21 檔核心定存股，以「20日均線乖離率」為基準判定：</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <ul style="margin: 0; color: #9ca3af; font-size: 13.5px; line-height: 1.6; list-style-type: none; padding-left: 0;">
                             <li>🔴 <strong>警示 (> +8.0%)：</strong>短線過熱，可先獲利了結。</li>
                             <li>🟡 <strong>觀望 (+3.0% ~ +8.0%)：</strong>穩定上漲，維持現狀。</li>
                             <li>🟢 <strong>平穩 (-2.0% ~ +3.0%)：</strong>價值平衡，定期定額。</li>
-                            <li>🛒 <strong>加碼 (-8.0% ~ -2.0%)：</strong>股價委屈，搭配 5MA 確認止跌後分批慢接。</li>
+                        </ul>
+                        <ul style="margin: 0; color: #9ca3af; font-size: 13.5px; line-height: 1.6; list-style-type: none; padding-left: 0;">
+                            <li>🛒 <strong>加碼 (-8.0% ~ -2.0%)：</strong>股價委屈，可搭配 5MA 分批慢接。</li>
                             <li>🚨 <strong>重壓 (< -8.0%)：</strong>市場恐慌超跌，長線買點浮現。</li>
                         </ul>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
