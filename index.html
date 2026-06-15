@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ 雙引擎雷達戰情室 V3.1</title>
+    <title>⚡ 雙引擎雷達戰情室 V3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f1a; color: #f8fafc; }
@@ -324,7 +324,7 @@
                     <span style="font-size: 36px; margin-right: 16px;">📊</span>
                     <div>
                         <h3 style="margin: 0; font-size: 22px; font-weight: bold; color: #3b82f6;">AI 雙引擎雷達：篩選邏輯與核心參數說明</h3>
-                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #9ca3af;">掌握機器人大腦的量化風控機制與操盤鐵律</p>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #9ca3af;">掌握機器人大腦的量化風控機制與篩選鐵律</p>
                     </div>
                 </div>
                 <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #3b82f6; border-radius: 2px;"></span>核心量化參數定義</h4>
@@ -332,33 +332,33 @@
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
                         <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">📉 量縮率 (Volume Ratio)</strong></div>
                         <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #f43f5e; font-family: monospace;">今日成交量 ÷ 20日均量</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>尋找窒息量。左側黃金坑數值必須 <code style="color:#f43f5e">< 0.9</code> 確保賣壓竭盡；出現極致量縮 (< 0.5) 系統會觸發額外加分機制，為反彈前兆。</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>尋找窒息量。左側黃金坑數值必須 <code style="color:#f43f5e">< 0.9</code> 確保賣壓竭盡；出現極致量縮 (< 0.5) 系統會觸發額外加分機制，為反彈前兆。</p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
                         <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">📈 月線乖離率 (MA20 Bias)</strong></div>
                         <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #f59e0b; font-family: monospace;">(現價 - 20MA) ÷ 20MA × 100%</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>動態追蹤噴出強度。右側動能若數值 <code style="color:#f59e0b">> +15%</code>，標記為「🔥過熱妖股」，強制將動能總分打 8 折，嚴防盲目追高當韭菜。</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>動態追蹤噴出強度。右側動能若數值 <code style="color:#f59e0b">> +15%</code>，標記為「🔥過熱妖股」，強制將動能總分打 8 折，嚴防盲目追高當韭菜。</p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
                         <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🛡️ 季線負乖離 (MA60 Negative Bias)</strong></div>
                         <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #10b981; font-family: monospace;">(現價 - 60MA) ÷ 60MA × 100%</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>左側雷達觸發門檻。必須跌破季線 <code style="color:#10b981">< 0%</code> 才符合黃金坑資格。跌得越深，均線回歸的潛在彈升空間越驚人，系統會給予超跌加分。</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>左側雷達觸發門檻。必須跌破季線 <code style="color:#10b981">< 0%</code> 才符合黃金坑資格。跌得越深，均線回歸的潛在彈升空間越驚人，系統會給予超跌加分。</p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
                         <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🏆 綜合動能總分 (m_score)</strong></div>
                         <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #3b82f6; font-family: monospace;">(營收YoY × 1.5) + (5日法人買超 × 5)</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>權衡飆股基因與大戶共識。中小型股具備高爆發力，總分自動 × <code style="color:#3b82f6">1.2</code> 放大。總分越高，卡牌排序越靠前。</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>權衡飆股基因與大戶共識。中小型股具備高爆發力，總分自動 × <code style="color:#3b82f6">1.2</code> 放大。總分越高，卡牌排序越靠前。</p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
                         <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🔒 智能轉機股漏斗 (Turnaround Filter)</strong></div>
                         <p style="margin: 0 0 6px 0; font-size: 13px; color: #a78bfa; font-weight: bold;">機制：大資金反轉K線 ＋ 籌碼高度集中 ＋ 營收見底回升</p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>拒絕價值陷阱。針對 <code style="color:#a78bfa">EPS < 0</code> 虧損股啟動極致安檢。缺一不可，否則直接淘汰，嚴防接到正在下墜的破底刀。</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>拒絕價值陷阱。針對 <code style="color:#a78bfa">EPS < 0</code> 虧損股啟動極致安檢。缺一不可，否則直接淘汰，嚴防接到正在下墜的破底刀。</p>
                     </div>
                 </div>
                 
                 <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
                     <span style="display: inline-block; width: 4px; height: 18px; background-color: #ef4444; border-radius: 2px;"></span>
-                    三大產線選股邏輯
+                    選股邏輯
                 </h4>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
@@ -383,23 +383,7 @@
                         </ol>
                     </div>
 
-                </div>
-
-                <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
-                    <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🏦 策略三：存股打折加碼 (核心資產防禦)</h5>
-                    <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 13.5px;">針對指定 21 檔核心定存股，以「20日均線乖離率」為基準判定：</p>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <ul style="margin: 0; color: #9ca3af; font-size: 13.5px; line-height: 1.6; list-style-type: none; padding-left: 0;">
-                            <li>🔴 <strong>警示 (> +8.0%)：</strong>短線過熱，可先獲利了結。</li>
-                            <li>🟡 <strong>觀望 (+3.0% ~ +8.0%)：</strong>穩定上漲，維持現狀。</li>
-                            <li>🟢 <strong>平穩 (-2.0% ~ +3.0%)：</strong>價值平衡，定期定額。</li>
-                        </ul>
-                        <ul style="margin: 0; color: #9ca3af; font-size: 13.5px; line-height: 1.6; list-style-type: none; padding-left: 0;">
-                            <li>🛒 <strong>加碼 (-8.0% ~ -2.0%)：</strong>股價委屈，可搭配 5MA 分批慢接。</li>
-                            <li>🚨 <strong>重壓 (< -8.0%)：</strong>市場恐慌超跌，長線買點浮現。</li>
-                        </ul>
-                    </div>
-                </div>
+                </div>                
 
             </div>
         </div>
