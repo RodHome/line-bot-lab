@@ -49,6 +49,9 @@
     <div class="flex gap-4 mb-8 justify-center md:justify-start">
         <button onclick="switchStrategy('LEFT')" id="tab-LEFT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-left">🛡️ 左側黃金坑</button>
         <button onclick="switchStrategy('RIGHT')" id="tab-RIGHT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive">🚀 右側動能飆股</button>
+        <button onclick="document.getElementById('paramModal').style.display='flex'" class="md:ml-auto px-5 py-2.5 rounded-xl font-bold text-sm border-2 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2">
+        <span>📘</span> 參數邏輯說明
+        </button>
     </div>
 
     <div class="flex flex-col md:flex-row gap-4 mb-10 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
@@ -310,5 +313,82 @@
         // 初始化載入
         loadData();
     </script>
-</body>
+
+</script>
+
+    <div id="paramModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px);">
+        <div style="background-color: #111827; border: 1px solid #374151; border-radius: 12px; width: 100%; max-width: 800px; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            <button onclick="document.getElementById('paramModal').style.display='none'" style="position: absolute; top: 16px; right: 16px; background: #1f2937; border: 1px solid #374151; color: #9ca3af; font-size: 14px; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; z-index: 10;" onmouseover="this.style.backgroundColor='#ef4444'; this.style.color='#ffffff'; this.style.borderColor='#ef4444'" onmouseout="this.style.backgroundColor='#1f2937'; this.style.color='#9ca3af'; this.style.borderColor='#374151'">✕ 關閉視窗</button>
+            <div style="padding: 32px 24px;">
+                <div style="display: flex; align-items: center; margin-bottom: 24px; border-bottom: 1px solid #374151; padding-bottom: 16px; padding-right: 80px;">
+                    <span style="font-size: 36px; margin-right: 16px;">📊</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 22px; font-weight: bold; color: #3b82f6;">AI 雙引擎雷達：篩選邏輯與核心參數說明</h3>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #9ca3af;">掌握機器人大腦的量化風控機制與操盤鐵律</p>
+                    </div>
+                </div>
+                <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #3b82f6; border-radius: 2px;"></span>核心量化參數定義</h4>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 32px;">
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">📉 量縮率 (Volume Ratio)</strong></div>
+                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #f43f5e; font-family: monospace;">今日成交量 ÷ 20日均量</code></p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>尋找窒息量。左側黃金坑數值必須 <code style="color:#f43f5e">< 0.9</code> 確保賣壓竭盡；出現極致量縮 (< 0.5) 系統會觸發額外加分機制，為反彈前兆。</p>
+                    </div>
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">📈 月線乖離率 (MA20 Bias)</strong></div>
+                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #f59e0b; font-family: monospace;">(現價 - 20MA) ÷ 20MA × 100%</code></p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>動態追蹤噴出強度。右側動能若數值 <code style="color:#f59e0b">> +15%</code>，標記為「🔥過熱妖股」，強制將動能總分打 8 折，嚴防盲目追高當韭菜。</p>
+                    </div>
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🛡️ 季線負乖離 (MA60 Negative Bias)</strong></div>
+                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #10b981; font-family: monospace;">(現價 - 60MA) ÷ 60MA × 100%</code></p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>左側雷達觸發門檻。必須跌破季線 <code style="color:#10b981">< 0%</code> 才符合黃金坑資格。跌得越深，均線回歸的潛在彈升空間越驚人，系統會給予超跌加分。</p>
+                    </div>
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🏆 綜合動能總分 (m_score)</strong></div>
+                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #3b82f6; font-family: monospace;">(營收YoY × 1.5) + (5日法人買超 × 5)</code></p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>權衡飆股基因與大戶共識。中小型股具備高爆發力，總分自動 × <code style="color:#3b82f6">1.2</code> 放大。總分越高，卡牌排序越靠前。</p>
+                    </div>
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🔒 智能轉機股漏斗 (Turnaround Filter)</strong></div>
+                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #a78bfa; font-weight: bold;">機制：大資金反轉K線 ＋ 籌碼高度集中 ＋ 營收見底回升</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>操盤目的：</strong>拒絕價值陷阱。針對 <code style="color:#a78bfa">EPS < 0</code> 虧損股啟動極致安檢。缺一不可，否則直接淘汰，嚴防接到正在下墜的破底刀。</p>
+                    </div>
+                </div>
+                <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #ef4444; border-radius: 2px;"></span>三大產線選股邏輯</h4>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+                    <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
+                        <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🛡️ 策略一：左側黃金坑 (潛伏錯殺底)</h5>
+                        <ol style="margin: 0; padding-left: 20px; color: #9ca3af; font-size: 13.5px; line-height: 1.6;">
+                            <li><strong>流動性降維：</strong>成交額 1000萬~5億元 (避開當沖熱區)，排除 ETF。</li>
+                            <li><strong>技術面尋底：</strong>股價在季線下方，且橫盤築底 (近10日振幅<15%、近5日漲幅<8%)。</li>
+                            <li><strong>主力吃貨與評分：</strong>近 5 日法人買盤佔比 > 2.0%。依據 RSI 底背離、底部型態加分。</li>
+                            <li><strong>無痕停利損：</strong>上榜超過 30 天、獲利達 +15%、或破底跌破 -10% 時自動除名。</li>
+                        </ol>
+                    </div>
+                    <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
+                        <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🚀 策略二：右側動能飆股 (追擊突破口)</h5>
+                        <ol style="margin: 0; padding-left: 20px; color: #9ca3af; font-size: 13.5px; line-height: 1.6;">
+                            <li><strong>資金熱區初選：</strong>成交額 > 1億元，現價 > 10元，且當日收紅。</li>
+                            <li><strong>大戶業績定錨：</strong>最新單月營收 YoY > 10%，近 5 日外資＋投信買超 > 3億元。</li>
+                            <li><strong>避雷針防護：</strong>若上影線大於實體 1.5 倍 (假突破出貨)，絕對淘汰。</li>
+                            <li><strong>無痕停利損：</strong>上榜超過 30 天、獲利達 +20%、或跌破 -8% 時自動除名。</li>
+                        </ol>
+                    </div>
+                    <div style="background-color: #0f172a; border: 1px solid #1e293b; padding: 20px; border-radius: 12px;">
+                        <h5 style="color: #f8fafc; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🏦 策略三：存股打折加碼 (核心資產防禦)</h5>
+                        <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 13.5px;">針對指定 21 檔核心定存股，以「20日均線乖離率」為基準判定：</p>
+                        <ul style="margin: 0; padding-left: 20px; color: #9ca3af; font-size: 13.5px; line-height: 1.6; list-style-type: none;">
+                            <li>🔴 <strong>警示 (> +8.0%)：</strong>短線過熱，可先獲利了結。</li>
+                            <li>🟡 <strong>觀望 (+3.0% ~ +8.0%)：</strong>穩定上漲，維持現狀。</li>
+                            <li>🟢 <strong>平穩 (-2.0% ~ +3.0%)：</strong>價值平衡，定期定額。</li>
+                            <li>🛒 <strong>加碼 (-8.0% ~ -2.0%)：</strong>股價委屈，搭配 5MA 確認止跌後分批慢接。</li>
+                            <li>🚨 <strong>重壓 (< -8.0%)：</strong>市場恐慌超跌，長線買點浮現。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </body>
 </html>
