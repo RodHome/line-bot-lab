@@ -1288,7 +1288,9 @@ def handle_message(event):
                         
                         # 🔴 高檔過熱：月線乖離 > 8%
                         if bias_20 > 8.0:
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：短線過熱 (月線乖離 {bias_20:.1f}%)\n   建議：🔴【短線過熱】可考慮分批獲利了結 (總盈虧 {sign}{profit_pct}%)"
+                            # 🔥 聰明判斷：看帳面是賺還是賠，決定給什麼建議
+                            action_text = "獲利了結" if profit_pct > 0 else "反彈減碼/停損"
+                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：短線過熱 (月線乖離 {bias_20:.1f}%)\n   建議：🔴【短線過熱】可考慮分批{action_text} (總盈虧 {sign}{profit_pct}%)"
                         
                         # 🛒 打折加碼：月線乖離 < -2%
                         elif bias_20 < -2.0:
