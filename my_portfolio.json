@@ -7,9 +7,23 @@
     "broker": "元大證券"
   },
   {
+    "code": "00990A",
+    "cost": 18.34,
+    "quantity": 200,
+    "type": "定存",
+    "broker": "元大證券"
+  },
+  {
     "code": "2059",
     "cost": 4855.00,
     "quantity": 55,
+    "type": "波段",
+    "broker": "元大證券"
+  },
+  {
+    "code": "2328",
+    "cost": 59.6,
+    "quantity": 2000,
     "type": "波段",
     "broker": "元大證券"
   },
@@ -22,23 +36,16 @@
   },
   {
     "code": "2408",
-    "cost": 283.47,
-    "quantity": 1200,
+    "cost": 285.7,
+    "quantity": 1250,
     "type": "波段",
     "broker": "元大證券"
   },
   {
     "code": "2883",
-    "cost": 15.32,
-    "quantity": 41000,
+    "cost": 15.09,
+    "quantity": 38000,
     "type": "定存",
-    "broker": "元大證券"
-  },
-  {
-    "code": "3653",
-    "cost": 3561.78,
-    "quantity": 40,
-    "type": "波段",
     "broker": "元大證券"
   },
   {
@@ -64,15 +71,15 @@
   },
   {
     "code": "7769",
-    "cost": 3861.53,
-    "quantity": 15,
+    "cost": 6123.44,
+    "quantity": 45,
     "type": "波段",
     "broker": "元大證券"
   },
   {
     "code": "5289",
-    "cost": 1110.39,
-    "quantity": 115,
+    "cost": 1138.98,
+    "quantity": 120,
     "type": "波段",
     "broker": "元大證券"
   },
