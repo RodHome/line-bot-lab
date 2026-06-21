@@ -1,31 +1,6 @@
 [
     {
-        "date": "2026-06-20",
-        "code": "2383",
-        "name": "台光電",
-        "exchange": "上市",
-        "sector": "電子零組件業",
-        "cap_size": "中小型股",
-        "m_score": 240.0,
-        "ex_dividend_date": null,
-        "price": 5600.0,
-        "turnover": 10522532290.0,
-        "chips_display": "1162張 (65.1億)",
-        "buy_value": 6507200000.0,
-        "yoy": 114.63,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 15618565000,
-            "last_rev": 7277046000,
-            "this_period": "2026/5",
-            "last_period": "2025/5",
-            "formula": "(15618565000 - 7277046000) / 7277046000"
-        },
-        "first_entry_date": "2026-05-21",
-        "first_entry_price": 4690.0
-    },
-    {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3081",
         "name": "聯亞",
         "exchange": "上櫃",
@@ -49,7 +24,7 @@
         "first_entry_price": 2195.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "6515",
         "name": "穎崴",
         "exchange": "上市",
@@ -73,7 +48,7 @@
         "first_entry_price": 9590.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2337",
         "name": "旺宏",
         "exchange": "上市",
@@ -98,7 +73,7 @@
         "first_entry_price": 159.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2059",
         "name": "川湖",
         "exchange": "上市",
@@ -122,7 +97,7 @@
         "first_entry_price": 6795.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2360",
         "name": "致茂",
         "exchange": "上市",
@@ -146,7 +121,7 @@
         "first_entry_price": 2325.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "5289",
         "name": "宜鼎",
         "exchange": "上櫃",
@@ -171,7 +146,7 @@
         "first_entry_price": 1805.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "1785",
         "name": "光洋科",
         "exchange": "上櫃",
@@ -195,7 +170,7 @@
         "first_entry_price": 145.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2542",
         "name": "興富發",
         "exchange": "上市",
@@ -219,7 +194,7 @@
         "first_entry_price": 45.45
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2882",
         "name": "國泰金",
         "exchange": "上市",
@@ -244,7 +219,7 @@
         "ex_dividend_date": "2026-06-30"
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2887",
         "name": "台新新光金",
         "exchange": "上市",
@@ -268,7 +243,7 @@
         "first_entry_price": 30.2
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "6274",
         "name": "台燿",
         "exchange": "上櫃",
@@ -293,7 +268,7 @@
         "first_entry_price": 1570.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2344",
         "name": "華邦電",
         "exchange": "上市",
@@ -318,7 +293,7 @@
         "first_entry_price": 199.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2382",
         "name": "廣達",
         "exchange": "上市",
@@ -342,7 +317,7 @@
         "first_entry_price": 372.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "5274",
         "name": "信驊",
         "exchange": "上櫃",
@@ -367,7 +342,7 @@
         "first_entry_price": 17780.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2404",
         "name": "漢唐",
         "exchange": "上市",
@@ -392,7 +367,7 @@
         "first_entry_price": 1190.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "7749",
         "name": "意騰-KY",
         "exchange": "上市",
@@ -416,7 +391,7 @@
         "first_entry_price": 523.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2408",
         "name": "南亞科",
         "exchange": "上市",
@@ -441,7 +416,7 @@
         "first_entry_price": 459.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "6209",
         "name": "今國光",
         "exchange": "上市",
@@ -465,7 +440,7 @@
         "first_entry_price": 95.3
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3044",
         "name": "健鼎",
         "exchange": "上市",
@@ -490,7 +465,7 @@
         "first_entry_price": 546.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2455",
         "name": "全新",
         "exchange": "上市",
@@ -515,7 +490,7 @@
         "first_entry_price": 405.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2890",
         "name": "永豐金",
         "exchange": "上市",
@@ -540,7 +515,7 @@
         "first_entry_price": 39.8
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "4991",
         "name": "環宇-KY",
         "exchange": "上櫃",
@@ -564,31 +539,7 @@
         "first_entry_price": 587.0
     },
     {
-        "date": "2026-06-20",
-        "code": "3105",
-        "name": "穩懋",
-        "exchange": "上櫃",
-        "sector": "半導體業",
-        "cap_size": "中小型股",
-        "m_score": 132.54,
-        "price": 528.0,
-        "turnover": 11886626500.0,
-        "chips_display": "2730張 (14.0億)",
-        "buy_value": 1395030000.0,
-        "yoy": 40.3,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 1755488000,
-            "last_rev": 1251261000,
-            "this_period": "2026/5",
-            "last_period": "2025/5",
-            "formula": "(1755488000 - 1251261000) / 1251261000"
-        },
-        "first_entry_date": "2026-05-21",
-        "first_entry_price": 483.0
-    },
-    {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "8996",
         "name": "高力",
         "exchange": "上市",
@@ -612,32 +563,7 @@
         "first_entry_price": 1515.0
     },
     {
-        "date": "2026-06-20",
-        "code": "8046",
-        "name": "南電",
-        "exchange": "上市",
-        "sector": "電子零組件業",
-        "cap_size": "中小型股",
-        "m_score": 124.48,
-        "ex_dividend_date": "2026-06-25",
-        "price": 874.0,
-        "turnover": 14986859187.0,
-        "chips_display": "4816張 (43.4億)",
-        "buy_value": 4344032000.0,
-        "yoy": 35.82,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 4440287000,
-            "last_rev": 3269216000,
-            "this_period": "2026/5",
-            "last_period": "2025/5",
-            "formula": "(4440287000 - 3269216000) / 3269216000"
-        },
-        "first_entry_date": "2026-05-21",
-        "first_entry_price": 872.0
-    },
-    {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2884",
         "name": "玉山金",
         "exchange": "上市",
@@ -662,7 +588,7 @@
         "ex_dividend_date": "2026-07-01"
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3450",
         "name": "聯鈞",
         "exchange": "上市",
@@ -687,7 +613,7 @@
         "first_entry_price": 565.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3189",
         "name": "景碩",
         "exchange": "上市",
@@ -712,7 +638,7 @@
         "first_entry_price": 724.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2327",
         "name": "國巨*",
         "exchange": "上市",
@@ -737,7 +663,7 @@
         "first_entry_price": 940.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2308",
         "name": "台達電",
         "exchange": "上市",
@@ -761,7 +687,7 @@
         "first_entry_price": 2290.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2317",
         "name": "鴻海",
         "exchange": "上市",
@@ -786,7 +712,7 @@
         "first_entry_price": 272.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2449",
         "name": "京元電子",
         "exchange": "上市",
@@ -811,7 +737,7 @@
         "first_entry_price": 308.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2801",
         "name": "彰銀",
         "exchange": "上市",
@@ -835,7 +761,7 @@
         "first_entry_price": 22.35
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2618",
         "name": "長榮航",
         "exchange": "上市",
@@ -859,7 +785,7 @@
         "first_entry_price": 37.9
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3037",
         "name": "欣興",
         "exchange": "上市",
@@ -884,7 +810,7 @@
         "first_entry_price": 902.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2330",
         "name": "台積電",
         "exchange": "上市",
@@ -908,7 +834,7 @@
         "first_entry_price": 2410.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "5347",
         "name": "世界",
         "exchange": "上櫃",
@@ -932,7 +858,7 @@
         "first_entry_price": 161.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2892",
         "name": "第一金",
         "exchange": "上市",
@@ -956,7 +882,7 @@
         "first_entry_price": 29.55
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3211",
         "name": "順達",
         "exchange": "上櫃",
@@ -981,7 +907,7 @@
         "ex_dividend_date": "2026-07-02"
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3711",
         "name": "日月光投控",
         "exchange": "上市",
@@ -1006,7 +932,7 @@
         "first_entry_price": 613.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "8150",
         "name": "南茂",
         "exchange": "上市",
@@ -1031,7 +957,7 @@
         "first_entry_price": 97.1
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "1802",
         "name": "台玻",
         "exchange": "上市",
@@ -1055,7 +981,7 @@
         "first_entry_price": 69.3
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3008",
         "name": "大立光",
         "exchange": "上市",
@@ -1080,7 +1006,7 @@
         "first_entry_price": 5195.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2492",
         "name": "華新科",
         "exchange": "上市",
@@ -1104,7 +1030,7 @@
         "first_entry_price": 561.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3019",
         "name": "亞光",
         "exchange": "上市",
@@ -1129,7 +1055,7 @@
         "first_entry_price": 164.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3293",
         "name": "鈊象",
         "exchange": "上櫃",
@@ -1153,7 +1079,7 @@
         "first_entry_price": 800.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2379",
         "name": "瑞昱",
         "exchange": "上市",
@@ -1178,7 +1104,7 @@
         "first_entry_price": 745.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3042",
         "name": "晶技",
         "exchange": "上市",
@@ -1202,7 +1128,7 @@
         "first_entry_price": 212.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "1303",
         "name": "南亞",
         "exchange": "上市",
@@ -1227,7 +1153,7 @@
         "first_entry_price": 139.0
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2303",
         "name": "聯電",
         "exchange": "上市",
@@ -1252,7 +1178,7 @@
         "first_entry_price": 145.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "3090",
         "name": "日電貿",
         "exchange": "上市",
@@ -1277,7 +1203,7 @@
         "first_entry_price": 332.5
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "2413",
         "name": "環科",
         "exchange": "上市",
@@ -1301,7 +1227,7 @@
         "first_entry_price": 59.6
     },
     {
-        "date": "2026-06-20",
+        "date": "2026-06-21",
         "code": "5904",
         "name": "寶雅",
         "exchange": "上櫃",
