@@ -319,6 +319,31 @@
     },
     {
         "date": "2026-06-22",
+        "code": "6274",
+        "name": "台燿",
+        "exchange": "上櫃",
+        "sector": "電子零組件業",
+        "cap_size": "中小型股",
+        "m_score": 192.0,
+        "ex_dividend_date": null,
+        "price": 1900.0,
+        "turnover": 13866485000.0,
+        "chips_display": "4995張 (94.9億)",
+        "buy_value": 9490500000.0,
+        "yoy": 124.42,
+        "tag": "🔥過熱妖股",
+        "debug_info": {
+            "this_rev": 4794425000,
+            "last_rev": 2136406000,
+            "this_period": "2026/5",
+            "last_period": "2025/5",
+            "formula": "(4794425000 - 2136406000) / 2136406000"
+        },
+        "first_entry_date": "2026-06-22",
+        "first_entry_price": 1900.0
+    },
+    {
+        "date": "2026-06-22",
         "code": "2382",
         "name": "廣達",
         "exchange": "上市",
@@ -365,6 +390,31 @@
         },
         "first_entry_date": "2026-06-22",
         "first_entry_price": 194.5
+    },
+    {
+        "date": "2026-06-22",
+        "code": "5274",
+        "name": "信驊",
+        "exchange": "上櫃",
+        "sector": "半導體業",
+        "cap_size": "中小型股",
+        "m_score": 183.73,
+        "ex_dividend_date": "2026-07-07",
+        "price": 19275.0,
+        "turnover": 4045775000.0,
+        "chips_display": "161張 (31.0億)",
+        "buy_value": 3103275000.0,
+        "yoy": 68.74,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 1282174000,
+            "last_rev": 759860000,
+            "this_period": "2026/5",
+            "last_period": "2025/5",
+            "formula": "(1282174000 - 759860000) / 759860000"
+        },
+        "first_entry_date": "2026-06-22",
+        "first_entry_price": 19275.0
     },
     {
         "date": "2026-06-22",
