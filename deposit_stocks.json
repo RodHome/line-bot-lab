@@ -174,8 +174,8 @@
         "bias_24": 0.68,
         "bias_20": 0.27,
         "bias_60": 10.98,
-        "yield_rate": 13.35,
-        "yield_formula": "預估配息 4.000 / 股價 29.97",
+        "yield_rate": 10.41,
+        "yield_formula": "預估配息 3.120 / 股價 29.97",
         "signal": "🟢 平穩",
         "action": "【定期定額】價值平衡。"
     },
