@@ -306,12 +306,24 @@ def get_latest_dividend_info(code, current_price):
 # ==========================================
 # 🔥 [新增模組] 歷史標的共用同步大腦 (DRY 原則)
 # ==========================================
+# ==========================================
+# 🔥 [新增模組] 歷史標的共用同步大腦 (DRY 原則) - 修改位置：第 119 行至第 185 行
+# ==========================================
 def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=None):
     """
     統一處理左側與右側老標的之股價同步、除息日更新與動能重新計分
     """
     updated_history = []
     print(f"🔄 正在同步 {file_name} 歷史標的最新現價與除息資訊...")
+    
+    # [修改新增] 必須載入股票對照表，才能在同步歷史標的時校正名稱與產業
+    stock_meta = {}
+    try:
+        if os.path.exists('stock_list.json'):
+            with open('stock_list.json', 'r', encoding='utf-8') as f:
+                stock_meta = json.load(f)
+    except Exception as e:
+        print(f"⚠️ 同步歷史資料時讀取 stock_list.json 失敗: {e}")
     
     if not os.path.exists(file_name):
         return updated_history
@@ -337,6 +349,11 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                         old_s['price'] = new_p
                         old_s['date'] = datetime.now(timezone.utc).strftime('%Y-%m-%d')
                         
+                        # [修改新增] 從對照表強制更新名稱與產業別，防止出現「未知名稱」
+                        meta_info = stock_meta.get(code, {})
+                        old_s['name'] = meta_info.get('name', old_s.get('name', '未知名稱'))
+                        old_s['sector'] = meta_info.get('sector', old_s.get('sector', '未知產業'))
+                        
                         # 2. 檢查並更新除息日狀態
                         _, _, ex_date, is_upcoming = get_latest_dividend_info(code, new_p)
                         if is_upcoming:
@@ -347,8 +364,6 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                             if strategy_type == 'LEFT':
                                 old_s['yield_rate'] = 0.0
                                 old_s['yield_formula'] = "⚠️ 已除息或尚未宣告"
-
-                  
 
                         # 3. 若為右側標的，重新計算動能分數 (m_score)
                         if strategy_type == 'RIGHT' and taiwan_50_list:
