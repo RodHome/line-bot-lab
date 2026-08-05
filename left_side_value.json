@@ -1,9 +1,9 @@
 [
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1519",
         "name": "華城",
-        "price": 713.0,
+        "price": 663.0,
         "exchange": "上市",
         "score": 135,
         "trend_status": "🔥 L1_左側起漲",
@@ -23,10 +23,10 @@
         "sector": "重電"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3217",
         "name": "優群",
-        "price": 141.0,
+        "price": 143.5,
         "exchange": "上櫃",
         "score": 130,
         "trend_status": "🔥 L1_左側起漲",
@@ -45,15 +45,14 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6121",
         "name": "新普",
-        "price": 370.0,
+        "price": 372.5,
         "exchange": "上櫃",
         "score": 123,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 366.3,
-        "ex_dividend_date": null,
         "bias60": "-4.6%",
         "bias24": "-4.2%",
         "bias6": "3.9%",
@@ -64,13 +63,14 @@
         "buy_days": 5,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-28",
-        "first_entry_price": 358.0
+        "first_entry_price": 358.0,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3515",
         "name": "華擎",
-        "price": 198.5,
+        "price": 209.5,
         "exchange": "上市",
         "score": 123,
         "trend_status": "🔥 L1_左側起漲",
@@ -89,22 +89,21 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2543",
         "name": "皇昌",
-        "price": 36.65,
+        "price": 37.45,
         "exchange": "上市",
         "score": 120,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 38.21,
-        "ex_dividend_date": "2026-08-04",
         "bias60": "-8.5%",
         "bias24": "-1.2%",
         "bias6": "-0.8%",
         "vol_ratio": "65.8%",
         "eps": 0.37,
-        "yield_rate": 2.66,
-        "yield_formula": "最新宣告(114年後半年度): 1.028 / 現價 38.6",
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-06",
@@ -112,10 +111,10 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1215",
         "name": "卜蜂",
-        "price": 103.5,
+        "price": 104.0,
         "exchange": "上市",
         "score": 120,
         "trend_status": "🔥 L1_左側起漲",
@@ -134,15 +133,14 @@
         "sector": "食品工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1307",
         "name": "三芳",
-        "price": 31.75,
+        "price": 32.0,
         "exchange": "上市",
         "score": 118,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 31.43,
-        "ex_dividend_date": null,
         "bias60": "-0.2%",
         "bias24": "-1.1%",
         "bias6": "1.8%",
@@ -153,13 +151,14 @@
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-08-04",
-        "first_entry_price": 31.75
+        "first_entry_price": 31.75,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "8473",
         "name": "山林水",
-        "price": 41.35,
+        "price": 41.4,
         "exchange": "上市",
         "score": 115,
         "trend_status": "🔥 L1_左側起漲",
@@ -178,10 +177,10 @@
         "sector": "綠能環保"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1522",
         "name": "堤維西",
-        "price": 28.25,
+        "price": 28.2,
         "exchange": "上市",
         "score": 115,
         "trend_status": "🔥 L1_左側起漲",
@@ -200,10 +199,10 @@
         "sector": "汽車工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1618",
         "name": "合機",
-        "price": 38.85,
+        "price": 38.5,
         "exchange": "上市",
         "score": 115,
         "trend_status": "🔥 L1_左側起漲",
@@ -219,18 +218,18 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-28",
-        "first_entry_price": 38.0
+        "first_entry_price": 38.0,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2353",
         "name": "宏碁",
-        "price": 29.05,
+        "price": 30.25,
         "exchange": "上市",
         "score": 115,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 28.76,
-        "ex_dividend_date": null,
         "bias60": "-9.0%",
         "bias24": "-4.9%",
         "bias6": "1.3%",
@@ -241,18 +240,18 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-08-04",
-        "first_entry_price": 29.05
+        "first_entry_price": 29.05,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2014",
         "name": "中鴻",
-        "price": 16.75,
+        "price": 16.85,
         "exchange": "上市",
         "score": 113,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 16.58,
-        "ex_dividend_date": null,
         "bias60": "-4.4%",
         "bias24": "-2.1%",
         "bias6": "0.1%",
@@ -263,13 +262,14 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-30",
-        "first_entry_price": 16.6
+        "first_entry_price": 16.6,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6869",
         "name": "雲豹能源",
-        "price": 67.4,
+        "price": 68.1,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -289,10 +289,10 @@
         "sector": "綠能環保"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6180",
         "name": "橘子",
-        "price": 41.0,
+        "price": 40.9,
         "exchange": "上櫃",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -311,10 +311,10 @@
         "sector": "文化創意業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "8422",
         "name": "可寧衛*",
-        "price": 26.25,
+        "price": 26.0,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -333,10 +333,10 @@
         "sector": "綠能環保"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3032",
         "name": "偉訓",
-        "price": 79.2,
+        "price": 87.1,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -355,10 +355,10 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3293",
         "name": "鈊象",
-        "price": 774.0,
+        "price": 777.0,
         "exchange": "上櫃",
         "score": 110,
         "trend_status": "⏳ L0_左側築底",
@@ -377,15 +377,14 @@
         "sector": "文化創意業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1319",
         "name": "東陽",
-        "price": 72.0,
+        "price": 72.9,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 71.28,
-        "ex_dividend_date": null,
         "bias60": "-10.1%",
         "bias24": "-2.7%",
         "bias6": "1.3%",
@@ -396,13 +395,14 @@
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-09",
-        "first_entry_price": 75.8
+        "first_entry_price": 75.8,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3209",
         "name": "全科",
-        "price": 58.1,
+        "price": 58.7,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -421,10 +421,10 @@
         "sector": "電子通路業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "9904",
         "name": "寶成",
-        "price": 23.75,
+        "price": 23.45,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
@@ -443,15 +443,14 @@
         "sector": "運動休閒"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "9958",
         "name": "世紀鋼",
-        "price": 105.5,
+        "price": 107.0,
         "exchange": "上市",
         "score": 110,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 104.44,
-        "ex_dividend_date": null,
         "bias60": "-1.7%",
         "bias24": "-4.1%",
         "bias6": "1.1%",
@@ -462,18 +461,18 @@
         "buy_days": 5,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-30",
-        "first_entry_price": 101.5
+        "first_entry_price": 101.5,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "8936",
         "name": "國統",
-        "price": 51.5,
+        "price": 52.1,
         "exchange": "上櫃",
         "score": 108,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 50.98,
-        "ex_dividend_date": null,
         "bias60": "-5.3%",
         "bias24": "-4.1%",
         "bias6": "0.6%",
@@ -484,13 +483,14 @@
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-30",
-        "first_entry_price": 50.2
+        "first_entry_price": 50.2,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2504",
         "name": "國產",
-        "price": 30.75,
+        "price": 30.35,
         "exchange": "上市",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
@@ -509,10 +509,10 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "4915",
         "name": "致伸",
-        "price": 63.6,
+        "price": 63.7,
         "exchange": "上市",
         "score": 105,
         "trend_status": "⏳ L0_左側築底",
@@ -531,10 +531,10 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2606",
         "name": "裕民",
-        "price": 63.4,
+        "price": 64.5,
         "exchange": "上市",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
@@ -553,15 +553,14 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3078",
         "name": "僑威",
-        "price": 52.9,
+        "price": 52.8,
         "exchange": "上櫃",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 52.37,
-        "ex_dividend_date": null,
         "bias60": "-3.4%",
         "bias24": "-1.7%",
         "bias6": "2.7%",
@@ -572,18 +571,18 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-31",
-        "first_entry_price": 52.6
+        "first_entry_price": 52.6,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2420",
         "name": "新巨",
-        "price": 54.3,
+        "price": 55.2,
         "exchange": "上市",
         "score": 105,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 53.76,
-        "ex_dividend_date": null,
         "bias60": "-9.6%",
         "bias24": "-6.4%",
         "bias6": "0.5%",
@@ -594,13 +593,14 @@
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-08-04",
-        "first_entry_price": 54.3
+        "first_entry_price": 54.3,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6189",
         "name": "豐藝",
-        "price": 47.9,
+        "price": 48.8,
         "exchange": "上市",
         "score": 103,
         "trend_status": "🔥 L1_左側起漲",
@@ -619,15 +619,14 @@
         "sector": "電子通路業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "4147",
         "name": "中裕",
-        "price": 57.6,
+        "price": 59.1,
         "exchange": "上櫃",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 57.02,
-        "ex_dividend_date": null,
         "bias60": "-0.7%",
         "bias24": "-7.9%",
         "bias6": "1.6%",
@@ -638,13 +637,14 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-31",
-        "first_entry_price": 55.0
+        "first_entry_price": 55.0,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3010",
         "name": "華立",
-        "price": 117.0,
+        "price": 119.0,
         "exchange": "上市",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -663,10 +663,10 @@
         "sector": "電子通路業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2727",
         "name": "王品",
-        "price": 226.5,
+        "price": 224.0,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -685,10 +685,10 @@
         "sector": "觀光餐旅"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1707",
         "name": "葡萄王",
-        "price": 89.6,
+        "price": 88.7,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -707,10 +707,10 @@
         "sector": "生技醫療業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1586",
         "name": "和勤",
-        "price": 18.1,
+        "price": 18.15,
         "exchange": "上櫃",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -729,7 +729,7 @@
         "sector": "電機機械"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2501",
         "name": "國建",
         "price": 22.25,
@@ -751,10 +751,10 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1218",
         "name": "泰山",
-        "price": 15.25,
+        "price": 15.5,
         "exchange": "上市",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -773,10 +773,10 @@
         "sector": "食品工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6279",
         "name": "胡連",
-        "price": 116.5,
+        "price": 119.0,
         "exchange": "上櫃",
         "score": 100,
         "trend_status": "🔥 L1_左側起漲",
@@ -795,10 +795,10 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2211",
         "name": "長榮鋼",
-        "price": 86.5,
+        "price": 86.7,
         "exchange": "上市",
         "score": 100,
         "trend_status": "⏳ L0_左側築底",
@@ -817,15 +817,14 @@
         "sector": "鋼鐵工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2851",
         "name": "中再保",
-        "price": 34.7,
+        "price": 35.0,
         "exchange": "上市",
         "score": 98,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 34.35,
-        "ex_dividend_date": null,
         "bias60": "-1.3%",
         "bias24": "-4.8%",
         "bias6": "0.8%",
@@ -836,13 +835,14 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-08-03",
-        "first_entry_price": 34.8
+        "first_entry_price": 34.8,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "5009",
         "name": "榮剛",
-        "price": 33.1,
+        "price": 33.3,
         "exchange": "上櫃",
         "score": 98,
         "trend_status": "🔥 L1_左側起漲",
@@ -861,15 +861,14 @@
         "sector": "鋼鐵工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3592",
         "name": "瑞鼎",
-        "price": 241.0,
+        "price": 243.5,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 238.59,
-        "ex_dividend_date": null,
         "bias60": "-4.7%",
         "bias24": "-2.5%",
         "bias6": "5.0%",
@@ -880,18 +879,18 @@
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-27",
-        "first_entry_price": 239.0
+        "first_entry_price": 239.0,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2354",
         "name": "鴻準",
-        "price": 56.0,
+        "price": 55.5,
         "exchange": "上市",
         "score": 95,
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 55.44,
-        "ex_dividend_date": null,
         "bias60": "-1.1%",
         "bias24": "0.2%",
         "bias6": "2.1%",
@@ -902,13 +901,14 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-07-14",
-        "first_entry_price": 55.3
+        "first_entry_price": 55.3,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2030",
         "name": "彰源",
-        "price": 17.1,
+        "price": 17.4,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -927,10 +927,10 @@
         "sector": "鋼鐵工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1524",
         "name": "耿鼎",
-        "price": 26.45,
+        "price": 26.4,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -949,10 +949,10 @@
         "sector": "汽車工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1722",
         "name": "台肥",
-        "price": 45.1,
+        "price": 45.3,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -971,10 +971,10 @@
         "sector": "化學工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2605",
         "name": "新興",
-        "price": 31.25,
+        "price": 32.0,
         "exchange": "上市",
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
@@ -993,7 +993,7 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "9910",
         "name": "豐泰",
         "price": 67.4,
@@ -1001,7 +1001,6 @@
         "score": 95,
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 66.73,
-        "ex_dividend_date": null,
         "bias60": "-4.5%",
         "bias24": "-1.1%",
         "bias6": "-2.2%",
@@ -1012,13 +1011,14 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-08-04",
-        "first_entry_price": 67.4
+        "first_entry_price": 67.4,
+        "sector": "未知產業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2010",
         "name": "春源",
-        "price": 20.9,
+        "price": 21.1,
         "exchange": "上市",
         "score": 90,
         "trend_status": "🔥 L1_左側起漲",
@@ -1037,10 +1037,10 @@
         "sector": "鋼鐵工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "9917",
         "name": "中保科",
-        "price": 108.5,
+        "price": 108.0,
         "exchange": "上市",
         "score": 88,
         "trend_status": "🔥 L1_左側起漲",
@@ -1059,10 +1059,10 @@
         "sector": "其他業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "4306",
         "name": "炎洲",
-        "price": 14.05,
+        "price": 14.2,
         "exchange": "上市",
         "score": 88,
         "trend_status": "⏳ L0_左側築底",
@@ -1081,10 +1081,10 @@
         "sector": "塑膠工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2536",
         "name": "宏普",
-        "price": 17.95,
+        "price": 17.9,
         "exchange": "上市",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -1103,10 +1103,10 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6176",
         "name": "瑞儀",
-        "price": 87.1,
+        "price": 84.6,
         "exchange": "上市",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -1125,10 +1125,10 @@
         "sector": "光電業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "8044",
         "name": "網家",
-        "price": 26.65,
+        "price": 26.95,
         "exchange": "上櫃",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -1147,10 +1147,10 @@
         "sector": "數位雲端"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "8436",
         "name": "大江",
-        "price": 113.5,
+        "price": 114.5,
         "exchange": "上櫃",
         "score": 85,
         "trend_status": "🔥 L1_左側起漲",
@@ -1169,10 +1169,10 @@
         "sector": "生技醫療業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3596",
         "name": "智易",
-        "price": 180.5,
+        "price": 187.5,
         "exchange": "上市",
         "score": 85,
         "trend_status": "⏳ L0_左側築底",
@@ -1191,10 +1191,10 @@
         "sector": "通信網路業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2034",
         "name": "允強",
-        "price": 18.6,
+        "price": 18.95,
         "exchange": "上市",
         "score": 80,
         "trend_status": "⏳ L0_左側築底",
@@ -1213,10 +1213,10 @@
         "sector": "鋼鐵工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "3014",
         "name": "聯陽",
-        "price": 128.0,
+        "price": 130.0,
         "exchange": "上市",
         "score": 80,
         "trend_status": "⏳ L0_左側築底",
@@ -1235,10 +1235,10 @@
         "sector": "半導體業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "1477",
         "name": "聚陽",
-        "price": 222.0,
+        "price": 225.0,
         "exchange": "上市",
         "score": 80,
         "trend_status": "🔥 L1_左側起漲",
@@ -1258,10 +1258,10 @@
         "ex_dividend_date": "2026-08-17"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2641",
         "name": "正德",
-        "price": 17.05,
+        "price": 17.25,
         "exchange": "上櫃",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -1280,10 +1280,10 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6541",
         "name": "泰福-KY",
-        "price": 37.15,
+        "price": 37.95,
         "exchange": "上市",
         "score": 75,
         "trend_status": "🔥 L1_左側起漲",
@@ -1302,10 +1302,10 @@
         "sector": "生技醫療業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "6412",
         "name": "群電",
-        "price": 81.8,
+        "price": 78.6,
         "exchange": "上市",
         "score": 75,
         "trend_status": "⏳ L0_左側築底",
@@ -1324,7 +1324,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2385",
         "name": "群光",
         "price": 104.0,
@@ -1346,10 +1346,10 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "5522",
         "name": "遠雄",
-        "price": 64.1,
+        "price": 64.4,
         "exchange": "上市",
         "score": 70,
         "trend_status": "⏳ L0_左側築底",
@@ -1368,7 +1368,7 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "2108",
         "name": "南帝",
         "price": 27.45,
@@ -1390,10 +1390,10 @@
         "sector": "橡膠工業"
     },
     {
-        "date": "2026-08-04",
+        "date": "2026-08-05",
         "code": "5519",
         "name": "隆大",
-        "price": 28.05,
+        "price": 27.75,
         "exchange": "上市",
         "score": 60,
         "trend_status": "⏳ L0_左側築底",
