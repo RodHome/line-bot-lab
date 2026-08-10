@@ -1205,7 +1205,7 @@ def handle_message(event):
             return
     
     # ==========================================
-    # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(VIP專屬)
+    # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(Google 試算表 CSV 版)
     # ==========================================
     if msg in ["盤點", "庫存", "持股檢查", "庫存盤點"]:
         # 🔒 VIP 門禁系統開始
@@ -1217,22 +1217,53 @@ def handle_message(event):
         # 🔒 VIP 門禁系統結束
 
         try:
-            # 1. 讀取 GitHub 上的專屬庫存名單
-            PORTFOLIO_URL = "https://raw.githubusercontent.com/RodHome/line-bot-lab/main/my_portfolio.json"
-            res = requests.get(PORTFOLIO_URL, headers={'Cache-Control': 'no-cache'}, timeout=5)
+            # 1. 直接讀取 Google 試算表發佈的 CSV
+            CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv"
             
-            if res.status_code != 200:
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 無法連線至庫存名單，請確認 GitHub 檔案是否存在。"))
-                return
+            import pandas as pd
+            # 使用 pandas 讀取 CSV，並將 NaN 轉為字串或預設值
+            df = pd.read_csv(CSV_URL)
+            df = df.fillna('') 
+            
+            portfolio = []
+            for index, row in df.iterrows():
+                # 跳過空行或沒有代號的列
+                code_str = str(row.get('股票代號 (code)', '')).strip()
+                if not code_str:
+                    continue
+                    
+                # 處理可能的千分位逗號，並轉為浮點數
+                try:
+                    cost_str = str(row.get('成本價 (cost)', '0')).replace(',', '')
+                    cost = float(cost_str) if cost_str else 0.0
+                    
+                    qty_str = str(row.get('持有股數 (quantity)', '0')).replace(',', '')
+                    qty = float(qty_str) if qty_str else 0.0
+                except ValueError:
+                    cost = 0.0
+                    qty = 0.0
                 
-            portfolio = res.json()
+                # 若為台股代號（確保長度），可做基礎過濾，此處假設代號皆合法
+                portfolio.append({
+                    "code": code_str,
+                    "cost": cost,
+                    "quantity": qty,
+                    "type": str(row.get('策略分類 (type)', '波段')).strip(),
+                    "broker": str(row.get('證券商 (broker)', '未指定')).strip()
+                })
+
             if not portfolio:
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="💼 目前庫存名單為空喔！"))
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="💼 目前 Google 試算表庫存名單為空喔！"))
                 return
 
             # 2. 定義單檔股票的極簡過濾邏輯
             def check_my_stock_light(item):
                 code = str(item['code'])
+                
+                # 自動幫 50、878 這類短代號補零
+                if len(code) < 4 and code.isdigit():
+                    code = code.zfill(4)
+                    
                 cost = float(item.get('cost', 0))
                 qty = item.get('quantity', 0)
                 s_type = item.get('type', '波段')
@@ -1309,7 +1340,7 @@ def handle_message(event):
 
             # 4. 組裝最終報告
             if not results:
-                final_reply = "🛡️ 報告主人！目前波段持股全數在月線之上，安全無虞！繼續抱緊處理。"
+                final_reply = "🛡️ 報告主人！目前雲端試算表持股全數在安全範圍內，安全無虞！繼續抱緊處理。"
             else:
                 final_reply = "⚠️ 【庫存警示與動作清單】\n" + "━"*18 + "\n"
                 final_reply += "\n\n".join(results)
@@ -1320,7 +1351,7 @@ def handle_message(event):
             
         except Exception as e:
             print(f"庫存盤點發生錯誤: {e}")
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 庫存大體檢發生錯誤，請確認 JSON 格式正確。"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 庫存大體檢發生錯誤，請確認 Google 試算表 CSV 發佈狀態。"))
             return
 
     #=================3/17==========================
