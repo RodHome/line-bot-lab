@@ -14,7 +14,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 app = Flask(__name__)
 
 # 🤖 [版本號] v19.1 
-BOT_VERSION = "v19.1 (導入gemini-3.6)"
+BOT_VERSION = "v19.1 (導入gemini-3.5)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
