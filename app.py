@@ -1256,80 +1256,91 @@ def handle_message(event):
                 line_bot_api.reply_message(event.reply_token, TextSendMessage(text="💼 目前 Google 試算表庫存名單為空喔！"))
                 return
 
-            # 2. 定義單檔股票的極簡過濾邏輯
+            # 2. 定義單檔股票的遠見型過濾邏輯
             def check_my_stock_light(item):
                 code = str(item['code'])
-                
-                # 自動幫 50、878 這類短代號補零
-                if len(code) < 4 and code.isdigit():
-                    code = code.zfill(4)
+                if len(code) < 4 and code.isdigit(): code = code.zfill(4)
                     
                 cost = float(item.get('cost', 0))
                 qty = item.get('quantity', 0)
                 s_type = item.get('type', '波段')
                 broker = item.get('broker', '未指定')
                 
-                # 呼叫你強大的雙引擎抓現價與均線
+                # 取得即時報價與技術指標
                 data = fetch_data_light(code)
                 if not data: return None
 
                 name = CODE_TO_NAME.get(code, code)
                 live_price = data['close']
+                ma5 = data.get('ma5', 0)
+                ma10 = data.get('ma10', 0)
                 ma20 = data.get('ma20', 0)
+                ma60 = data.get('ma60', 0)
                 
-                # 計算即時損益
                 profit_pct = round((live_price - cost) / cost * 100, 1) if cost > 0 else 0
                 sign = "+" if profit_pct > 0 else ""
-                
-                # 零股/整股 格式化顯示 (如 1050股 或 1050.5股)
                 qty_str = f"{int(qty)}股" if float(qty).is_integer() else f"{qty}股"
 
-                ma5 = data.get('ma5', 0) # 👈 把周線也抓出來用
-                
-                # 🧠 濾網核心：只回報「危險」或「須動作」的標的
                 alert_msg = None
                 
-                # 取得時間判斷是否為尾盤 (13:20 之後)
-                tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
-                is_tail_session = (tw_now.hour > 13) or (tw_now.hour == 13 and tw_now.minute >= 20)
+                # --- 核心量價與型態濾網 ---
+                volumes = data.get('raw_volumes', [])
+                is_high_volume_dump = False  # 是否爆量下殺
+                if len(volumes) >= 6:
+                    vol_5ma = sum(volumes[-6:-1]) / 5
+                    # 條件：今日成交量大於5日均量1.5倍，且收黑/盤中跌
+                    if vol_5ma > 0 and volumes[-1] > vol_5ma * 1.5 and live_price < data.get('open', live_price):
+                        is_high_volume_dump = True
 
+                # 是否正在築底反彈 (站上周線，且周線向上穿越雙周線)
+                is_rebounding = (live_price > ma5) and (ma5 >= ma10)
+
+                # ================= 波段策略 =================
                 if s_type == "波段":
                     if ma20 > 0:
-                        is_broken_ma20 = live_price < (ma20 * 0.98) # 實質跌破月線 2%
+                        # 1. 【防誤殺】深跌處理
+                        if profit_pct <= -7.0:
+                            if is_rebounding:
+                                # 正在強勢反彈，保持安靜不干擾 (跳過警示)
+                                pass 
+                            elif live_price < ma20 and live_price < ma10:
+                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🚨狀態：趨勢破底且無止跌跡象\n   🔪建議：【嚴格停損】切勿凹單，收回資金 (盈虧 {profit_pct}%)"
                         
-                        # --- 🛡️ 雙軌防禦邏輯 ---
-                        if profit_pct < 5.0:
-                            # 【階段一：成本保衛戰】獲利未拉開，以成本防守為主
-                            if profit_pct <= -7.0:
-                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🚨狀態：觸及 -7% 停損底線！\n   🔪建議：【嚴格停損】切勿凹單 (盈虧: {profit_pct}%)"
-                            elif is_broken_ma20:
-                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   ⚠️狀態：跌破月線 (無獲利保護)\n   🛡️建議：【分批減碼】降低風險 (盈虧: {profit_pct}%)"
-                        else:
-                            # 【階段二：波段順勢戰】獲利 > 5%，交給均線順勢操作
-                            if is_broken_ma20:
-                                if is_tail_session:
-                                    alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🚨狀態：收盤確認實質破線\n   💰建議：【停利出場】獲利放口袋 (盈虧: {sign}{profit_pct}%)"
+                        # 2. 【防低賣】高獲利強勢股 (動態守 10MA)
+                        elif profit_pct >= 15.0:
+                            if live_price < ma10:
+                                if is_high_volume_dump:
+                                    alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🚨狀態：高檔爆量跌破 10MA\n   💰建議：【停利出場】主力出貨跡象，強勢股破防 (盈虧 {sign}{profit_pct}%)"
                                 else:
-                                    alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   ⚠️狀態：盤中跌破均線洗盤中\n   ⏳建議：【尾盤確認】13:20再動作 (盈虧: {sign}{profit_pct}%)"
+                                    alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   ⚠️狀態：量縮跌破 10MA 洗盤\n   ⏳建議：【持股續抱】防守退至月線，避免賣飛 (盈虧 {sign}{profit_pct}%)"
+                        
+                        # 3. 【防低賣】一般獲利股 (守 20MA)
+                        elif profit_pct >= 5.0 and profit_pct < 15.0:
+                            if live_price < ma20:
+                                if is_high_volume_dump:
+                                    alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🚨狀態：帶量跌破月線支撐\n   💰建議：【停利/減碼】趨勢轉弱 (盈虧 {sign}{profit_pct}%)"
+                                else:
+                                    alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   ⚠️狀態：量縮跌破月線\n   ⏳建議：【觀察三天】若站不回再停利 (盈虧 {sign}{profit_pct}%)"
+
+                # ================= 定存策略 =================
                 elif s_type == "定存":
-                    if ma20 > 0:
-                        # 完美對齊 generator.py 的乖離率算法
-                        bias_20 = (live_price - ma20) / ma20 * 100
-                        bias_5 = (live_price - ma5) / ma5 * 100 if ma5 > 0 else 0
-                        
-                        # 🔴 高檔過熱：月線乖離 > 8%
-                        if bias_20 > 8.0:
-                            # 🔥 聰明判斷：看帳面是賺還是賠，決定給什麼建議
-                            action_text = "獲利了結" if profit_pct > 0 else "反彈減碼/停損"
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：短線過熱 (月線乖離 {bias_20:.1f}%)\n   建議：🔴【短線過熱】可考慮分批{action_text} (總盈虧 {sign}{profit_pct}%)"
-                        
-                        # 🛒 打折加碼：月線乖離 < -2%
-                        elif bias_20 < -2.0:
-                            # 🛡️ 移植防飛刀邏輯
-                            knife_str = "⭐ 週線翻正，跌勢止穩" if bias_5 > 0 else "⚠️ 跌勢未止，請分批慢接"
-                            action_str = "🚨【大舉進場】長線買點浮現" if bias_20 < -8.0 else "🛒【小幅加碼】股價委屈"
-                            
-                            alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   狀態：{action_str} (月線乖離 {bias_20:.1f}%)\n   建議：{knife_str} (總盈虧 {sign}{profit_pct}%)"
+                    bias_20 = (live_price - ma20) / ma20 * 100 if ma20 > 0 else 0
+                    
+                    # 取得即時殖利率
+                    yld_str = fetch_dividend_yield(code, live_price)
+                    yld_val = float(yld_str.replace('%', '')) if yld_str != "N/A" else 5.0
+
+                    # 1. 殖利率失效防護 (股價飆漲失去存股意義)
+                    if yld_val < 4.0 and bias_20 > 5.0:
+                        alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🔥狀態：大漲導致殖利率過低 (約 {yld_str})\n   🔄建議：【獲利換股】失去高息保護傘 (盈虧 {sign}{profit_pct}%)"
+                    
+                    # 2. 長期趨勢敗退防護
+                    elif live_price < ma60 and ma20 < ma60:
+                        alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   ⚠️狀態：長線趨勢轉空 (月/季線死亡交叉)\n   🛑建議：【暫停扣款】觀望基本面是否惡化 (盈虧 {sign}{profit_pct}%)"
+                    
+                    # 3. 委屈打折加碼區
+                    elif bias_20 < -5.0:
+                        alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🛒狀態：股價委屈，殖利率攀升 (約 {yld_str})\n   🎯建議：【逢低加碼】定存買點浮現 (盈虧 {sign}{profit_pct}%)"
                 
                 return alert_msg
 
