@@ -1318,12 +1318,19 @@ def handle_message(event):
                 # 是否正在築底反彈 (站上周線，且周線向上穿越雙周線)
                 is_rebounding = (live_price > ma5) and (ma5 >= ma10)
 
+                # 預先計算即時乖離率，供防護機制使用
+                bias_20 = (live_price - ma20) / ma20 * 100 if ma20 > 0 else 0
+                bias_60 = (live_price - ma60) / ma60 * 100 if ma60 > 0 else 0
+
                 # ================= 波段策略 =================
                 if s_type == "波段":
                     if ma20 > 0:
-                        # 1. 【防誤殺】深跌處理
+                        # 1. 【防誤殺與防阿呆谷】深跌處理
                         if profit_pct <= -7.0:
-                            if is_rebounding:
+                            # 🛡️ 新增：防阿呆谷機制 (極端超跌保護)
+                            if bias_20 < -12.0 or bias_60 < -15.0:
+                                alert_msg = f"▪️ {name} ({code}) 🏦{broker} [{qty_str}]\n   🌪️狀態：非理性超跌 (月乖離 {bias_20:.1f}%)\n   🛡️建議：【拒絕殺低】已入阿呆谷，隨時有報復性反彈，請就地躺平！(盈虧 {profit_pct}%)"
+                            elif is_rebounding:
                                 # 正在強勢反彈，保持安靜不干擾 (跳過警示)
                                 pass 
                             elif live_price < ma20 and live_price < ma10:
