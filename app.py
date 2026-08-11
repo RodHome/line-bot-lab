@@ -836,8 +836,9 @@ def handle_message(event):
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
-                        # 👇 修改：把 S/A/B/C 印在股票名稱前面，將 size 從 lg 改為 md 以適應版面
-                        {"type": "text", "text": f"{rank_str} | {stock['name']} ({stock['code']})", "weight": "bold", "size": "md", "color": "#ffffff"},
+                        # 👇 修改：將級別獨立放一行，股票名稱獨立一行並開啟換行 (wrap: True)
+                        {"type": "text", "text": rank_str, "weight": "bold", "size": "sm", "color": "#ffffff"},
+                        {"type": "text", "text": f"{stock['name']} ({stock['code']})", "weight": "bold", "size": "xl", "color": "#ffffff", "wrap": True},
                         {"type": "text", "text": f"{stock['sector']} | {stock['tag']}", "size": "xxs", "color": "#eeeeee"}
                     ], "backgroundColor": stock['color']
                 },
@@ -989,12 +990,14 @@ def handle_message(event):
                         "type": "bubble", "size": "hecto",
                         "header": {
                             "type": "box", "layout": "vertical", "contents": [
+                                # 🌟 新增：獨立一排顯示資金級別
+                                {"type": "text", "text": rank_str, "weight": "bold", "size": "sm", "color": "#ffffff", "margin": "none"},
                                 # 🌟 第一排：名稱與現價
                                 {
                                     "type": "box", "layout": "horizontal", "contents": [
-                                        # 👇 修改：將 S/A/B/C 級別加入卡片標題，並將 size 從 lg 改為 md 避免斷行
-                                        {"type": "text", "text": f"{rank_str} | {item['name']} ({item['code']})", "weight": "bold", "size": "md", "color": "#ffffff", "flex": 1},
-                                        {"type": "text", "text": f"現價 {current_price}", "weight": "bold", "size": "md", "color": "#ffffff", "align": "end", "flex": 1}
+                                        # 👇 修改：名稱獨立並開啟換行，調整寬度比例 (flex) 避免與現價互擠
+                                        {"type": "text", "text": f"{item['name']}({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff", "flex": 3, "wrap": True},
+                                        {"type": "text", "text": f"現價 {current_price}", "weight": "bold", "size": "md", "color": "#ffffff", "align": "end", "flex": 2}
                                     ]
                                 },
                                 # 🌟 第二排：產業別 與 評分 (完美水平並排，防止被切斷)
