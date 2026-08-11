@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ 雙引擎雷達戰情室 V3.0</title>
+    <title>⚡ 雙引擎雷達戰情室 V3.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f1a; color: #f8fafc; }
@@ -31,7 +31,7 @@
 </head>
 <body class="p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-left" id="main-body">
 
-    <div class="ver-tag">Ver 3.0 (Dual Engine)</div>
+    <div class="ver-tag">Ver 3.1 (Dual Engine + SABC Rank)</div>
 
     <header class="mb-8 text-center md:text-left border-b border-slate-800 pb-6">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -50,7 +50,7 @@
         <button onclick="switchStrategy('LEFT')" id="tab-LEFT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-left">🛡️ 左側黃金坑</button>
         <button onclick="switchStrategy('RIGHT')" id="tab-RIGHT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive">🚀 右側動能飆股</button>
         <button onclick="document.getElementById('paramModal').style.display='flex'" class="md:ml-auto px-5 py-2.5 rounded-xl font-bold text-sm border-2 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2">
-            <span>📘</span> 參數邏輯說明
+            <span>📘</span> 資金順位說明
         </button>
     </div>
 
@@ -73,23 +73,19 @@
         let baseDateLeft = new Date();
         let baseDateRight = new Date();
         
-        let currentStrategy = 'LEFT'; // 'LEFT' or 'RIGHT'
-        let currentMode = 'NEW';      // 'NEW', 'HISTORY', 'DEV_ALL'
+        let currentStrategy = 'LEFT'; 
+        let currentMode = 'NEW';      
 
-        // 同時抓取兩份 JSON 檔案
         async function loadData() {
             try {
-                // 使用 Promise.all 同時發出請求加速載入
                 const [resLeft, resRight] = await Promise.all([
                     fetch('left_side_value.json?t=' + Date.now()).catch(() => null),
                     fetch('daily_recommendations.json?t=' + Date.now()).catch(() => null)
                 ]);
 
                 if (resLeft && resLeft.ok) {
-                    // 先讀成純文字，把 NaN 替換成 null 後，再轉回 JSON
                     const textLeft = await resLeft.text();
                     leftData = JSON.parse(textLeft.replace(/NaN/g, 'null'));
-                    
                     if (leftData.length > 0) {
                         baseDateLeft = new Date(leftData[0].date);
                         document.getElementById('updateTimeL').innerText = `🛡️ 左側同步: ${leftData[0].date}`;
@@ -97,26 +93,22 @@
                 }
 
                 if (resRight && resRight.ok) {
-                    // 同理，處理右側資料
                     const textRight = await resRight.text();
                     rightData = JSON.parse(textRight.replace(/NaN/g, 'null'));
-                    
                     if (rightData.length > 0) {
                         baseDateRight = new Date(rightData[0].date);
                         document.getElementById('updateTimeR').innerText = `🚀 右側同步: ${rightData[0].date}`;
                     }
                 }
                 
-                // 預設渲染左側的「今日最新」
                 renderData(currentMode); 
 
             } catch (e) {
-                console.error("網頁崩潰的真正原因:", e); // 👈 加上這行
+                console.error("網頁崩潰的真正原因:", e);
                 document.getElementById('stock-grid').innerHTML = `<div class="col-span-full text-center text-red-400 p-10 bg-red-900/10 rounded-2xl border border-red-900/20">🚨 資料讀取失敗，請確認 JSON 檔案是否存在。</div>`;
             }
         }
 
-        // 切換主策略 (左側/右側)
         function switchStrategy(strategy) {
             currentStrategy = strategy;
             
@@ -132,8 +124,6 @@
                 mainBody.className = "p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-left";
                 mainTitle.className = "text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-2 transition-all";
                 subTitle.innerText = "尋找被錯殺的黃金坑 · 左側潛伏";
-                
-                // 次頁籤顏色切換
                 document.getElementById('btn-NEW').classList.replace('bg-red-600', 'bg-blue-600');
             } else {
                 btnLeft.className = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive";
@@ -141,15 +131,12 @@
                 mainBody.className = "p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-right";
                 mainTitle.className = "text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400 mb-2 transition-all";
                 subTitle.innerText = "追擊量價齊揚的突破口 · 右側動能";
-                
-                // 次頁籤顏色切換
                 document.getElementById('btn-NEW').classList.replace('bg-blue-600', 'bg-red-600');
             }
 
-            renderData(currentMode); // 重新渲染當前模式
+            renderData(currentMode);
         }
 
-        // 渲染資料邏輯
         function renderData(mode) {
             currentMode = mode;
             const buttons = ['NEW', 'HISTORY', 'DEV_ALL'];
@@ -165,7 +152,6 @@
                 }
             });
 
-            // 根據當前策略選擇資料來源
             let sourceData = currentStrategy === 'LEFT' ? leftData : rightData;
             let baseDate = currentStrategy === 'LEFT' ? baseDateLeft : baseDateRight;
 
@@ -174,24 +160,16 @@
                 const entryDate = new Date(s.first_entry_date);
                 const diffDays = Math.ceil(Math.abs(baseDate - entryDate) / (1000 * 60 * 60 * 24));
                 
-                // 🛡️ [防護修正] 嚴謹的數值與空值防護
                 let currentPrice = parseFloat(s.price || s.close);
                 let entryPrice = parseFloat(s.first_entry_price);
 
-                // 若現價異常，嘗試用初始價替補，或歸零
                 if (isNaN(currentPrice) || currentPrice <= 0) currentPrice = entryPrice || 0;
-                
-                // 若初始價異常(null/NaN)，強制等於現價(讓績效顯示0%)，避免出現 NaN%
                 let isEntryPriceInvalid = isNaN(entryPrice) || entryPrice <= 0;
-                if (isEntryPriceInvalid) {
-                    entryPrice = currentPrice;
-                }
+                if (isEntryPriceInvalid) entryPrice = currentPrice;
 
                 s.roiNum = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice * 100) : 0;
                 s.daysAgo = isNaN(diffDays) ? 0 : diffDays;
                 s.currentPriceDisplay = currentPrice > 0 ? currentPrice.toFixed(2) : "N/A";
-                
-                // 若為異常初始價，畫面上顯示「計算中」取代 $null
                 s.firstPriceDisplay = isEntryPriceInvalid ? "計算中" : `$${entryPrice.toFixed(2)}`;
 
                 if (mode === 'NEW' && diffDays > 3) return; 
@@ -199,7 +177,14 @@
                 filtered.push(s);
             });
 
-            filtered.sort((a, b) => b.roiNum - a.roiNum);
+            // 優先以 capital_rank 排序，相同級別再排績效或分數
+            const rankOrder = {"S": 0, "A": 1, "B": 2, "C": 3};
+            filtered.sort((a, b) => {
+                const rankA = rankOrder[a.capital_rank || "C"];
+                const rankB = rankOrder[b.capital_rank || "C"];
+                if (rankA !== rankB) return rankA - rankB;
+                return b.roiNum - a.roiNum;
+            });
 
             let html = '';
             filtered.forEach(s => {
@@ -213,12 +198,21 @@
                     capBadgeHtml = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-orange-900/50 text-orange-300 border border-orange-700/50 ml-2">🚀 中小型</span>`;
                 }
 
+                // 產生資金投入順位 Badge
+                let rankBadgeHtml = '';
+                const rank = s.capital_rank || 'C';
+                if (rank === 'S') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">🟢 S級 (優先)</span>`;
+                else if (rank === 'A') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-blue-500 text-white shadow-lg shadow-blue-500/30">🔵 A級 (試單)</span>`;
+                else if (rank === 'B') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-yellow-500 text-white shadow-lg shadow-yellow-500/30">🟡 B級 (觀望)</span>`;
+                else rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-slate-600 text-white shadow-lg shadow-slate-600/30">🔴 C級 (暫避)</span>`;
+
                 html += `
-                <div class="card rounded-2xl p-6 flex flex-col h-full relative overflow-hidden">
+                <div class="card rounded-2xl p-6 flex flex-col h-full relative overflow-hidden border ${rank === 'S' ? 'border-emerald-500/50' : (rank === 'A' ? 'border-blue-500/30' : 'border-slate-800')}">
                     ${s.roiNum > 20 ? '<div class="absolute -right-6 top-6 bg-red-600 text-white text-[10px] font-black py-1 px-8 transform rotate-45 shadow-lg">飆股</div>' : ''}
                     
                     <div class="flex justify-between items-start mb-2">
                         <div>
+                            <div class="flex items-center mb-1.5">${rankBadgeHtml}</div>
                             <div class="flex items-center">
                                 <h2 class="text-2xl font-bold text-white">${s.name}</h2>
                                 ${capBadgeHtml} </div>
@@ -257,7 +251,6 @@
                     </div>`;
                 }
 
-                // 🛡️ [防護修正] 套用安全變數 s.firstPriceDisplay
                 html += `
                     <div class="bg-slate-950/60 rounded-xl p-4 border border-slate-800/50 mb-6">
                         <div class="flex justify-between items-center mb-3 text-[10px] text-slate-500 font-bold">
@@ -310,11 +303,8 @@
             document.getElementById('stats-banner').innerHTML = `顯示 <strong>${filtered.length}</strong> 檔 | ${stratName} - ${modeName}`;
         }
 
-        // 初始化載入
         loadData();
     </script>
-
-</script>
 
     <div id="paramModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px);">
         <div style="background-color: #111827; border: 1px solid #374151; border-radius: 12px; width: 100%; max-width: 800px; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
@@ -323,53 +313,70 @@
                 <div style="display: flex; align-items: center; margin-bottom: 24px; border-bottom: 1px solid #374151; padding-bottom: 16px; padding-right: 80px;">
                     <span style="font-size: 36px; margin-right: 16px;">📊</span>
                     <div>
-                        <h3 style="margin: 0; font-size: 22px; font-weight: bold; color: #3b82f6;">AI 雙引擎雷達：篩選邏輯與核心參數說明</h3>
-                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #9ca3af;">掌握機器人大腦的量化風控機制與篩選鐵律</p>
+                        <h3 style="margin: 0; font-size: 22px; font-weight: bold; color: #3b82f6;">AI 雙引擎雷達：資金優先級與篩選邏輯</h3>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #9ca3af;">避免高分追高接刀的動態 S/A/B/C 風控機制</p>
                     </div>
                 </div>
+
+                <!-- 🆕 新增資金等級說明 -->
+                <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #10b981; border-radius: 2px;"></span>動態資金投入級別 (Capital Rank)</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px;">
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #10b981;">🟢 S級 (優先投入)</strong></div>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+                            <strong>【右側】</strong>剛爆量突破 20 日高點、趨勢確立且月線乖離低於 15%。<br>
+                            <strong>【左側】</strong>站回 5MA、帶長下影線反轉、RSI向上且法人連買。<br>
+                            <span style="color: #f9fafb; font-weight: bold;">(最值得立即配置新資金的黃金買點)</span>
+                        </p>
+                    </div>
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #3b82f6;">🔵 A級 (分批試單)</strong></div>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+                            <strong>【右側】</strong>已突破但乖離略增(15-25%)，趨勢保護。<br>
+                            <strong>【左側】</strong>尚未過 5MA，但大資金介入防守(下影線+連買)。<br>
+                            <span style="color: #f9fafb; font-weight: bold;">(具備實戰空間，建議拆分資金試單)</span>
+                        </p>
+                    </div>
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f59e0b;">🟡 B級 (嚴格觀望)</strong></div>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+                            <strong>【右側】</strong>基本面強勢但短線過熱(乖離25-35%)。<br>
+                            <strong>【左側】</strong>極度超跌(季線乖離<-8%) 但毫無防守訊號。<br>
+                            <span style="color: #f9fafb; font-weight: bold;">(動能分數雖高，但此刻追價形同韭菜)</span>
+                        </p>
+                    </div>
+                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #ef4444;">🔴 C級 (暫不投入)</strong></div>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+                            跌破 5MA、帶長上影線突破失敗 (右側假突破避雷針)、或基本面與籌碼雙空。<br>
+                            <span style="color: #f9fafb; font-weight: bold;">(歷史追蹤股若轉弱將被降級至此)</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 原有的篩選邏輯與參數保留 -->
                 <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #3b82f6; border-radius: 2px;"></span>核心量化參數定義</h4>
                 <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 32px;">
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
                         <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">📉 量縮率 (Volume Ratio)</strong></div>
                         <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #f43f5e; font-family: monospace;">今日成交量 ÷ 20日均量</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>尋找窒息量。左側黃金坑數值必須 <code style="color:#f43f5e">< 0.9</code> 確保賣壓竭盡；出現極致量縮 (< 0.5) 系統會觸發額外加分機制，為反彈前兆。</p>
-                    </div>
-                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">📈 月線乖離率 (MA20 Bias)</strong></div>
-                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #f59e0b; font-family: monospace;">(現價 - 20MA) ÷ 20MA × 100%</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>動態追蹤噴出強度。右側動能若數值 <code style="color:#f59e0b">> +15%</code>，標記為「🔥過熱妖股」，強制將動能總分打 8 折，嚴防盲目追高當韭菜。</p>
-                    </div>
-                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🛡️ 季線負乖離 (MA60 Negative Bias)</strong></div>
-                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #10b981; font-family: monospace;">(現價 - 60MA) ÷ 60MA × 100%</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>左側雷達觸發門檻。必須跌破季線 <code style="color:#10b981">< 0%</code> 才符合黃金坑資格。跌得越深，均線回歸的潛在彈升空間越驚人，系統會給予超跌加分。</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>尋找窒息量。出現極致量縮 (< 0.5) 系統會觸發額外加分機制，為反彈前兆。</p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
                         <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🏆 綜合動能總分 (m_score)</strong></div>
                         <p style="margin: 0 0 6px 0; font-size: 13px; color: #d1d5db;">公式：<code style="background-color: #111827; padding: 3px 6px; border-radius: 4px; color: #3b82f6; font-family: monospace;">(營收YoY × 1.5) + (5日法人買超 × 5)</code></p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>權衡飆股基因與大戶共識。中小型股具備高爆發力，總分自動 × <code style="color:#3b82f6">1.2</code> 放大。總分越高，卡牌排序越靠前。</p>
-                    </div>
-                    <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f9fafb;">🔒 智能轉機股漏斗 (Turnaround Filter)</strong></div>
-                        <p style="margin: 0 0 6px 0; font-size: 13px; color: #a78bfa; font-weight: bold;">機制：大資金反轉K線 ＋ 籌碼高度集中 ＋ 營收見底回升</p>
-                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>拒絕價值陷阱。針對 <code style="color:#a78bfa">EPS < 0</code> 虧損股啟動極致安檢。缺一不可，否則直接淘汰，嚴防接到正在下墜的破底刀。</p>
+                        <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;"><strong>篩選目的：</strong>代表股票的「體質與市場共識」，分數愈高代表籌碼越強，但<b>請務必搭配 S/A/B/C 等級</b>判斷進場時機。</p>
                     </div>
                 </div>
                 
-                <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                    <span style="display: inline-block; width: 4px; height: 18px; background-color: #ef4444; border-radius: 2px;"></span>
-                    選股邏輯
-                </h4>
-                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                    
                     <div style="background-color: #0f172a; border: 1px solid #3b82f6; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1);">
                         <h5 style="color: #60a5fa; font-size: 16px; font-weight: bold; margin: 0 0 12px 0;">🛡️ 策略一：左側黃金坑 (潛伏底)</h5>
                         <ol style="margin: 0; padding-left: 20px; color: #9ca3af; font-size: 13.5px; line-height: 1.6;">
                             <li><strong>流動性降維：</strong>成交額 1000萬~5億元，排除 ETF。</li>
                             <li><strong>技術面尋底：</strong>股價在季線下方，且橫盤築底未破底。</li>
                             <li><strong>主力吃貨與評分：</strong>近 5 日法人買盤佔比 > 2.0%。依 RSI 底背離等加分。</li>
-                            <li><strong>無痕停利損：</strong>上榜逾 30 天、獲利達 +15%、或跌破 -10% 時除名。</li>
+                            <li><strong>無痕停利損：</strong>上榜逾 30 天或跌破 -10% 時除名。</li>
                         </ol>
                     </div>
 
@@ -379,14 +386,13 @@
                             <li><strong>資金熱區初選：</strong>成交額 > 1億元，現價 > 10元，且當日收紅。</li>
                             <li><strong>大戶業績定錨：</strong>最新營收 YoY > 10%，近 5 日法人買超 > 3億元。</li>
                             <li><strong>避雷針防護：</strong>若上影線大於實體 1.5 倍 (假突破出貨)，絕對淘汰。</li>
-                            <li><strong>無痕停利損：</strong>上榜逾 30 天、獲利達 +20%、或跌破 -8% 時除名。</li>
+                            <li><strong>無痕停利損：</strong>上榜逾 30 天或跌破 -8% 時除名。</li>
                         </ol>
                     </div>
-
                 </div>                
 
             </div>
         </div>
     </div>
-    </body>
+</body>
 </html>
