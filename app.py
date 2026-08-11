@@ -571,6 +571,7 @@ def check_stock_worker_turbo(item):
             "first_price": first_price,         
             "period_profit": period_profit,
             "m_score": item_data.get('m_score', 0) # 👈 保留分數供後續排序
+            "capital_rank": item_data.get('capital_rank', 'C') # 👈 新增：讀取資金投入級別
         }
     except Exception as e: 
         print(f"Worker Error: {e}")
@@ -609,9 +610,18 @@ def scan_recommendations_turbo(filter_type=None):
     for res in results:
         if res: valid_candidates.append(res)
         
-    # 如果不是抽盲盒，要把遞補上來的球員再次依照分數排序，確保最強的在前面
+    # 如果不是抽盲盒，先把球員依照「資金級別」與「分數」雙重排序
     if filter_type != "中小盲盒" and valid_candidates:
-        valid_candidates.sort(key=lambda x: x.get('m_score', 0), reverse=True)
+        rank_order = {"S": 0, "A": 1, "B": 2, "C": 3}
+        valid_candidates.sort(
+            key=lambda x: (
+                rank_order.get(x.get('capital_rank', 'C'), 3), # 第一優先：資金級別
+                -x.get('m_score', 0)                           # 第二優先：動能總分
+            )
+        )
+        
+    # 最終只回傳 5 檔
+    return valid_candidates[:5]
         
     # 最終只回傳 5 檔
     return valid_candidates[:5]
@@ -814,16 +824,21 @@ def handle_message(event):
         for stock in good_stocks:
             default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
             reason = reasons_map.get(stock['code'], default_reason)
-            # 🔥 [修改處 1] 被動防禦提醒 (推薦卡片)：若帶量突破，短評後方附加警語
             if "量增價漲" in stock['signal_str'] or "RSI過熱" in stock['signal_str']:
                 reason += "\n🚨 留意隔日沖倒貨風險"
+                
+            # 👇 新增：轉換資金級別為視覺化標籤
+            rank = stock.get('capital_rank', 'C')
+            rank_icons = {"S": "🟢 S級(優先)", "A": "🔵 A級(試單)", "B": "🟡 B級(觀望)", "C": "🔴 C級(暫避)"}
+            rank_str = rank_icons.get(rank, "🔴 C級(暫避)")
             
             bubble = {
                 "type": "bubble", "size": "hecto",
                 "header": {
                     "type": "box", "layout": "vertical", 
                     "contents": [
-                        {"type": "text", "text": f"{stock['name']} ({stock['code']})", "weight": "bold", "size": "lg", "color": "#ffffff"},
+                        # 👇 修改：把 S/A/B/C 印在股票名稱前面，將 size 從 lg 改為 md 以適應版面
+                        {"type": "text", "text": f"{rank_str} | {stock['name']} ({stock['code']})", "weight": "bold", "size": "md", "color": "#ffffff"},
                         {"type": "text", "text": f"{stock['sector']} | {stock['tag']}", "size": "xxs", "color": "#eeeeee"}
                     ], "backgroundColor": stock['color']
                 },
@@ -966,6 +981,11 @@ def handle_message(event):
                     # 🔥 新增：從全域變數 STOCK_META 抓取這檔股票的產業別
                     sector = STOCK_META.get(item['code'], {}).get('sector', '台股市場')
 
+                    # 👇 新增：讀取左側資金級別並轉換為視覺標籤
+                    rank = item.get('capital_rank', 'C')
+                    rank_icons = {"S": "🟢 S級(優先)", "A": "🔵 A級(試單)", "B": "🟡 B級(觀望)", "C": "🔴 C級(暫避)"}
+                    rank_str = rank_icons.get(rank, "🔴 C級(暫避)")
+
                     bubble = {
                         "type": "bubble", "size": "hecto",
                         "header": {
@@ -973,7 +993,8 @@ def handle_message(event):
                                 # 🌟 第一排：名稱與現價
                                 {
                                     "type": "box", "layout": "horizontal", "contents": [
-                                        {"type": "text", "text": f"{item['name']} ({item['code']})", "weight": "bold", "size": "lg", "color": "#ffffff", "flex": 1},
+                                        # 👇 修改：將 S/A/B/C 級別加入卡片標題，並將 size 從 lg 改為 md 避免斷行
+                                        {"type": "text", "text": f"{rank_str} | {item['name']} ({item['code']})", "weight": "bold", "size": "md", "color": "#ffffff", "flex": 1},
                                         {"type": "text", "text": f"現價 {current_price}", "weight": "bold", "size": "md", "color": "#ffffff", "align": "end", "flex": 1}
                                     ]
                                 },
