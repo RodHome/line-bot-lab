@@ -570,7 +570,7 @@ def check_stock_worker_turbo(item):
             "first_date": first_date,           
             "first_price": first_price,         
             "period_profit": period_profit,
-            "m_score": item_data.get('m_score', 0) # 👈 保留分數供後續排序
+            "m_score": item_data.get('m_score', 0),  # 👈 保留分數供後續排序
             "capital_rank": item_data.get('capital_rank', 'C') # 👈 新增：讀取資金投入級別
         }
     except Exception as e: 
@@ -620,8 +620,6 @@ def scan_recommendations_turbo(filter_type=None):
             )
         )
         
-    # 最終只回傳 5 檔
-    return valid_candidates[:5]
         
     # 最終只回傳 5 檔
     return valid_candidates[:5]
@@ -640,6 +638,7 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
+    global TWSE_CACHE
     msg = event.message.text.strip()
     #🔥 [效能優化] 零成本引導教學攔截
     if msg in ["如何評估", "如何診斷"]:
@@ -779,7 +778,7 @@ def handle_message(event):
         # 🔥 修正：右側動能飆股的首張導覽卡片 (加入網頁連結與正確的換一批)
         tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
         update_str = tw_now.strftime('%Y-%m-%d')
-        global TWSE_CACHE
+        
         if TWSE_CACHE.get('data') and isinstance(TWSE_CACHE['data'], list) and len(TWSE_CACHE['data']) > 0:
             update_str = TWSE_CACHE['data'][0].get('date', update_str)
             
@@ -930,7 +929,7 @@ def handle_message(event):
                 return # 🔥 必須加上這行：回覆後立刻中斷函式
             else:
                 bubbles = []
-                # 🛡️ 首張導覽與時間卡片
+                
                 # 🛡️ 首張導覽與時間卡片
                 info_bubble = {
                     "type": "bubble", "size": "hecto",
