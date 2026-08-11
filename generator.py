@@ -36,6 +36,43 @@ def calculate_rsi(prices, period=14):
     rs = avg_gain / avg_loss
     return round(100 - (100 / (1 + rs)), 1)
 
+# ==========================================
+# 🆕 雙引擎資金投入優先度 (S/A/B/C) 判定邏輯
+# ==========================================
+def get_right_capital_rank(price, ma5, ma20, high_20d, vol_ratio, bias20, is_break_reversal=False):
+    """右側動能：突破與趨勢判定"""
+    if price < ma5 or is_break_reversal:
+        return "C"
+    
+    is_trend_up = (price > ma5) and (price > ma20) and (ma5 > ma20)
+    is_breakout = (price >= high_20d)
+    is_near_breakout = (price >= high_20d * 0.97) 
+    
+    if is_trend_up and is_breakout and vol_ratio >= 1.5 and bias20 < 15.0:
+        return "S" # 剛起漲、爆量突破
+    elif is_trend_up and (is_breakout or is_near_breakout) and bias20 < 25.0:
+        return "A" # 趨勢確立，可追擊
+    elif bias20 < 35.0:
+        return "B" # 強勢但乖離高，等回檔
+    else:
+        return "C" # 過熱或轉弱
+
+def get_left_capital_rank(is_above_5ma, is_strong_reversal, is_anti_knife, is_breaking_low, bias60, rsi_yest, rsi_today, buy_days_5d, eps):
+    """左側潛伏：防守與反轉判定"""
+    if eps is not None and eps < 0 and buy_days_5d < 4:
+        return "C" # 虧損且無大人照顧，危險
+    
+    if is_above_5ma and is_strong_reversal and (rsi_today > rsi_yest) and buy_days_5d >= 3:
+        return "S" # 站上5MA、強力反轉、RSI向上、籌碼集中
+    if not is_above_5ma and is_anti_knife and buy_days_5d >= 3:
+        return "A" # 未過5MA，但出防守K線與籌碼進駐
+    if not is_above_5ma and is_breaking_low and not is_anti_knife:
+        if bias60 < -8.0: 
+            return "B" # 嚴重超跌但無防守，嚴格觀望
+        return "C" # 破底無支撐
+    
+    return "A" if is_above_5ma else "B"
+
 def merge_history_data(today_data, file_name, sort_key):
     history_dict = {}
     if os.path.exists(file_name):
@@ -80,7 +117,6 @@ def merge_history_data(today_data, file_name, sort_key):
     return final_list
 
 def get_finmind_chips(code):
-    """查詢近 5 日法人買超張數 (抗長假 30 天版)"""
     start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
@@ -101,7 +137,6 @@ def get_finmind_chips(code):
     except: return None, None
 
 def get_finmind_revenue_yoy(code):
-    """查詢營收，自動對齊去年同月"""
     start = (datetime.now() - timedelta(days=480)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     default_res = {
@@ -304,8 +339,11 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                 try:
                     exchange_type = old_s.get('exchange', '上市')
                     suffix = ".TWO" if exchange_type == '上櫃' else ".TW"
+                    
+                    # 🚀 左側需算 60MA (抓 3mo)，右側需算 20日高 (抓 2mo)
+                    period_val = "2mo" if strategy_type == 'RIGHT' else "3mo"
                     ticker = yf.Ticker(f"{code}{suffix}")
-                    hist = ticker.history(period="1d")
+                    hist = ticker.history(period=period_val)
 
                     if not hist.empty:
                         new_p = round(float(hist['Close'].iloc[-1]), 2)
@@ -327,6 +365,7 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                                 old_s['yield_rate'] = 0.0
                                 old_s['yield_formula'] = "⚠️ 已除息或尚未宣告"
 
+                        # === 右側動能歷史同步 ===
                         if strategy_type == 'RIGHT' and taiwan_50_list:
                             old_s['cap_size'] = "大型權值股" if code in taiwan_50_list else "中小型股"
                             
@@ -348,7 +387,59 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                             if old_s['cap_size'] == "中小型股":
                                 m_score = m_score * 1.2
                             old_s['m_score'] = round(m_score, 2)
+
+                            if len(hist) > 22:
+                                c_price_hist = round(float(hist['Close'].iloc[-1]), 2)
+                                o_price_hist = float(hist['Open'].iloc[-1])
+                                h_price_hist = float(hist['High'].iloc[-1])
+                                ma5_hist = hist['Close'].iloc[-5:].mean()
+                                ma20_hist = hist['Close'].iloc[-20:].mean()
+                                high_20d_hist = hist['Close'].iloc[-21:-1].max()
+                                vol_5ma_hist = hist['Volume'].iloc[-6:-1].mean()
+                                vol_ratio_hist = hist['Volume'].iloc[-1] / vol_5ma_hist if vol_5ma_hist > 0 else 0
+                                bias20_hist = (c_price_hist - ma20_hist) / ma20_hist * 100
+                                
+                                body_hist = abs(c_price_hist - o_price_hist)
+                                upper_shadow_hist = h_price_hist - max(o_price_hist, c_price_hist)
+                                is_break_reversal_hist = body_hist > 0 and (upper_shadow_hist / body_hist) > 1.5
+                                
+                                old_s['capital_rank'] = get_right_capital_rank(c_price_hist, ma5_hist, ma20_hist, high_20d_hist, vol_ratio_hist, bias20_hist, is_break_reversal_hist)
                         
+                        # === 左側價值歷史同步 ===
+                        elif strategy_type == 'LEFT':
+                            if len(hist) >= 60:
+                                closes = hist['Close'].tolist()
+                                c_price_hist = closes[-1]
+                                o_price_hist = float(hist['Open'].iloc[-1])
+                                h_price_hist = float(hist['High'].iloc[-1])
+                                l_price_hist = float(hist['Low'].iloc[-1])
+                                
+                                ma5_hist = sum(closes[-5:]) / 5
+                                ma60_hist = sum(closes[-60:]) / 60
+                                bias60_hist = (c_price_hist - ma60_hist) / ma60_hist * 100
+                                rsi_today_hist = calculate_rsi(closes)
+                                rsi_yest_hist = calculate_rsi(closes[:-1])
+                                
+                                is_above_5ma_hist = c_price_hist > ma5_hist
+                                is_breaking_low_hist = c_price_hist < min(closes[-5:-1])
+                                
+                                body_hist = abs(c_price_hist - o_price_hist)
+                                upper_shadow_hist = h_price_hist - max(o_price_hist, c_price_hist)
+                                lower_shadow_hist = min(o_price_hist, c_price_hist) - l_price_hist
+                                
+                                close_yest_hist = closes[-2]
+                                open_yest_hist = float(hist['Open'].iloc[-2])
+                                is_hammer_hist = (lower_shadow_hist > body_hist * 2.0) and (upper_shadow_hist < body_hist * 0.5)
+                                is_be_hist = (close_yest_hist < open_yest_hist) and (o_price_hist < close_yest_hist) and (c_price_hist > open_yest_hist)
+                                is_strong_rev_hist = is_hammer_hist or is_be_hist
+                                is_anti_knife_hist = lower_shadow_hist > max(body_hist, 0.01) * 1.5
+
+                                old_s['capital_rank'] = get_left_capital_rank(
+                                    is_above_5ma_hist, is_strong_rev_hist, is_anti_knife_hist,
+                                    is_breaking_low_hist, bias60_hist, rsi_yest_hist, rsi_today_hist,
+                                    old_s.get('buy_days', 0), old_s.get('eps', 0)
+                                )
+
                         updated_history.append(old_s) 
                         
                 except Exception as e:
@@ -632,13 +723,11 @@ def generate_daily_recommendations():
                     
                     acc_f, acc_t = get_finmind_chips(code)
                     if acc_f is None: 
-                        print(f"⚠️ {code} 法人籌碼資料缺失，跳過。")
                         continue
                         
                     yoy_data = get_finmind_revenue_yoy(code) 
                     yoy = yoy_data['yoy']
                     if yoy is None:
-                        print(f"⚠️ {code} 營收 YoY 資料缺失，跳過。")
                         continue
                     
                     chips_sum = acc_f + acc_t
@@ -653,29 +742,38 @@ def generate_daily_recommendations():
                         stock_name = meta_info.get('name', '未知名稱')
                         stock_sector = meta_info.get('sector', '未知產業')
                         stock_exchange = item.get('exchange', '未知')
-                        
+                        capital_rank = "C"
+
                         try:
                             suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
-                            hist = yf.Ticker(f"{code}{suffix}").history(period="1mo")
-                            if not hist.empty and len(hist) > 0:
+                            hist = yf.Ticker(f"{code}{suffix}").history(period="2mo")
+                            if not hist.empty and len(hist) > 22:
+                                closes = hist['Close']
+                                volumes = hist['Volume']
+                                
                                 latest_k = hist.iloc[-1]
                                 c_price = latest_k['Close']
                                 o_price = latest_k['Open']
                                 h_price = latest_k['High']
                                 
-                                is_overheated = False
-                                ma20 = hist['Close'].mean()
+                                ma20 = closes.iloc[-20:].mean()
+                                ma5 = closes.iloc[-5:].mean()
                                 bias20 = (c_price - ma20) / ma20 * 100
-                                if bias20 > 15.0:
-                                    print(f"⚠️ {code} 月線乖離過大({bias20:.1f}%)，動能極強但風險高，標記為過熱！")
-                                    is_overheated = True
+                                
+                                vol_today = volumes.iloc[-1]
+                                vol_5ma = volumes.iloc[-6:-1].mean()
+                                vol_ratio = vol_today / vol_5ma if vol_5ma > 0 else 0
+                                
+                                high_20d = closes.iloc[-21:-1].max()
                                 
                                 upper_shadow = h_price - max(o_price, c_price)
                                 body = abs(c_price - o_price)
-                                
-                                if body > 0 and (upper_shadow / body) > 1.5:
+                                is_break_reversal = body > 0 and (upper_shadow / body) > 1.5
+                                if is_break_reversal:
                                     print(f"⚠️ {code} 出現長上影線避雷針，防禦假突破，淘汰！")
                                     continue
+                                
+                                capital_rank = get_right_capital_rank(c_price, ma5, ma20, high_20d, vol_ratio, bias20)
                         except Exception as e:
                             pass
                         
@@ -689,9 +787,6 @@ def generate_daily_recommendations():
                             m_score = m_score * 1.2
                             
                         final_tag = "外資大買" if acc_f > acc_t else "投信作帳"
-                        if is_overheated:
-                            m_score = m_score * 0.8 
-                            final_tag = "🔥過熱妖股"
                             
                         date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
                         _, _, ex_date, _ = get_latest_dividend_info(code, price)
@@ -704,6 +799,7 @@ def generate_daily_recommendations():
                             "sector": stock_sector,
                             "cap_size": stock_cap_size, 
                             "m_score": round(m_score, 2), 
+                            "capital_rank": capital_rank,
                             "ex_dividend_date": ex_date, 
                             "price": price,
                             "turnover": turnover,
@@ -714,6 +810,7 @@ def generate_daily_recommendations():
                             "debug_info": yoy_data['debug_info']
                         })
                 
+                # 第一階段排序，保留 m_score 最高的 15 檔
                 final_list.sort(key=lambda x: x['m_score'], reverse=True)
                 final_list = final_list[:15]
                 print(f"🎉 掃描結束！共 {len(final_list)} 檔符合【高潛力成長飆股】終極標準。")
@@ -761,6 +858,10 @@ def generate_daily_recommendations():
                 continue
                 
             filtered_momentum.append(item)
+
+        # 🚀 最終極雙重排序：S/A/B/C 級別優先，其次為 m_score 動能總分
+        rank_order = {"S": 0, "A": 1, "B": 2, "C": 3}
+        filtered_momentum.sort(key=lambda x: (rank_order.get(x.get('capital_rank', 'C'), 3), -x.get('m_score', 0)))
 
         clean_filtered_momentum = clean_nan(filtered_momentum) 
         with open('daily_recommendations.json', 'w', encoding='utf-8') as f:
@@ -1039,7 +1140,15 @@ def generate_left_side_value():
             continue
             
         entry_price = round(item['price'] * 0.99, 2)
-        print(f"✅ 最終清單入選 | 分數: {score} | {trend_status}")
+        
+        # 🚀 賦予左側資金優先級別
+        capital_rank = get_left_capital_rank(
+            item['is_above_5ma'], item['is_strong_reversal'], item['is_anti_knife'],
+            item['is_breaking_low'], bias_pct, item['rsi_yest'], item['rsi_today'],
+            buy_days_5d, eps
+        )
+
+        print(f"✅ 最終清單入選 | 級別: {capital_rank} | 分數: {score} | {trend_status}")
 
         final_list.append({
             "date": item['real_date'],
@@ -1048,6 +1157,7 @@ def generate_left_side_value():
             "price": item['price'],
             "exchange": "上市" if item.get('market') == 'TW' else "上櫃",
             "score": score,
+            "capital_rank": capital_rank,
             "trend_status": trend_status,
             "entry_price": entry_price,
             "ex_dividend_date": ex_date,  
@@ -1105,6 +1215,10 @@ def generate_left_side_value():
                 continue
                 
             filtered_list.append(item)
+
+        # 🚀 最終極雙重排序：左側同享資金優先級別排序機制
+        rank_order = {"S": 0, "A": 1, "B": 2, "C": 3}
+        filtered_list.sort(key=lambda x: (rank_order.get(x.get('capital_rank', 'C'), 3), -x.get('score', 0)))
 
         clean_filtered_list = clean_nan(filtered_list) 
         with open('left_side_value.json', 'w', encoding='utf-8') as f:
