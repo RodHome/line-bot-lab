@@ -1,6 +1,6 @@
 [
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "3260",
         "name": "威剛",
         "exchange": "上櫃",
@@ -26,7 +26,7 @@
         "first_entry_price": 394.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "2451",
         "name": "創見",
         "exchange": "上市",
@@ -52,32 +52,7 @@
         "first_entry_price": 312.5
     },
     {
-        "date": "2026-08-21",
-        "code": "1402",
-        "name": "遠東新",
-        "exchange": "上市",
-        "sector": "紡織纖維",
-        "cap_size": "中小型股",
-        "m_score": 81.71,
-        "price": 30.35,
-        "turnover": 719146532.0,
-        "chips_display": "71306張 (21.6億)",
-        "buy_value": 2164137100.0,
-        "yoy": 12.06,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 22922082000,
-            "last_rev": 20454748000,
-            "this_period": "2026/6",
-            "last_period": "2025/6",
-            "formula": "(22922082000 - 20454748000) / 20454748000"
-        },
-        "first_entry_date": "2026-07-24",
-        "first_entry_price": 27.35,
-        "capital_rank": "S"
-    },
-    {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "2344",
         "name": "華邦電",
         "exchange": "上市",
@@ -128,7 +103,7 @@
         "first_entry_price": 255.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "2408",
         "name": "南亞科",
         "exchange": "上市",
@@ -154,7 +129,7 @@
         "first_entry_price": 436.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "2637",
         "name": "慧洋-KY",
         "exchange": "上市",
@@ -205,33 +180,7 @@
         "first_entry_price": 43.25
     },
     {
-        "date": "2026-08-22",
-        "code": "2609",
-        "name": "陽明",
-        "exchange": "上市",
-        "sector": "航運",
-        "cap_size": "中小型股",
-        "m_score": 122.21,
-        "capital_rank": "A",
-        "ex_dividend_date": null,
-        "price": 64.0,
-        "turnover": 12586936035.0,
-        "chips_display": "161593張 (103.4億)",
-        "buy_value": 10341952000.0,
-        "yoy": 34.56,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 20836075000,
-            "last_rev": 15484403000,
-            "this_period": "2026/7",
-            "last_period": "2025/7",
-            "formula": "(20836075000 - 15484403000) / 15484403000"
-        },
-        "first_entry_date": "2026-07-24",
-        "first_entry_price": 51.5
-    },
-    {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "2603",
         "name": "長榮",
         "exchange": "上市",
@@ -305,31 +254,6 @@
         },
         "first_entry_date": "2026-08-07",
         "first_entry_price": 231.0
-    },
-    {
-        "date": "2026-08-21",
-        "code": "2890",
-        "name": "永豐金",
-        "exchange": "上市",
-        "sector": "金融保險業",
-        "cap_size": "大型權值股",
-        "m_score": 81.86,
-        "price": 39.6,
-        "turnover": 1546185180.0,
-        "chips_display": "2754張 (1.1億)",
-        "buy_value": 109058400.0,
-        "yoy": 50.94,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 9682886000,
-            "last_rev": 6414943000,
-            "this_period": "2026/6",
-            "last_period": "2025/6",
-            "formula": "(9682886000 - 6414943000) / 6414943000"
-        },
-        "first_entry_date": "2026-07-24",
-        "first_entry_price": 38.55,
-        "capital_rank": "A"
     },
     {
         "date": "2026-08-21",
@@ -407,7 +331,7 @@
         "first_entry_price": 2405.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "5289",
         "name": "宜鼎",
         "exchange": "上櫃",
@@ -433,7 +357,7 @@
         "first_entry_price": 1530.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "6213",
         "name": "聯茂",
         "exchange": "上市",
@@ -459,7 +383,7 @@
         "first_entry_price": 427.5
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "3081",
         "name": "聯亞",
         "exchange": "上櫃",
@@ -510,7 +434,7 @@
         "first_entry_price": 4340.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "1815",
         "name": "富喬",
         "exchange": "上櫃",
@@ -586,7 +510,7 @@
         "first_entry_price": 91.2
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "2426",
         "name": "鼎元",
         "exchange": "上市",
@@ -712,7 +636,7 @@
         "first_entry_price": 69.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "6505",
         "name": "台塑化",
         "exchange": "上市",
@@ -1065,7 +989,7 @@
         "first_entry_price": 634.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "2615",
         "name": "萬海",
         "exchange": "上市",
@@ -1217,7 +1141,7 @@
         "first_entry_price": 924.0
     },
     {
-        "date": "2026-08-22",
+        "date": "2026-08-23",
         "code": "3532",
         "name": "台勝科",
         "exchange": "上市",
