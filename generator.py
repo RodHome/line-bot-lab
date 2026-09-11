@@ -13,9 +13,8 @@ import math
 # 統一台灣時區基準
 TW_TZ = timezone(timedelta(hours=8))
 
-# 由環境變數讀取 Token，杜絕明文外洩
-GUEST_TOKEN = os.environ.get("FINMIND_GUEST_TOKEN", "") 
-VIP_TOKEN = os.environ.get("FINMIND_TOKEN", "")
+# 統一與 app.py 共用相同的環境變數
+FINMIND_TOKEN = os.environ.get("FINMIND_TOKEN", "")
 
 def clean_nan(data):
     if isinstance(data, list):
@@ -124,7 +123,7 @@ def get_finmind_chips(code):
     start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
         if res.status_code != 200: return None, None
         data = res.json().get('data', [])
         if not data: return None, None
@@ -149,7 +148,7 @@ def get_finmind_revenue_yoy(code):
     }
     
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
         if res.status_code != 200: return default_res
         data = res.json().get('data', [])
         
@@ -190,7 +189,7 @@ def get_finmind_chips_history(code, days=3):
     url = "https://api.finmindtrade.com/api/v4/data"
     history = []
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
         if res.status_code != 200: return None
         data = res.json().get('data', [])
         if not data: return None
@@ -219,7 +218,7 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start, "token": GUEST_TOKEN}, timeout=5)
+        res = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=5)
         if res.status_code == 200:
             data = res.json().get('data', [])
             eps_data = [d for d in data if d['type'] == 'EPS']
@@ -232,7 +231,7 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
         return eps_latest, yield_rate, annual_div
 
     try:
-        res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": VIP_TOKEN}, timeout=10)
+        res_div = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
         if res_div.status_code == 200:
             data_div = res_div.json().get('data', [])
             if data_div:
@@ -279,7 +278,7 @@ def get_latest_dividend_info(code, current_price):
     url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
-        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start_date, "token": VIP_TOKEN}, timeout=10)
+        res = requests.get(url, params={"dataset": "TaiwanStockDividend", "data_id": code, "start_date": start_date, "token": FINMIND_TOKEN}, timeout=10)
         data = res.json().get('data', [])
         if not data:
             return yield_rate, formula, ex_date_for_json, is_upcoming
