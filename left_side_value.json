@@ -70,6 +70,29 @@
     },
     {
         "date": "2026-09-11",
+        "code": "8936",
+        "name": "國統",
+        "price": 50.7,
+        "exchange": "上櫃",
+        "score": 110,
+        "capital_rank": "A",
+        "trend_status": "🔥 L1_左側起漲",
+        "entry_price": 50.19,
+        "ex_dividend_date": "2026-10-22",
+        "bias60": "-4.9%",
+        "bias24": "-0.4%",
+        "bias6": "0.2%",
+        "vol_ratio": "63.2%",
+        "eps": 0.88,
+        "yield_rate": 5.92,
+        "yield_formula": "最新宣告(114年): 3.0 / 現價 50.7",
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-11",
+        "first_entry_price": 50.7
+    },
+    {
+        "date": "2026-09-11",
         "code": "1503",
         "name": "士電",
         "price": 202.0,
@@ -285,7 +308,6 @@
         "capital_rank": "A",
         "trend_status": "🔥 L1_左側起漲",
         "entry_price": 11.88,
-        "ex_dividend_date": null,
         "bias60": "-2.3%",
         "bias24": "0.1%",
         "bias6": "0.0%",
@@ -296,7 +318,8 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-08-14",
-        "first_entry_price": 12.05
+        "first_entry_price": 12.05,
+        "sector": "建材營造業"
     },
     {
         "date": "2026-09-11",
