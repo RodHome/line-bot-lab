@@ -253,18 +253,33 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
                         valid_cash_records.append({'date': d.get('date'), 'cash': total})
                 
                 if valid_cash_records:
+                    is_etf = str(code).startswith('00')
                     valid_cash_records = sorted(valid_cash_records, key=lambda x: x['date'], reverse=True)
-                    latest_cash = valid_cash_records[0]['cash']
-                    multiplier = 1
-                    if len(valid_cash_records) >= 2:
-                        d_new = datetime.strptime(valid_cash_records[0]['date'], '%Y-%m-%d')
-                        d_old = datetime.strptime(valid_cash_records[1]['date'], '%Y-%m-%d')
-                        days_diff = (d_new - d_old).days
-                        if days_diff <= 45: multiplier = 12
-                        elif days_diff <= 120: multiplier = 4
-                        elif days_diff <= 240: multiplier = 2
                     
-                    annual_div = round(latest_cash * multiplier, 3)
+                    if is_etf:
+                        # 🟢 ETF 邏輯：依除息頻率動態推算年化配息
+                        latest_cash = valid_cash_records[0]['cash']
+                        multiplier = 1
+                        if len(valid_cash_records) >= 2:
+                            d_new = datetime.strptime(valid_cash_records[0]['date'], '%Y-%m-%d')
+                            d_old = datetime.strptime(valid_cash_records[1]['date'], '%Y-%m-%d')
+                            days_diff = (d_new - d_old).days
+                            if days_diff <= 45: multiplier = 12
+                            elif days_diff <= 120: multiplier = 4
+                            elif days_diff <= 240: multiplier = 2
+                        annual_div = round(latest_cash * multiplier, 3)
+                    else:
+                        # 🟢 普通股票邏輯：絕不乘倍數，統計近一年內發放之現金股利加總
+                        # 取最新一筆配息所屬年份，加總該年份宣告之所有現金股利
+                        target_year = data_div[-1].get('year') or valid_cash_records[0]['date'][:4]
+                        same_year_records = [
+                            float(d.get('CashEarningsDistribution') or 0) + 
+                            float(d.get('CashStatutorySurplus') or 0) + 
+                            float(d.get('CashCapitalReserve') or 0)
+                            for d in data_div if str(d.get('year', '') or d.get('date', '')[:4]) == str(target_year)
+                        ]
+                        annual_div = round(sum(same_year_records), 3) if same_year_records else round(valid_cash_records[0]['cash'], 3)
+                    
                     if current_price > 0:
                         yield_rate = round((annual_div / current_price) * 100, 2)
     except: pass
