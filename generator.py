@@ -10,8 +10,12 @@ import yfinance as yf
 import math   
 
 # 🔥 雙鑰匙負載平衡系統
-GUEST_TOKEN = "" 
-VIP_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xOCAxOToyODoyNCIsInVzZXJfaWQiOiJyb2Q3NDEwMDEyIiwiZW1haWwiOiJyb2Q3NDEwMDFAZ21haWwuY29tIiwiaXAiOiIxMjIuMTE2LjE1OS4xMzQifQ.qmaLCfxjbwXRYo8TwFZKboTfmAADIMs0CWw-oPUJU4g"
+# 統一台灣時區基準
+TW_TZ = timezone(timedelta(hours=8))
+
+# 由環境變數讀取 Token，杜絕明文外洩
+GUEST_TOKEN = os.environ.get("FINMIND_GUEST_TOKEN", "") 
+VIP_TOKEN = os.environ.get("FINMIND_VIP_TOKEN", "")
 
 def clean_nan(data):
     if isinstance(data, list):
