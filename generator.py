@@ -15,7 +15,7 @@ TW_TZ = timezone(timedelta(hours=8))
 
 # 由環境變數讀取 Token，杜絕明文外洩
 GUEST_TOKEN = os.environ.get("FINMIND_GUEST_TOKEN", "") 
-VIP_TOKEN = os.environ.get("FINMIND_VIP_TOKEN", "")
+VIP_TOKEN = os.environ.get("FINMIND_TOKEN", "")
 
 def clean_nan(data):
     if isinstance(data, list):
