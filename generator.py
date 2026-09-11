@@ -16,6 +16,13 @@ TW_TZ = timezone(timedelta(hours=8))
 # 統一與 app.py 共用相同的環境變數
 FINMIND_TOKEN = os.environ.get("FINMIND_TOKEN", "")
 
+# 🔍 Token 讀取驗證（打馬賽克保護安全）
+if not FINMIND_TOKEN:
+    print("❌ [Token 檢查失敗] 系統未取得 FINMIND_TOKEN，請檢查 GitHub Secrets 或環境變數設定！")
+else:
+    masked = FINMIND_TOKEN[:6] + "..." + FINMIND_TOKEN[-4:] if len(FINMIND_TOKEN) > 10 else "***"
+    print(f"🔑 [Token 檢查成功] 已順利載入 FINMIND_TOKEN ({masked})，長度: {len(FINMIND_TOKEN)}")
+
 def clean_nan(data):
     if isinstance(data, list):
         return [clean_nan(item) for item in data]
