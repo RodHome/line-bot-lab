@@ -30,6 +30,8 @@ jobs:
         pip install requests pandas lxml html5lib yfinance
 
     - name: Run generator (執行爬蟲)
+      env:
+        FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
       run: |
         python generator.py
         # python generator_test.py
