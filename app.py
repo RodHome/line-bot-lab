@@ -1818,8 +1818,13 @@ def handle_message(event):
             if live_bias20 > 10:
                 anti_shake_msg += f"📈 【位階】月線乖離達 {live_bias20:.1f}%，屬極度強勢區，短線獲利了結賣壓出籠為正常現象。\n"
                 
-        defense_price = ma10 if live_price > ma10 else ma20
-        anti_shake_msg += f"🛡️ 【防守】波段防守價為 {defense_price} 元。收盤不破此價位，盤中震盪皆視為洗盤，建議抱緊處理！\n"
+        if ma10 > 0 and ma20 > 0:
+            if live_price > ma10:
+                anti_shake_msg += f"🛡️ 【防守】波段防守價為 {ma10} 元 (10MA)。收盤不破此價位，盤中震盪皆視為洗盤，建議抱緊處理！\n"
+            elif live_price > ma20:
+                anti_shake_msg += f"🛡️ 【防守】短線跌破10MA，防守退至月線 {ma20} 元。未跌破前仍屬多頭整理，可續抱觀察。\n"
+            else:
+                anti_shake_msg += f"🚨 【防守】現價已跌破月線 {ma20} 元！短線趨勢轉弱，請留意出場時機或嚴防回測季線。\n"
 
         # --- 處理底部排版與斷行 ---
         final_banner = f"{history_banner}\n" if history_banner else ""
