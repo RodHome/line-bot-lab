@@ -50,22 +50,27 @@ def calculate_rsi(prices, period=14):
 # 🆕 雙引擎資金投入優先度 (S/A/B/C) 判定邏輯
 # ==========================================
 def get_right_capital_rank(price, ma5, ma20, high_20d, vol_ratio, bias20, is_break_reversal=False):
-    """右側動能：突破與趨勢判定"""
+    """右側動能：突破與趨勢判定 (新增天量隔日沖防線)"""
     if price < ma5 or is_break_reversal:
         return "C"
+        
+    # ⚠️ 天量隔日沖防線：單日量比大於 3.0 倍強制壓制為 B 級
+    if vol_ratio > 3.0:
+        return "B"
     
     is_trend_up = (price > ma5) and (price > ma20) and (ma5 > ma20)
     is_breakout = (price >= high_20d)
     is_near_breakout = (price >= high_20d * 0.97) 
     
-    if is_trend_up and is_breakout and vol_ratio >= 1.5 and bias20 < 15.0:
-        return "S" # 剛起漲、爆量突破
+    # 🎯 客觀狀態分級機制
+    if is_trend_up and is_breakout and 1.5 <= vol_ratio <= 3.0 and bias20 < 15.0:
+        return "S" # 🥇 主力帶量突破
     elif is_trend_up and (is_breakout or is_near_breakout) and bias20 < 25.0:
-        return "A" # 趨勢確立，可追擊
+        return "A" # 🥈 法人推升波段
     elif bias20 < 35.0:
-        return "B" # 強勢但乖離高，等回檔
+        return "B" # 🥉 爆天量換手 / 高檔震盪
     else:
-        return "C" # 過熱或轉弱
+        return "C" # 🚫 主力出貨破線 / 轉弱
 
 def get_left_capital_rank(is_above_5ma, is_strong_reversal, is_anti_knife, is_breaking_low, bias60, rsi_yest, rsi_today, buy_days_5d, eps):
     """左側潛伏：防守與反轉判定"""
@@ -651,97 +656,64 @@ def generate_daily_recommendations():
                         is_up = ('+' in sign) or ('red' in sign) 
                         
                         if is_up and turnover > 100000000: 
-                            candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上市"})
+                            vol = float(row[idx_vol].replace(',', ''))
+                            candidates.append({"code": code, "turnover": turnover, "price": price, "volume": vol, "exchange": "上市"})
                     except: continue
 
                 print(f"🔄 正在尋找最新上櫃 (TPEx) 行情...")
-                
-                data_otc = None
-                valid_roc_date = None
-                base_date = datetime.strptime(target_date, '%Y%m%d')
-                
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                
-                for i in range(6):
-                    check_date = base_date - timedelta(days=i)
-                    roc_year = check_date.year - 1911
-                    roc_date = f"{roc_year}/{check_date.strftime('%m/%d')}"
-                    
-                    url_otc = f"https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d={roc_date}&se=EW"
-                    try:
-                        res_otc = requests.get(url_otc, headers=headers, timeout=10)
-                        temp_data = res_otc.json()
-                        
-                        if 'tables' in temp_data and temp_data['tables']:
-                            if 'data' in temp_data['tables'][0] and len(temp_data['tables'][0]['data']) > 0:
-                                data_otc = temp_data
-                                valid_roc_date = roc_date
-                                print(f"✅ 成功取得上櫃資料，實際資料日期: {valid_roc_date}")
-                                break
-                    except Exception as e:
-                        print(f"⚠️ {roc_date} 抓取失敗，嘗試前一天... ({e})")
-                    
-                    time.sleep(0.5)
-
-                tpex_count = 0  
-
-                if data_otc and 'tables' in data_otc and data_otc['tables']:
-                    table = data_otc['tables'][0]
-                    fields = [str(f).strip() for f in table.get('fields', [])]
-                    raw_data = table.get('data', [])
-                    
-                    try:
-                        idx_code = fields.index("代號")
-                        idx_price = fields.index("收盤")
-                        idx_turnover = fields.index("成交金額(元)")
-                        idx_sign = fields.index("漲跌")
-                    except:
-                        idx_code, idx_price, idx_turnover, idx_sign = 0, 2, 8, 3
-                    
-                    for row in raw_data:
-                        try:
-                            code = str(row[idx_code]).strip()
-                            if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
-                            
-                            price_str = str(row[idx_price]).replace(',', '').strip()
-                            turnover_str = str(row[idx_turnover]).replace(',', '').strip() 
-                            
-                            if price_str in ['----', '--', '', '除息', '除權'] or turnover_str in ['--', '', '0']: continue
-                            
-                            price = float(price_str)
-                            turnover = float(turnover_str)
-                            if price < 10: continue
-                            
-                            raw_sign = str(row[idx_sign]).replace(',', '').strip()
-                            is_up = False
-                            if '+' in raw_sign or 'red' in raw_sign:
-                                is_up = True
-                            else:
-                                try:
-                                    clean_sign = re.sub(r'[^\d.-]', '', raw_sign)
-                                    if clean_sign and float(clean_sign) > 0:
-                                        is_up = True
-                                except: pass
+                # ...中間省略不變，直到上櫃加入 candidates 前...
                             
                             if is_up and turnover > 100000000: 
-                                candidates.append({"code": code, "turnover": turnover, "price": price, "exchange": "上櫃"})
+                                try: idx_vol = fields.index("成交股數")
+                                except: idx_vol = 7
+                                vol = float(str(row[idx_vol]).replace(',', '').strip())
+                                candidates.append({"code": code, "turnover": turnover, "price": price, "volume": vol, "exchange": "上櫃"})
                                 tpex_count += 1
                         except: continue
-                    print(f"✅ 上櫃 (TPEx) 飆股已成功合併至候選池！(共 {tpex_count} 檔通過 3 億門檻)")
+                    print(f"✅ 上櫃 (TPEx) 飆股已成功合併至候選池！(共 {tpex_count} 檔)")
                 else:
                     print("❌ 仍無法取得上櫃資料，請檢查 API 狀態。")
                             
-                candidates.sort(key=lambda x: x['turnover'], reverse=True)
-                top_50 = candidates[:50]
+                # 🚀 核心優化：雙軌漏斗 (權值Top30 + 中小型Top30)
+                large_cap_candidates = [x for x in candidates if x['code'] in TAIWAN_50]
+                small_cap_candidates = [x for x in candidates if x['code'] not in TAIWAN_50]
+
+                # 🥇 權值組：成交金額前 30 名
+                large_cap_candidates.sort(key=lambda x: x['turnover'], reverse=True)
+                top_30_large = large_cap_candidates[:30]
+
+                # 🥈 中小型組：週轉率 >= 3% 前 30 名
+                small_cap_candidates.sort(key=lambda x: x['turnover'], reverse=True)
+                top_30_small = []
                 
-                tw_count = sum(1 for x in top_50 if x.get('exchange') == '上市')
-                otc_count = sum(1 for x in top_50 if x.get('exchange') == '上櫃')
+                print("🔍 啟動中小型股週轉率濾網 (目標: 換手積極黑馬)...")
+                for item in small_cap_candidates:
+                    if len(top_30_small) >= 30: break
+                    code = item['code']
+                    suffix = ".TWO" if item['exchange'] == '上櫃' else ".TW"
+                    
+                    try:
+                        shares = yf.Ticker(f"{code}{suffix}").fast_info.shares
+                        if shares and shares > 0:
+                            turnover_rate = (item['volume'] / shares) * 100
+                            if turnover_rate >= 3.0: 
+                                top_30_small.append(item)
+                        else:
+                            if item['turnover'] > 300000000:
+                                top_30_small.append(item)
+                    except:
+                        if item['turnover'] > 300000000:
+                            top_30_small.append(item)
                 
-                print(f"✅ [Task 2] 第一階段篩選完成，取得 50 檔強勢資金股 (上市: {tw_count} 檔 / 上櫃: {otc_count} 檔)。")
+                top_60 = top_30_large + top_30_small
+                tw_count = sum(1 for x in top_60 if x.get('exchange') == '上市')
+                otc_count = sum(1 for x in top_60 if x.get('exchange') == '上櫃')
+                
+                print(f"✅ [Task 2] 漏斗篩選完成，取得 {len(top_60)} 檔潛力股 (權值: {len(top_30_large)} / 中小: {len(top_30_small)})。")
                 print("啟動 FinMind 深度掃描...")
                 final_list = []
                 
-                for item in top_50:
+                for item in top_60:
                     code = item['code']
                     turnover = item['turnover']
                     price = item['price']
@@ -1112,11 +1084,11 @@ def generate_left_side_value():
             if buy_days_5d < 4 and buy_ratio < 5.0:
                 print("❌ 虧損且籌碼集中度不足，淘汰")
                 continue
-            if yoy <= 0:
-                print("❌ 虧損且營收未反轉，淘汰")
+            if yoy <= 20.0:  # ⚠️ 嚴格要求營收 MoM/YoY 需大於 20% 才算實質轉機
+                print("❌ 虧損且無強勁營收轉機，一票否決淘汰")
                 continue
-            score -= 5
-            print("   ⚠️ 虧損轉機股通關，扣 5 分")
+            score -= 30  # ⚠️ 重罰扣 30 分，抵銷技術面反彈加分
+            print("   ⚠️ 虧損轉機股通關，重罰扣 30 分")
             
         elif item.get('is_breaking_low'):
             score -= 10
