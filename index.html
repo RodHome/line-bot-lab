@@ -198,13 +198,13 @@
                     capBadgeHtml = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-orange-900/50 text-orange-300 border border-orange-700/50 ml-2">🚀 中小型</span>`;
                 }
 
-                // 產生資金投入順位 Badge
+                // 產生資金投入順位 Badge (同步最新客觀狀態)
                 let rankBadgeHtml = '';
                 const rank = s.capital_rank || 'C';
-                if (rank === 'S') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">🟢 S級 (優先)</span>`;
-                else if (rank === 'A') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-blue-500 text-white shadow-lg shadow-blue-500/30">🔵 A級 (試單)</span>`;
-                else if (rank === 'B') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-yellow-500 text-white shadow-lg shadow-yellow-500/30">🟡 B級 (觀望)</span>`;
-                else rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-slate-600 text-white shadow-lg shadow-slate-600/30">🔴 C級 (暫避)</span>`;
+                if (rank === 'S') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">🥇 S級｜主力帶量突破</span>`;
+                else if (rank === 'A') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-blue-500 text-white shadow-lg shadow-blue-500/30">🥈 A級｜法人推升波段</span>`;
+                else if (rank === 'B') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-yellow-500 text-white shadow-lg shadow-yellow-500/30">🟡 B級｜爆天量換手</span>`;
+                else rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-slate-600 text-white shadow-lg shadow-slate-600/30">🔴 C級｜主力出貨破線</span>`;
 
                 html += `
                 <div class="card rounded-2xl p-6 flex flex-col h-full relative overflow-hidden border ${rank === 'S' ? 'border-emerald-500/50' : (rank === 'A' ? 'border-blue-500/30' : 'border-slate-800')}">
@@ -322,34 +322,34 @@
                 <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #10b981; border-radius: 2px;"></span>動態資金投入級別 (Capital Rank)</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px;">
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #10b981;">🟢 S級 (優先投入)</strong></div>
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #10b981;">🥇 S級｜主力帶量突破</strong></div>
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
-                            <strong>【右側】</strong>剛爆量突破 20 日高點、趨勢確立且月線乖離低於 15%。<br>
+                            <strong>【右側】</strong>法人主力同步建倉，量能溫和(1.5~3倍)且剛突破平台，尚未過度發酵。<br>
                             <strong>【左側】</strong>站回 5MA、帶長下影線反轉、RSI向上且法人連買。<br>
-                            <span style="color: #f9fafb; font-weight: bold;">(最值得立即配置新資金的黃金買點)</span>
+                            <span style="color: #f9fafb; font-weight: bold;">(初期發動結構，籌碼最乾淨)</span>
                         </p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #3b82f6;">🔵 A級 (分批試單)</strong></div>
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #3b82f6;">🥈 A級｜法人推升波段</strong></div>
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
-                            <strong>【右側】</strong>已突破但乖離略增(15-25%)，趨勢保護。<br>
+                            <strong>【右側】</strong>均線多頭排列、常態推升中，但已累積一定漲幅。<br>
                             <strong>【左側】</strong>尚未過 5MA，但大資金介入防守(下影線+連買)。<br>
-                            <span style="color: #f9fafb; font-weight: bold;">(具備實戰空間，建議拆分資金試單)</span>
+                            <span style="color: #f9fafb; font-weight: bold;">(趨勢強韌，可等量縮拉回再佈局)</span>
                         </p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f59e0b;">🟡 B級 (嚴格觀望)</strong></div>
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #f59e0b;">🟡 B級｜爆天量換手</strong></div>
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
-                            <strong>【右側】</strong>基本面強勢但短線過熱(乖離25-35%)。<br>
-                            <strong>【左側】</strong>極度超跌(季線乖離<-8%) 但毫無防守訊號。<br>
-                            <span style="color: #f9fafb; font-weight: bold;">(漲幅過大，追價風險高)</span>
+                            <strong>【右側】</strong>單日爆出 3 倍以上極端天量，疑隔日沖鎖單或高檔換手。<br>
+                            <strong>【左側】</strong>極度超跌但毫無防守訊號。<br>
+                            <span style="color: #f9fafb; font-weight: bold;">(多空劇烈震盪，LINE 不主動推播)</span>
                         </p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #ef4444;">🔴 C級 (暫不投入)</strong></div>
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #ef4444;">🔴 C級｜主力出貨破線</strong></div>
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
-                            跌破 5MA、帶長上影線突破失敗 (右側假突破避雷針)、或基本面與籌碼雙空。<br>
-                            <span style="color: #f9fafb; font-weight: bold;">(歷史追蹤股若轉弱將被降級至此)</span>
+                            跌破關鍵短均線、法人連續大賣倒貨，或近四季 EPS 虧損之殭屍股。<br>
+                            <span style="color: #f9fafb; font-weight: bold;">(結構破壞或無基本面，系統直接隱藏剔除)</span>
                         </p>
                     </div>
                 </div>
