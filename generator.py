@@ -661,11 +661,79 @@ def generate_daily_recommendations():
                     except: continue
 
                 print(f"🔄 正在尋找最新上櫃 (TPEx) 行情...")
-                # ...中間省略不變，直到上櫃加入 candidates 前...
+                
+                data_otc = None
+                valid_roc_date = None
+                base_date = datetime.strptime(target_date, '%Y%m%d')
+                
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                
+                for i in range(6):
+                    check_date = base_date - timedelta(days=i)
+                    roc_year = check_date.year - 1911
+                    roc_date = f"{roc_year}/{check_date.strftime('%m/%d')}"
+                    
+                    url_otc = f"https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d={roc_date}&se=EW"
+                    try:
+                        res_otc = requests.get(url_otc, headers=headers, timeout=10)
+                        temp_data = res_otc.json()
+                        
+                        if 'tables' in temp_data and temp_data['tables']:
+                            if 'data' in temp_data['tables'][0] and len(temp_data['tables'][0]['data']) > 0:
+                                data_otc = temp_data
+                                valid_roc_date = roc_date
+                                print(f"✅ 成功取得上櫃資料，實際資料日期: {valid_roc_date}")
+                                break
+                    except Exception as e:
+                        print(f"⚠️ {roc_date} 抓取失敗，嘗試前一天... ({e})")
+                    
+                    time.sleep(0.5)
+
+                tpex_count = 0  
+
+                if data_otc and 'tables' in data_otc and data_otc['tables']:
+                    table = data_otc['tables'][0]
+                    fields = [str(f).strip() for f in table.get('fields', [])]
+                    raw_data = table.get('data', [])
+                    
+                    try:
+                        idx_code = fields.index("代號")
+                        idx_price = fields.index("收盤")
+                        idx_turnover = fields.index("成交金額(元)")
+                        idx_sign = fields.index("漲跌")
+                    except:
+                        idx_code, idx_price, idx_turnover, idx_sign = 0, 2, 8, 3
+                    
+                    for row in raw_data:
+                        try:
+                            code = str(row[idx_code]).strip()
+                            if len(code) > 4 or code.startswith('91') or code.startswith('00'): continue 
+                            
+                            price_str = str(row[idx_price]).replace(',', '').strip()
+                            turnover_str = str(row[idx_turnover]).replace(',', '').strip() 
+                            
+                            if price_str in ['----', '--', '', '除息', '除權'] or turnover_str in ['--', '', '0']: continue
+                            
+                            price = float(price_str)
+                            turnover = float(turnover_str)
+                            if price < 10: continue
+                            
+                            raw_sign = str(row[idx_sign]).replace(',', '').strip()
+                            is_up = False
+                            if '+' in raw_sign or 'red' in raw_sign:
+                                is_up = True
+                            else:
+                                try:
+                                    clean_sign = re.sub(r'[^\d.-]', '', raw_sign)
+                                    if clean_sign and float(clean_sign) > 0:
+                                        is_up = True
+                                except: pass
                             
                             if is_up and turnover > 100000000: 
-                                try: idx_vol = fields.index("成交股數")
-                                except: idx_vol = 7
+                                try: 
+                                    idx_vol = fields.index("成交股數")
+                                except: 
+                                    idx_vol = 7
                                 vol = float(str(row[idx_vol]).replace(',', '').strip())
                                 candidates.append({"code": code, "turnover": turnover, "price": price, "volume": vol, "exchange": "上櫃"})
                                 tpex_count += 1
