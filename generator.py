@@ -50,27 +50,28 @@ def calculate_rsi(prices, period=14):
 # 🆕 雙引擎資金投入優先度 (S/A/B/C) 判定邏輯
 # ==========================================
 def get_right_capital_rank(price, ma5, ma20, high_20d, vol_ratio, bias20, is_break_reversal=False):
-    """右側動能：突破與趨勢判定 (新增天量隔日沖防線)"""
-    if price < ma5 or is_break_reversal:
+    """右側動能：突破與趨勢判定 (與AI大腦實戰邏輯對齊)"""
+    # 1. 致命防線：跌破生命線(20MA) 或 爆量假突破避雷針，才打入 C 級
+    if price < ma20 or is_break_reversal:
         return "C"
         
-    # ⚠️ 天量隔日沖防線：單日量比大於 3.0 倍強制壓制為 B 級
-    if vol_ratio > 3.0:
+    # 2. 短線防護：單日量比大於 3.0 倍 (隔日沖) 或 跌破 5MA (量縮回測)，歸類為 B 級觀望
+    if vol_ratio > 3.0 or price < ma5:
         return "B"
     
     is_trend_up = (price > ma5) and (price > ma20) and (ma5 > ma20)
     is_breakout = (price >= high_20d)
     is_near_breakout = (price >= high_20d * 0.97) 
     
-    # 🎯 客觀狀態分級機制
+    # 3. 🎯 客觀狀態分級機制
     if is_trend_up and is_breakout and 1.5 <= vol_ratio <= 3.0 and bias20 < 15.0:
-        return "S" # 🥇 主力帶量突破
+        return "S" # 🥇 帶量突破
     elif is_trend_up and (is_breakout or is_near_breakout) and bias20 < 25.0:
-        return "A" # 🥈 法人推升波段
+        return "A" # 🥈 股價推升中
     elif bias20 < 35.0:
-        return "B" # 🥉 爆天量換手 / 高檔震盪
+        return "B" # 🟡 震盪整理/回測
     else:
-        return "C" # 🚫 主力出貨破線 / 轉弱
+        return "C" # 🚫 技術線型破線
 
 def get_left_capital_rank(is_above_5ma, is_strong_reversal, is_anti_knife, is_breaking_low, bias60, rsi_yest, rsi_today, buy_days_5d, eps):
     """左側潛伏：防守與反轉判定"""
