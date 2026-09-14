@@ -856,7 +856,7 @@ def handle_message(event):
                     {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": stock['code']}, "style": "link", "margin": "md"}
                 ]}
             }
-           bubbles.append(bubble)
+            bubbles.append(bubble)
 
         # 🚨 [新增功能] 歷史庫存降級防護網：抓出過去15天內推薦，但今日轉弱的標的
         try:
