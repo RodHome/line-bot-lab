@@ -584,15 +584,18 @@ def scan_recommendations_turbo(filter_type=None):
     # 確保原始清單照分數排序
     twse_list.sort(key=lambda x: x.get('m_score', 0), reverse=True)
 
+    # 🚫 過濾濾網：強制剔除 B 級與 C 級，只保留 S 與 A 級進入推播名單
+    valid_twse_list = [s for s in twse_list if s.get('capital_rank', 'C') in ['S', 'A']]
+
     # 🔥 新版分類邏輯 (支援 Top5 與 盲盒)
     pool = []
     if filter_type == "權值Top5":
-        pool = [s for s in twse_list if s.get('cap_size') == "大型權值股"]
+        pool = [s for s in valid_twse_list if s.get('cap_size') == "大型權值股"]
     elif filter_type == "中小Top5":
-        pool = [s for s in twse_list if s.get('cap_size') == "中小型股"]
+        pool = [s for s in valid_twse_list if s.get('cap_size') == "中小型股"]
     elif filter_type == "中小盲盒":
         # 排除前 5 名，只取第 6 名以後的來抽盲盒
-        small_caps = [s for s in twse_list if s.get('cap_size') == "中小型股"]
+        small_caps = [s for s in valid_twse_list if s.get('cap_size') == "中小型股"]
         pool = small_caps[5:] if len(small_caps) > 5 else small_caps
     else:
         pool = twse_list
@@ -828,7 +831,12 @@ def handle_message(event):
                 
             # 👇 新增：轉換資金級別為視覺化標籤
             rank = stock.get('capital_rank', 'C')
-            rank_icons = {"S": "🟢 S級(優先)", "A": "🔵 A級(試單)", "B": "🟡 B級(觀望)", "C": "🔴 C級(暫避)"}
+            rank_icons = {
+                "S": "🥇 S級｜主力帶量突破", 
+                "A": "🥈 A級｜法人推升波段", 
+                "B": "🟡 B級｜爆天量換手", 
+                "C": "🔴 C級｜主力出貨破線"
+            }
             rank_str = rank_icons.get(rank, "🔴 C級(暫避)")
             
             bubble = {
@@ -983,7 +991,12 @@ def handle_message(event):
 
                     # 👇 新增：讀取左側資金級別並轉換為視覺標籤
                     rank = item.get('capital_rank', 'C')
-                    rank_icons = {"S": "🟢 S級(優先)", "A": "🔵 A級(試單)", "B": "🟡 B級(觀望)", "C": "🔴 C級(暫避)"}
+                    rank_icons = {
+                        "S": "🥇 S級｜主力帶量突破", 
+                        "A": "🥈 A級｜法人推升波段", 
+                        "B": "🟡 B級｜爆天量換手", 
+                        "C": "🔴 C級｜主力出貨破線"
+                    }
                     rank_str = rank_icons.get(rank, "🔴 C級(暫避)")
 
                     bubble = {
