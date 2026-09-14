@@ -201,10 +201,10 @@
                 // 產生資金投入順位 Badge (同步最新客觀狀態)
                 let rankBadgeHtml = '';
                 const rank = s.capital_rank || 'C';
-                if (rank === 'S') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">🥇 S級｜主力帶量突破</span>`;
-                else if (rank === 'A') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-blue-500 text-white shadow-lg shadow-blue-500/30">🥈 A級｜法人推升波段</span>`;
+                if (rank === 'S') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">🥇 S級｜帶量突破</span>`;
+                else if (rank === 'A') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-blue-500 text-white shadow-lg shadow-blue-500/30">🥈 A級｜股價推升</span>`;
                 else if (rank === 'B') rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-yellow-500 text-white shadow-lg shadow-yellow-500/30">🟡 B級｜震盪整理/回測</span>`;
-                else rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-slate-600 text-white shadow-lg shadow-slate-600/30">🔴 C級｜主力出貨破線</span>`;
+                else rankBadgeHtml = `<span class="px-2 py-0.5 text-[12px] font-black rounded bg-slate-600 text-white shadow-lg shadow-slate-600/30">🔴 C級｜技術線型破線</span>`;
 
                 html += `
                 <div class="card rounded-2xl p-6 flex flex-col h-full relative overflow-hidden border ${rank === 'S' ? 'border-emerald-500/50' : (rank === 'A' ? 'border-blue-500/30' : 'border-slate-800')}">
@@ -322,7 +322,7 @@
                 <h4 style="color: #f8fafc; font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 4px; height: 18px; background-color: #10b981; border-radius: 2px;"></span>動態資金投入級別 (Capital Rank)</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px;">
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #10b981;">🥇 S級｜主力帶量突破</strong></div>
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #10b981;">🥇 S級｜帶量突破</strong></div>
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
                             <strong>【右側】</strong>法人主力同步建倉，量能溫和(1.5~3倍)且剛突破平台，尚未過度發酵。<br>
                             <strong>【左側】</strong>站回 5MA、帶長下影線反轉、RSI向上且法人連買。<br>
@@ -330,7 +330,7 @@
                         </p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #3b82f6;">🥈 A級｜法人推升波段</strong></div>
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #3b82f6;">🥈 A級｜股價推升</strong></div>
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
                             <strong>【右側】</strong>均線多頭排列、常態推升中，但已累積一定漲幅。<br>
                             <strong>【左側】</strong>尚未過 5MA，但大資金介入防守(下影線+連買)。<br>
@@ -346,7 +346,7 @@
                         </p>
                     </div>
                     <div style="background-color: #1f2937; padding: 16px; border-radius: 8px; border-left: 4px solid #ef4444;">
-                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #ef4444;">🔴 C級｜主力出貨破線</strong></div>
+                        <div style="margin-bottom: 6px;"><strong style="font-size: 16px; color: #ef4444;">🔴 C級｜技術線型破線</strong></div>
                         <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
                             跌破關鍵短均線、法人連續大賣倒貨，或近四季 EPS 虧損之殭屍股。<br>
                             <span style="color: #f9fafb; font-weight: bold;">(結構破壞或無基本面，系統直接隱藏剔除)</span>
