@@ -819,10 +819,10 @@ def handle_message(event):
             # 👇 新增：轉換資金級別為視覺化標籤
             rank = stock.get('capital_rank', 'C')
             rank_icons = {
-                "S": "🥇 S級｜主力帶量突破", 
-                "A": "🥈 A級｜法人推升波段", 
-                "B": "🟡 B級｜爆天量換手", 
-                "C": "🔴 C級｜主力出貨破線"
+                "S": "🥇 S級｜帶量突破", 
+                "A": "🥈 A級｜股價推升", 
+                "B": "🟡 B級｜震盪整理/回測", 
+                "C": "🔴 C級｜技術線型破線"
             }
             rank_str = rank_icons.get(rank, "🔴 C級(暫避)")
             
@@ -1032,10 +1032,10 @@ def handle_message(event):
                     # 👇 新增：讀取左側資金級別並轉換為視覺標籤
                     rank = item.get('capital_rank', 'C')
                     rank_icons = {
-                        "S": "🥇 S級｜主力帶量突破", 
-                        "A": "🥈 A級｜法人推升波段", 
-                        "B": "🟡 B級｜爆天量換手", 
-                        "C": "🔴 C級｜主力出貨破線"
+                        "S": "🥇 S級｜帶量突破", 
+                        "A": "🥈 A級｜股價推升", 
+                        "B": "🟡 B級｜震盪整理/回測", 
+                        "C": "🔴 C級｜技術線型破線"
                     }
                     rank_str = rank_icons.get(rank, "🔴 C級(暫避)")
 
