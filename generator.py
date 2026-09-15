@@ -377,6 +377,9 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                     hist = ticker.history(period=period_val)
 
                     if not hist.empty:
+                        hist = hist.dropna(subset=['Close']) # 👈 新增：濾除抓到 NaN 的交易日
+
+                    if not hist.empty:
                         new_p = round(float(hist['Close'].iloc[-1]), 2)
                         old_s['price'] = new_p
                         
@@ -409,9 +412,10 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                                 old_s['chips_display'] = f"{chips_sum}張 ({buy_value_y:.1f}億)"
                             
                             yoy_val = old_s.get('yoy', 0)
-                            if yoy_val is None: yoy_val = 0
+                            if yoy_val is None or math.isnan(float(yoy_val)): yoy_val = 0
                             
                             current_buy_val = old_s.get('buy_value', 0)
+                            if current_buy_val is None or math.isnan(float(current_buy_val)): current_buy_val = 0
                             buy_val_y = current_buy_val / 100000000
                             
                             m_score = (min(yoy_val, 100) * 1.5) + (min(buy_val_y, 10) * 5)
@@ -813,6 +817,10 @@ def generate_daily_recommendations():
                         try:
                             suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
                             hist = yf.Ticker(f"{code}{suffix}").history(period="2mo")
+                            
+                            if not hist.empty:
+                                hist = hist.dropna(subset=['Close']) # 👈 新增：濾除抓到 NaN 的交易日
+                                
                             if not hist.empty and len(hist) > 22:
                                 closes = hist['Close']
                                 volumes = hist['Volume']
@@ -1035,6 +1043,10 @@ def generate_left_side_value():
         try:
             ticker = yf.Ticker(f"{code}.{item['market']}")
             df = ticker.history(period="6mo") 
+            
+            if not df.empty:
+                df = df.dropna(subset=['Close']) # 👈 新增：濾除抓到 NaN 的交易日
+                
             if df.empty or len(df) < 60: continue
 
             closes = df['Close'].tolist()
