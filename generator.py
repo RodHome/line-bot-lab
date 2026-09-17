@@ -85,8 +85,8 @@ def get_right_capital_rank(price, ma5, ma20, high_20d, vol_ratio, bias20, is_bre
 
 def get_left_capital_rank(is_above_5ma, is_strong_reversal, is_anti_knife, is_breaking_low, bias60, rsi_yest, rsi_today, buy_days_5d, eps):
     """左側潛伏：防守與反轉判定"""
-    if eps is not None and eps < 0 and buy_days_5d < 4:
-        return "C" # 虧損且無大人照顧，危險
+    if eps is not None and eps < 0:
+        return "B" if buy_days_5d >= 4 else "C"
     
     if is_above_5ma and is_strong_reversal and (rsi_today > rsi_yest) and buy_days_5d >= 3:
         return "S" # 站上5MA、強力反轉、RSI向上、籌碼集中
@@ -440,6 +440,7 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                                 c_price_hist = round(float(hist['Close'].iloc[-1]), 2)
                                 o_price_hist = float(hist['Open'].iloc[-1])
                                 h_price_hist = float(hist['High'].iloc[-1])
+                                l_price_hist = float(hist['Low'].iloc[-1])  # 👈 補上這行，供共用避雷針函式使用
                                 ma5_hist = hist['Close'].iloc[-5:].mean()
                                 ma20_hist = hist['Close'].iloc[-20:].mean()
                                 high_20d_hist = hist['Close'].iloc[-21:-1].max()
@@ -486,7 +487,8 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                                     is_breaking_low_hist, bias60_hist, rsi_yest_hist, rsi_today_hist,
                                     old_s.get('buy_days', 0), old_s.get('eps', 0)
                                 )
-
+                        if old_s.get("capital_rank") == "C":
+                            continue
                         updated_history.append(old_s) 
                         
                 except Exception as e:
