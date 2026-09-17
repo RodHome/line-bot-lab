@@ -46,6 +46,16 @@ def calculate_rsi(prices, period=14):
     rs = avg_gain / avg_loss
     return round(100 - (100 / (1 + rs)), 1)
 
+def is_right_break_reversal(o_price, h_price, l_price, c_price):
+    """共用右側避雷針判斷：收盤落於下半部 + 上影線大於實體 + 絕對長度超過 1.5%"""
+    if h_price == l_price: 
+        return False
+    close_position = (c_price - l_price) / (h_price - l_price)
+    upper_shadow = h_price - max(o_price, c_price)
+    body = abs(c_price - o_price)
+    upper_shadow_pct = upper_shadow / c_price if c_price > 0 else 0
+    return (close_position < 0.50) and (upper_shadow > body) and (upper_shadow_pct > 0.015)
+
 # ==========================================
 # 🆕 雙引擎資金投入優先度 (S/A/B/C) 判定邏輯
 # ==========================================
@@ -437,10 +447,8 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                                 vol_ratio_hist = hist['Volume'].iloc[-1] / vol_5ma_hist if vol_5ma_hist > 0 else 0
                                 bias20_hist = (c_price_hist - ma20_hist) / ma20_hist * 100
                                 
-                                body_hist = abs(c_price_hist - o_price_hist)
-                                upper_shadow_hist = h_price_hist - max(o_price_hist, c_price_hist)
-                                # 🔥 修正歷史同步區的避雷針邏輯
-                                is_break_reversal_hist = body_hist > 0 and (upper_shadow_hist / body_hist) > 2.0 and (upper_shadow_hist > c_price_hist * 0.025)
+                                # 統一呼叫共用避雷針邏輯
+                                is_break_reversal_hist = is_right_break_reversal(o_price_hist, h_price_hist, l_price_hist, c_price_hist)
                                 
                                 old_s['capital_rank'] = get_right_capital_rank(c_price_hist, ma5_hist, ma20_hist, high_20d_hist, vol_ratio_hist, bias20_hist, is_break_reversal_hist)
                         
@@ -821,19 +829,19 @@ def generate_daily_recommendations():
                         
                         high_20d = closes.iloc[-21:-1].max()
                         
-                        is_break_reversal = False
-                        if h_price != l_price:
-                            close_position = (c_price - l_price) / (h_price - l_price)
-                            upper_shadow = h_price - max(o_price, c_price)
-                            body = abs(c_price - o_price)
-                            upper_shadow_pct = upper_shadow / c_price
-                            is_break_reversal = (close_position < 0.50) and (upper_shadow > body) and (upper_shadow_pct > 0.015)
+                        # 統一呼叫共用避雷針邏輯
+                        is_break_reversal = is_right_break_reversal(o_price, h_price, l_price, c_price)
                                 
                         if is_break_reversal:
                             print(f"⚠️ {code} 收盤落於下半部且留長上影線，判定避雷針出貨，淘汰！")
                             continue
                                 
                         capital_rank = get_right_capital_rank(c_price, ma5, ma20, high_20d, vol_ratio, bias20, is_break_reversal)
+                        
+                        # C級直接淘汰
+                        if capital_rank == "C":
+                            print(f"⚠️ {code} 右側評級為 C 級（破線或出貨），直接淘汰！")
+                            continue
                         
                         score_yoy = min(yoy, 100) * 1.5
                         capped_buy = min(buy_value_y, 10)
@@ -1232,6 +1240,10 @@ def generate_left_side_value():
             item['is_breaking_low'], bias_pct, item['rsi_yest'], item['rsi_today'],
             buy_days_5d, eps
         )
+        # C級直接淘汰
+        if capital_rank == "C":
+            print(f"❌ {code} 左側評級為 C 級（破底無支撐），淘汰！")
+            continue
 
         print(f"✅ 最終清單入選 | 級別: {capital_rank} | 分數: {score} | {trend_status}")
 
@@ -1245,7 +1257,8 @@ def generate_left_side_value():
             "capital_rank": capital_rank,
             "trend_status": trend_status,
             "entry_price": entry_price,
-            "ex_dividend_date": ex_date,  
+            "reversal_low": item.get('reversal_low', None), # 👈 補上這一行，讓歷史同步與停損判定抓得到
+            "ex_dividend_date": ex_date,             
             "bias60": f"{bias_pct:.1f}%",
             "bias24": f"{item['bias24']*100:.1f}%", 
             "bias6": f"{item['bias6']*100:.1f}%",   
