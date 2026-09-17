@@ -144,12 +144,20 @@ def get_finmind_chips(code):
         unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
         target_dates = unique_dates[:5]
         acc_f = 0; acc_t = 0
+        daily_net = {} # 新增：紀錄每日淨買賣
         for row in data:
             if row['date'] in target_dates:
                 val = (row['buy'] - row['sell']) // 1000
-                if row['name'] == 'Foreign_Investor': acc_f += val
-                elif row['name'] == 'Investment_Trust': acc_t += val
-        return acc_f, acc_t
+                if row['name'] == 'Foreign_Investor': 
+                    acc_f += val
+                    daily_net[row['date']] = daily_net.get(row['date'], 0) + val
+                elif row['name'] == 'Investment_Trust': 
+                    acc_t += val
+                    daily_net[row['date']] = daily_net.get(row['date'], 0) + val
+                    
+        # 新增：計算 5 天內有幾天是淨買超
+        buy_days = sum(1 for v in daily_net.values() if v > 0)
+        return acc_f, acc_t, buy_days
     except: return None, None
 
 def get_finmind_revenue_yoy(code):
@@ -399,7 +407,7 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                         if strategy_type == 'RIGHT' and taiwan_50_list:
                             old_s['cap_size'] = "大型權值股" if code in taiwan_50_list else "中小型股"
                             
-                            acc_f, acc_t = get_finmind_chips(code)
+                            acc_f, acc_t, _ = get_finmind_chips(code)
                             if acc_f is not None:
                                 chips_sum = acc_f + acc_t
                                 buy_value = chips_sum * 1000 * new_p
@@ -754,62 +762,53 @@ def generate_daily_recommendations():
                     price = item['price']
                     
                     stock_cap_size = "大型權值股" if code in TAIWAN_50 else "中小型股"
-                    # 🔥 動態調整買超門檻：權值股維持3億，中小型股降為5000萬
-                    min_buy_value = 300000000 if stock_cap_size == "大型權值股" else 50000000
                     
-                    acc_f, acc_t = get_finmind_chips(code)
-                    if acc_f is None: 
-                        continue
-                        
+                    acc_f, acc_t, buy_days_5d = get_finmind_chips(code)
+                    if acc_f is None: continue
                     yoy_data = get_finmind_revenue_yoy(code) 
                     yoy = yoy_data['yoy']
-                    if yoy is None:
-                        continue
+                    if yoy is None: continue
+
+                    # 提前抓取 yfinance 計算 5 日總量與 K 線參數
+                    stock_exchange = item.get('exchange', '未知')
+                    suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
+                    try:
+                        hist = yf.Ticker(f"{code}{suffix}").history(period="2mo")
+                        if not hist.empty: hist = hist.dropna(subset=['Close'])
+                        if hist.empty or len(hist) < 22: continue
+                    except: continue
+
+                    closes, volumes = hist['Close'], hist['Volume']
+                    c_price = round(float(closes.iloc[-1]), 2)
+                    o_price, h_price, l_price = float(hist['Open'].iloc[-1]), float(hist['High'].iloc[-1]), float(hist['Low'].iloc[-1])
                     
+                    # 計算雙軌制
+                    vol_5d = volumes.iloc[-5:].sum()
                     chips_sum = acc_f + acc_t
-                    buy_value = chips_sum * 1000 * price
+                    inst_net_buy_shares = chips_sum * 1000
+                    inst_ratio = inst_net_buy_shares / vol_5d if vol_5d > 0 else 0
+                    buy_value = inst_net_buy_shares * c_price
                     buy_value_y = round(buy_value / 100000000, 1)
+
+                    ratio_pass = inst_ratio > 0.05
+                    high_price_exception_pass = (c_price >= 1000 and buy_value >= 50000000 and buy_days_5d >= 3)
+                    institution_pass = ratio_pass or high_price_exception_pass
                     
-                    print(f"掃描 {code}: YoY={yoy}%, 法人買超={buy_value_y}億")
+                    print(f"掃描 {code}: YoY={yoy}%, 法人佔比={inst_ratio*100:.1f}%, 買超={buy_value_y}億")
                     time.sleep(0.5) 
                     
-                    if yoy > 10 and buy_value > min_buy_value:
+                    if yoy > 10 and institution_pass:
                         meta_info = stock_meta.get(code, {})
-                        stock_name = meta_info.get('name', '未知名稱')
-                        stock_sector = meta_info.get('sector', '未知產業')
-                        stock_exchange = item.get('exchange', '未知')
-                        capital_rank = "C"
-
-                        try:
-                            suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
-                            hist = yf.Ticker(f"{code}{suffix}").history(period="2mo")
-                            
-                            if not hist.empty:
-                                hist = hist.dropna(subset=['Close'])
-                                
-                            if not hist.empty and len(hist) > 22:
-                                closes = hist['Close']
-                                volumes = hist['Volume']
-                                
-                                latest_k = hist.iloc[-1]
-                                c_price = latest_k['Close']
-                                o_price = latest_k['Open']
-                                h_price = latest_k['High']
-                                
-                                ma20 = closes.iloc[-20:].mean()
-                                ma5 = closes.iloc[-5:].mean()
-                                bias20 = (c_price - ma20) / ma20 * 100
-                                
-                                vol_today = volumes.iloc[-1]
-                                vol_5ma = volumes.iloc[-6:-1].mean()
-                                vol_ratio = vol_today / vol_5ma if vol_5ma > 0 else 0
-                                
-                                high_20d = closes.iloc[-21:-1].max()
-                                
-                                upper_shadow = h_price - max(o_price, c_price)
-                                body = abs(c_price - o_price)
-                                # 🔥 修正避雷針邏輯：加入絕對值判斷
-                                is_break_reversal = body > 0 and (upper_shadow / body) > 2.0 and (upper_shadow > c_price * 0.025)
+                        # ...(略，取得均線)...
+                        
+                        # 新版避雷針邏輯
+                        is_break_reversal = False
+                        if h_price != l_price:
+                            close_position = (c_price - l_price) / (h_price - l_price)
+                            upper_shadow = h_price - max(o_price, c_price)
+                            body = abs(c_price - o_price)
+                            upper_shadow_pct = upper_shadow / c_price
+                            is_break_reversal = (close_position < 0.50) and (upper_shadow > body) and (upper_shadow_pct > 0.015)
                                 if is_break_reversal:
                                     print(f"⚠️ {code} 出現長上影線避雷針，防禦假突破，淘汰！")
                                     continue
@@ -1043,14 +1042,20 @@ def generate_left_side_value():
             if bias60 >= 0: continue
             
             vol_today = volumes[-1]
-            ma20_vol = sum(volumes[-20:]) / 20
+            # 1. 均量剔除今日 (防爆量失真)
+            prev_20d_avg_volume = sum(volumes[-21:-1]) / 20 if len(volumes) >= 21 else sum(volumes[:-1]) / len(volumes[:-1])
+            prev_5d_avg_volume = sum(volumes[-6:-1]) / 5 if len(volumes) >= 6 else sum(volumes[:-1]) / len(volumes[:-1])
 
-            if ma20_vol < 500000: continue 
+            if prev_20d_avg_volume < 500000: continue 
 
-            vol_ratio = vol_today / ma20_vol if ma20_vol > 0 else 1
+            # 2. 量能結構防騙線 (前期量縮 + 今日出量)
+            is_volume_dry_up = prev_5d_avg_volume < (prev_20d_avg_volume * 0.7)
+            is_reversal_volume = vol_today > (prev_5d_avg_volume * 1.2)
+            item['volume_structure_pass'] = is_volume_dry_up and is_reversal_volume
+
+            vol_ratio = vol_today / prev_20d_avg_volume if prev_20d_avg_volume > 0 else 1
             
             if (max(highs[-10:]) - min(lows[-10:])) / min(lows[-10:]) >= 0.15: continue
-            
             if len(closes) >= 6 and (close_today - closes[-6]) / closes[-6] >= 0.08: continue
 
             item['is_breaking_low'] = bool(close_today < min(closes[-5:-1]))
@@ -1067,8 +1072,20 @@ def generate_left_side_value():
             is_bullish_engulfing = (close_yest < open_yest) and (open_today < close_yest) and (close_today > open_yest)
             
             item['is_strong_reversal'] = bool(is_hammer or is_bullish_engulfing)
-            
             item['is_anti_knife'] = bool(lower_shadow > max(body, 0.01) * 1.5)
+
+            # 3. L1 高位收紅防騙線確認
+            close_position = (close_today - low_today) / (highs[-1] - low_today) if highs[-1] > low_today else 0
+            prev_3d_high = max(highs[-4:-1]) if len(highs) >= 4 else max(highs[:-1])
+            item['l1_confirmation'] = (
+                item['is_above_5ma'] 
+                and is_red_candle 
+                and (close_position >= 0.60 or close_today > prev_3d_high)
+            )
+            
+            # 4. 記錄動態停損點
+            if item['is_strong_reversal'] or item['volume_structure_pass']:
+                item['reversal_low'] = low_today
 
             item['bias60'] = bias60
             item['bias24'] = bias24 
@@ -1104,8 +1121,11 @@ def generate_left_side_value():
         buy_ratio = (net_buy_vol_5d / total_vol_5d) * 100 if total_vol_5d > 0 else 0
         net_buy_amount_10k = (net_buy_vol_5d * item['price']) / 10
         
-        if not ((net_buy_vol_5d > 100 or net_buy_amount_10k > 500) and buy_ratio > 2.0):
-            print("❌ 佔比/金額不足")
+        # 左側專屬法人雙軌制
+        normal_institution_pass = (buy_ratio > 2.0 and (net_buy_vol_5d >= 100 or net_buy_amount_10k >= 500))
+        high_price_exception_pass = (item['price'] >= 1000 and net_buy_amount_10k >= 2000 and buy_days_5d >= 3)
+        if not (normal_institution_pass or high_price_exception_pass):
+            print("❌ 法人籌碼未達標")
             continue
         
         eps, _, _ = get_finmind_fundamentals(code, item['price'], fetch_yield=False)
@@ -1124,35 +1144,46 @@ def generate_left_side_value():
         score = 40 
         
         if eps < 0:
-            if item.get('is_breaking_low') and not item.get('is_strong_reversal'):
-                print("❌ 虧損且破底無防守，淘汰")
+            # 虧損轉機四合一嚴審
+            loss_making_turnaround_pass = (
+                yoy > 0 and buy_days_5d >= 4 and buy_ratio > 8.0 
+                and not item.get('is_breaking_low') and item.get('is_strong_reversal')
+            )
+            if not loss_making_turnaround_pass:
+                print("❌ 虧損轉機股未滿足四合一嚴格濾網")
                 continue
-            if buy_days_5d < 4 and buy_ratio < 5.0:
-                print("❌ 虧損且籌碼集中度不足，淘汰")
-                continue
-            # 🔥 左側價值：恢復原本的 0% 寬容度門檻
-            if yoy <= 0:
-                print("❌ 虧損且營收未反轉，淘汰")
-                continue
-            score -= 5
-            print("   ⚠️ 虧損轉機股通關，扣 5 分")
+            print("   ⚠️ 虧損轉機股通關，僅列入 L0 觀察")
             
         elif item.get('is_breaking_low'):
             score -= 10
             
+        # 技術面與型態分封頂機制 (+25)
+        tech_score = 0
         if item.get('is_strong_reversal'): 
-            score += 15
+            tech_score += 15
             print(f"   ⭐ 偵測到強力底部反轉型態！")
         elif item.get('is_anti_knife'): 
-            score += 5
+            tech_score += 5
         
+        bias_pct = item['bias60'] * 100
+        if bias_pct < -8.0: tech_score += 15
+        elif bias_pct < -5.0: tech_score += 10
+        elif bias_pct < -3.0: tech_score += 5
+
+        if item['rsi_yest'] < 35 and item['rsi_today'] > item['rsi_yest']: 
+            tech_score += 15
+            print(f"   🚀 RSI超賣區勾頭向上 ({item['rsi_yest']} -> {item['rsi_today']})！")
+            
+        if item.get('volume_structure_pass'): 
+            tech_score += 10
+            
+        tech_score = min(tech_score, 25)
+        score += tech_score
+        
+        # 基本面與籌碼面加分 (無上限)
         if eps > 0: score += 10
         if yoy > 10.0: score += 10
         if yield_rate >= 4.0: score += 10
-        
-        if is_upcoming:
-            score += 10
-            print(f"   💰 具備即將除息優勢 ({ex_date})，額外加 10 分！")
         
         if buy_ratio > 5.0: score += 10
         if buy_days_5d == 5: score += 30
@@ -1163,17 +1194,9 @@ def generate_left_side_value():
         elif item['vol_ratio'] < 0.6: score += 8
         elif item['vol_ratio'] < 0.7: score += 5
         
-        bias_pct = item['bias60'] * 100
-        if bias_pct < -8.0: score += 15
-        elif bias_pct < -5.0: score += 10
-        elif bias_pct < -3.0: score += 5
-
-        if item['rsi_yest'] < 35 and item['rsi_today'] > item['rsi_yest']:
-           score += 15
-           print(f"   🚀 RSI超賣區勾頭向上 ({item['rsi_yest']} -> {item['rsi_today']})，加 15 分！")
-
-        if item['is_above_5ma']:
-            trend_status = "🔥 L1_左側起漲"
+        # 嚴格分級判定 (用 l1_confirmation 取代單純站上 5ma)
+        if item.get('l1_confirmation') and eps >= 0:
+            trend_status = "🔥 L1_左側確認起漲"
             is_qualified = (score >= 60)  
         else:
             trend_status = "⏳ L0_左側築底"
@@ -1255,6 +1278,12 @@ def generate_left_side_value():
             
             roi = (current_price - first_price) / first_price if first_price > 0 else 0
             
+            # 新增：系統日線防守點除名判定
+            reversal_low = item.get('reversal_low')
+            if reversal_low is not None and current_price < float(reversal_low):
+                print(f"⚠️ {item['code']} 收盤跌破防守低點 ({current_price} < {reversal_low})，系統除名！")
+                continue
+
             if roi <= -0.10:
                 continue
                 
