@@ -231,16 +231,24 @@ def get_finmind_chips_history(code, days=3):
         data = res.json().get('data', [])
         if not data: return None
         
-        unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
+        unique_dates = sorted(list(set([d.get('date') for d in data if d.get('date')])), reverse=True)
         target_dates = unique_dates[:days]
         target_dates.reverse() 
         
         for t_date in target_dates:
             daily_net = 0
             for row in data:
-                if row['date'] == t_date:
-                    val = (row['buy'] - row['sell']) // 1000
-                    if row['name'] in ['Foreign_Investor', 'Investment_Trust']:
+                if row.get('date') == t_date:
+                    buy_val = row.get('buy')
+                    sell_val = row.get('sell')
+                    name_val = row.get('name')
+
+                    if buy_val is None or sell_val is None or name_val is None:
+                        continue
+
+                    val = (int(buy_val) - int(sell_val)) // 1000
+
+                    if name_val in ['Foreign_Investor', 'Investment_Trust']:
                         daily_net += val
             history.append(daily_net)
         return history
