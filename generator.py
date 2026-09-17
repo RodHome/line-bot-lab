@@ -156,12 +156,19 @@ def get_finmind_chips(code):
         acc_f = 0; acc_t = 0
         daily_net = {}
         for row in data:
-            if row['date'] in target_dates:
-                val = (row['buy'] - row['sell']) // 1000
-                if row['name'] == 'Foreign_Investor': 
+            if row.get('date') in target_dates:
+                buy_val = row.get('buy')
+                sell_val = row.get('sell')
+                name_val = row.get('name')
+                
+                if buy_val is None or sell_val is None or name_val is None:
+                    continue
+                
+                val = (int(buy_val) - int(sell_val)) // 1000
+                if name_val == 'Foreign_Investor': 
                     acc_f += val
                     daily_net[row['date']] = daily_net.get(row['date'], 0) + val
-                elif row['name'] == 'Investment_Trust': 
+                elif name_val == 'Investment_Trust': 
                     acc_t += val
                     daily_net[row['date']] = daily_net.get(row['date'], 0) + val
                     
@@ -632,6 +639,12 @@ def generate_daily_recommendations():
             url_latest = "https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&type=ALLBUT0999"
             res = requests.get(url_latest, timeout=10)
             data = res.json()
+            # 🔥 當觸發 fallback 抓取最新資料時，若 data 包含實際日期欄位則同步更新 target_date
+            if data.get('stat') == 'OK' and 'date' in data:
+                raw_api_date = data.get('date') # TWSE 通常格式為 YYYYMMDD
+                if raw_api_date and len(raw_api_date) == 8:
+                    target_date = raw_api_date
+                    print(f"📅 已自動將目標日期同步更新為最新交易日: {target_date}")
         
         if data.get('stat') == 'OK':
             target_table = None
@@ -1252,7 +1265,7 @@ def generate_left_side_value():
         final_list.append({
             "date": item['real_date'],
             "code": code,
-            "name": stock_meta[code]['name'],
+            "name": stock_meta.get(code, {}).get('name', '未知名稱'),  # 👈 改用安全的 .get()
             "price": item['price'],
             "exchange": "上市" if item.get('market') == 'TW' else "上櫃",
             "score": score,
