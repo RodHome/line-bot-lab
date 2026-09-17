@@ -1305,7 +1305,7 @@ def generate_left_side_value():
             if raw_fp is None: raw_fp = 1
             first_price = float(raw_fp)
             
-           raw_cp = item.get('price')
+            raw_cp = item.get('price')
             if raw_cp is None: raw_cp = 1
             current_price = float(raw_cp)
             
