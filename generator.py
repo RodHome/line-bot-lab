@@ -137,14 +137,14 @@ def get_finmind_chips(code):
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
         res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
-        if res.status_code != 200: return None, None
+        if res.status_code != 200: return None, None, 0
         data = res.json().get('data', [])
-        if not data: return None, None
+        if not data: return None, None, 0
         
         unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
         target_dates = unique_dates[:5]
         acc_f = 0; acc_t = 0
-        daily_net = {} # 新增：紀錄每日淨買賣
+        daily_net = {}
         for row in data:
             if row['date'] in target_dates:
                 val = (row['buy'] - row['sell']) // 1000
@@ -155,10 +155,9 @@ def get_finmind_chips(code):
                     acc_t += val
                     daily_net[row['date']] = daily_net.get(row['date'], 0) + val
                     
-        # 新增：計算 5 天內有幾天是淨買超
         buy_days = sum(1 for v in daily_net.values() if v > 0)
         return acc_f, acc_t, buy_days
-    except: return None, None
+    except: return None, None, 0
 
 def get_finmind_revenue_yoy(code):
     start = (datetime.now() - timedelta(days=480)).strftime('%Y-%m-%d')
@@ -764,26 +763,35 @@ def generate_daily_recommendations():
                     stock_cap_size = "大型權值股" if code in TAIWAN_50 else "中小型股"
                     
                     acc_f, acc_t, buy_days_5d = get_finmind_chips(code)
-                    if acc_f is None: continue
+                    if acc_f is None: 
+                        continue
+                        
                     yoy_data = get_finmind_revenue_yoy(code) 
                     yoy = yoy_data['yoy']
-                    if yoy is None: continue
-
-                    # 提前抓取 yfinance 計算 5 日總量與 K 線參數
+                    if yoy is None:
+                        continue
+                        
                     stock_exchange = item.get('exchange', '未知')
                     suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
                     try:
                         hist = yf.Ticker(f"{code}{suffix}").history(period="2mo")
-                        if not hist.empty: hist = hist.dropna(subset=['Close'])
-                        if hist.empty or len(hist) < 22: continue
-                    except: continue
+                        if not hist.empty:
+                            hist = hist.dropna(subset=['Close'])
+                        if hist.empty or len(hist) < 22:
+                            continue
+                    except Exception as e:
+                        continue
 
-                    closes, volumes = hist['Close'], hist['Volume']
-                    c_price = round(float(closes.iloc[-1]), 2)
-                    o_price, h_price, l_price = float(hist['Open'].iloc[-1]), float(hist['High'].iloc[-1]), float(hist['Low'].iloc[-1])
+                    closes = hist['Close']
+                    volumes = hist['Volume']
                     
-                    # 計算雙軌制
+                    c_price = round(float(closes.iloc[-1]), 2)
+                    o_price = float(hist['Open'].iloc[-1])
+                    h_price = float(hist['High'].iloc[-1])
+                    l_price = float(hist['Low'].iloc[-1])
+                    
                     vol_5d = volumes.iloc[-5:].sum()
+                    
                     chips_sum = acc_f + acc_t
                     inst_net_buy_shares = chips_sum * 1000
                     inst_ratio = inst_net_buy_shares / vol_5d if vol_5d > 0 else 0
@@ -799,9 +807,20 @@ def generate_daily_recommendations():
                     
                     if yoy > 10 and institution_pass:
                         meta_info = stock_meta.get(code, {})
-                        # ...(略，取得均線)...
+                        stock_name = meta_info.get('name', '未知名稱')
+                        stock_sector = meta_info.get('sector', '未知產業')
+                        capital_rank = "C"
+
+                        ma20 = closes.iloc[-20:].mean()
+                        ma5 = closes.iloc[-5:].mean()
+                        bias20 = (c_price - ma20) / ma20 * 100
                         
-                        # 新版避雷針邏輯
+                        vol_today = volumes.iloc[-1]
+                        vol_5ma = volumes.iloc[-6:-1].mean()
+                        vol_ratio = vol_today / vol_5ma if vol_5ma > 0 else 0
+                        
+                        high_20d = closes.iloc[-21:-1].max()
+                        
                         is_break_reversal = False
                         if h_price != l_price:
                             close_position = (c_price - l_price) / (h_price - l_price)
@@ -809,13 +828,12 @@ def generate_daily_recommendations():
                             body = abs(c_price - o_price)
                             upper_shadow_pct = upper_shadow / c_price
                             is_break_reversal = (close_position < 0.50) and (upper_shadow > body) and (upper_shadow_pct > 0.015)
-                                if is_break_reversal:
-                                    print(f"⚠️ {code} 出現長上影線避雷針，防禦假突破，淘汰！")
-                                    continue
                                 
-                                capital_rank = get_right_capital_rank(c_price, ma5, ma20, high_20d, vol_ratio, bias20, is_break_reversal)
-                        except Exception as e:
-                            pass
+                        if is_break_reversal:
+                            print(f"⚠️ {code} 收盤落於下半部且留長上影線，判定避雷針出貨，淘汰！")
+                            continue
+                                
+                        capital_rank = get_right_capital_rank(c_price, ma5, ma20, high_20d, vol_ratio, bias20, is_break_reversal)
                         
                         score_yoy = min(yoy, 100) * 1.5
                         capped_buy = min(buy_value_y, 10)
@@ -1272,7 +1290,7 @@ def generate_left_side_value():
             if raw_fp is None: raw_fp = 1
             first_price = float(raw_fp)
             
-            raw_cp = item.get('price')
+           raw_cp = item.get('price')
             if raw_cp is None: raw_cp = 1
             current_price = float(raw_cp)
             
@@ -1283,7 +1301,7 @@ def generate_left_side_value():
             if reversal_low is not None and current_price < float(reversal_low):
                 print(f"⚠️ {item['code']} 收盤跌破防守低點 ({current_price} < {reversal_low})，系統除名！")
                 continue
-
+                
             if roi <= -0.10:
                 continue
                 
