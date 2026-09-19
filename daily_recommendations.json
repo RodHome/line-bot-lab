@@ -1,31 +1,6 @@
 [
     {
         "date": "2026-09-18",
-        "code": "5274",
-        "name": "信驊",
-        "exchange": "上櫃",
-        "sector": "半導體業",
-        "cap_size": "中小型股",
-        "m_score": 236.71,
-        "capital_rank": "S",
-        "price": 19290.0,
-        "turnover": 2956210000.0,
-        "chips_display": "49張 (9.5億)",
-        "buy_value": 945210000.0,
-        "yoy": 118.42,
-        "tag": "投信作帳",
-        "debug_info": {
-            "this_rev": 1625937000,
-            "last_rev": 744425000,
-            "this_period": "2026/8",
-            "last_period": "2025/8",
-            "formula": "(1625937000 - 744425000) / 744425000"
-        },
-        "first_entry_date": "2026-09-16",
-        "first_entry_price": 18250.0
-    },
-    {
-        "date": "2026-09-18",
         "code": "6196",
         "name": "帆宣",
         "exchange": "上市",
@@ -99,32 +74,6 @@
         },
         "first_entry_date": "2026-09-07",
         "first_entry_price": 156.0
-    },
-    {
-        "date": "2026-09-18",
-        "code": "3105",
-        "name": "穩懋",
-        "exchange": "上櫃",
-        "sector": "半導體業",
-        "cap_size": "中小型股",
-        "m_score": 114.99,
-        "capital_rank": "S",
-        "ex_dividend_date": null,
-        "price": 500.0,
-        "turnover": 21083402500.0,
-        "chips_display": "18063張 (90.3億)",
-        "buy_value": 9031500000.0,
-        "yoy": 30.55,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 1937397000,
-            "last_rev": 1484003000,
-            "this_period": "2026/8",
-            "last_period": "2025/8",
-            "formula": "(1937397000 - 1484003000) / 1484003000"
-        },
-        "first_entry_date": "2026-08-20",
-        "first_entry_price": 379.0
     },
     {
         "date": "2026-09-18",
@@ -277,6 +226,31 @@
         },
         "first_entry_date": "2026-09-13",
         "first_entry_price": 105.5
+    },
+    {
+        "date": "2026-09-18",
+        "code": "5274",
+        "name": "信驊",
+        "exchange": "上櫃",
+        "sector": "半導體業",
+        "cap_size": "中小型股",
+        "m_score": 236.71,
+        "capital_rank": "A",
+        "price": 19290.0,
+        "turnover": 2956210000.0,
+        "chips_display": "49張 (9.5億)",
+        "buy_value": 945210000.0,
+        "yoy": 118.42,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 1625937000,
+            "last_rev": 744425000,
+            "this_period": "2026/8",
+            "last_period": "2025/8",
+            "formula": "(1625937000 - 744425000) / 744425000"
+        },
+        "first_entry_date": "2026-09-16",
+        "first_entry_price": 18250.0
     },
     {
         "date": "2026-09-18",
@@ -832,6 +806,31 @@
         },
         "first_entry_date": "2026-08-21",
         "first_entry_price": 75.8
+    },
+    {
+        "date": "2026-09-18",
+        "code": "1560",
+        "name": "中砂",
+        "exchange": "上市",
+        "sector": "電機機械",
+        "cap_size": "中小型股",
+        "m_score": 52.16,
+        "capital_rank": "A",
+        "price": 896.0,
+        "turnover": 2559557069.0,
+        "chips_display": "-47張 (-0.4億)",
+        "buy_value": -42112000.0,
+        "yoy": 30.38,
+        "tag": "外資大買",
+        "debug_info": {
+            "this_rev": 899115000,
+            "last_rev": 689622000,
+            "this_period": "2026/8",
+            "last_period": "2025/8",
+            "formula": "(899115000 - 689622000) / 689622000"
+        },
+        "first_entry_date": "2026-09-11",
+        "first_entry_price": 790.0
     },
     {
         "date": "2026-09-18",
@@ -1543,31 +1542,6 @@
         },
         "first_entry_date": "2026-09-03",
         "first_entry_price": 45.95
-    },
-    {
-        "date": "2026-09-18",
-        "code": "1560",
-        "name": "中砂",
-        "exchange": "上市",
-        "sector": "電機機械",
-        "cap_size": "中小型股",
-        "m_score": 52.16,
-        "capital_rank": "B",
-        "price": 896.0,
-        "turnover": 2559557069.0,
-        "chips_display": "-47張 (-0.4億)",
-        "buy_value": -42112000.0,
-        "yoy": 30.38,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 899115000,
-            "last_rev": 689622000,
-            "this_period": "2026/8",
-            "last_period": "2025/8",
-            "formula": "(899115000 - 689622000) / 689622000"
-        },
-        "first_entry_date": "2026-09-11",
-        "first_entry_price": 790.0
     },
     {
         "date": "2026-09-18",
