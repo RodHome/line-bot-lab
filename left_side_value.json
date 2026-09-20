@@ -1,20 +1,20 @@
 [
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2417",
         "name": "圓剛",
         "price": 39.2,
         "exchange": "上市",
-        "score": 123,
+        "score": 125,
         "capital_rank": "S",
         "trend_status": "🔥 L1_左側確認起漲",
         "entry_price": 38.81,
         "reversal_low": 38.650001525878906,
         "ex_dividend_date": null,
-        "bias60": "-7.2%",
-        "bias24": "-5.5%",
-        "bias6": "1.9%",
-        "vol_ratio": "58.3%",
+        "bias60": "-7.1%",
+        "bias24": "-5.2%",
+        "bias6": "1.5%",
+        "vol_ratio": "10.3%",
         "eps": 0.32,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -24,21 +24,21 @@
         "first_entry_price": 38.95
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "6901",
         "name": "鑽石投資",
         "price": 15.45,
         "exchange": "上市",
-        "score": 115,
+        "score": 125,
         "capital_rank": "S",
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 15.3,
         "reversal_low": 15.199999809265137,
         "ex_dividend_date": null,
-        "bias60": "-9.3%",
-        "bias24": "-1.6%",
-        "bias6": "1.8%",
-        "vol_ratio": "85.5%",
+        "bias60": "-9.1%",
+        "bias24": "-1.3%",
+        "bias6": "1.0%",
+        "vol_ratio": "9.5%",
         "eps": 4.04,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -48,101 +48,54 @@
         "first_entry_price": 15.5
     },
     {
-        "date": "2026-09-18",
-        "code": "3209",
-        "name": "全科",
-        "price": 45.8,
+        "date": "2026-09-20",
+        "code": "2483",
+        "name": "百容",
+        "price": 33.0,
         "exchange": "上市",
         "score": 115,
         "capital_rank": "S",
         "trend_status": "⏳ L0_左側築底",
-        "entry_price": 45.34,
-        "reversal_low": 45.45000076293945,
+        "entry_price": 32.67,
+        "reversal_low": 32.20000076293945,
         "ex_dividend_date": null,
-        "bias60": "-8.2%",
-        "bias24": "-1.0%",
-        "bias6": "1.7%",
-        "vol_ratio": "25.5%",
-        "eps": 1.75,
+        "bias60": "-20.1%",
+        "bias24": "-2.1%",
+        "bias6": "3.5%",
+        "vol_ratio": "6.1%",
+        "eps": 0.25,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
         "buy_days": 3,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-09-18",
-        "first_entry_price": 45.8
+        "first_entry_date": "2026-09-20",
+        "first_entry_price": 33.0
     },
     {
-        "date": "2026-09-18",
-        "code": "8016",
-        "name": "矽創",
-        "price": 281.0,
+        "date": "2026-09-20",
+        "code": "1440",
+        "name": "南紡",
+        "price": 13.45,
         "exchange": "上市",
-        "score": 110,
-        "capital_rank": "S",
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 273.24,
-        "reversal_low": null,
-        "bias60": "-8.0%",
-        "bias24": "-4.5%",
-        "bias6": "-0.3%",
-        "vol_ratio": "66.8%",
-        "eps": 7.68,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 3,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-09-17",
-        "first_entry_price": 276.0,
-        "sector": "半導體業"
-    },
-    {
-        "date": "2026-09-18",
-        "code": "2636",
-        "name": "台驊控股",
-        "price": 71.2,
-        "exchange": "上市",
-        "score": 105,
+        "score": 90,
         "capital_rank": "S",
         "trend_status": "⏳ L0_左側築底",
         "entry_price": null,
         "bias60": "nan%",
         "bias24": "nan%",
         "bias6": "nan%",
-        "vol_ratio": "32.9%",
-        "eps": 2.74,
+        "vol_ratio": "156.1%",
+        "eps": 0.18,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 3,
+        "buy_days": 4,
         "tag": "左側黃金坑",
-        "first_entry_date": "2026-09-14",
-        "first_entry_price": 69.1,
-        "sector": "航運業"
+        "first_entry_date": "2026-08-27",
+        "first_entry_price": 13.7,
+        "sector": "紡織纖維"
     },
     {
-        "date": "2026-09-18",
-        "code": "1707",
-        "name": "葡萄王",
-        "price": 87.3,
-        "exchange": "上市",
-        "score": 78,
-        "capital_rank": "S",
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 89.59,
-        "bias60": "-1.3%",
-        "bias24": "0.5%",
-        "bias6": "-0.4%",
-        "vol_ratio": "50.4%",
-        "eps": 1.57,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 3,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-09-07",
-        "first_entry_price": 91.0,
-        "sector": "生技醫療業"
-    },
-    {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2425",
         "name": "承啟",
         "price": 37.0,
@@ -153,10 +106,10 @@
         "entry_price": 36.63,
         "reversal_low": null,
         "ex_dividend_date": null,
-        "bias60": "-10.6%",
-        "bias24": "-1.3%",
+        "bias60": "-10.4%",
+        "bias24": "-1.0%",
         "bias6": "1.5%",
-        "vol_ratio": "47.2%",
+        "vol_ratio": "23.2%",
         "eps": 0.06,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -166,7 +119,31 @@
         "first_entry_price": 37.3
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "9958",
+        "name": "世紀鋼",
+        "price": 94.0,
+        "exchange": "上市",
+        "score": 130,
+        "capital_rank": "A",
+        "trend_status": "🔥 L1_左側確認起漲",
+        "entry_price": 93.06,
+        "reversal_low": null,
+        "ex_dividend_date": null,
+        "bias60": "-8.6%",
+        "bias24": "1.3%",
+        "bias6": "2.4%",
+        "vol_ratio": "8.8%",
+        "eps": 1.45,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 5,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-09",
+        "first_entry_price": 91.7
+    },
+    {
+        "date": "2026-09-20",
         "code": "3031",
         "name": "佰鴻",
         "price": 28.45,
@@ -189,7 +166,31 @@
         "sector": "光電業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "6155",
+        "name": "鈞寶",
+        "price": 56.8,
+        "exchange": "上市",
+        "score": 125,
+        "capital_rank": "A",
+        "trend_status": "🔥 L1_左側確認起漲",
+        "entry_price": 56.23,
+        "reversal_low": null,
+        "ex_dividend_date": null,
+        "bias60": "-6.6%",
+        "bias24": "0.4%",
+        "bias6": "1.2%",
+        "vol_ratio": "9.8%",
+        "eps": 0.64,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 5,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-15",
+        "first_entry_price": 55.6
+    },
+    {
+        "date": "2026-09-20",
         "code": "6166",
         "name": "凌華",
         "price": 114.5,
@@ -212,7 +213,7 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3033",
         "name": "威健",
         "price": 41.6,
@@ -236,21 +237,21 @@
         "sector": "電子通路業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2233",
         "name": "宇隆",
         "price": 162.0,
         "exchange": "上市",
-        "score": 123,
+        "score": 120,
         "capital_rank": "A",
         "trend_status": "🔥 L1_左側確認起漲",
         "entry_price": 160.38,
         "reversal_low": null,
         "ex_dividend_date": null,
-        "bias60": "-17.5%",
-        "bias24": "-4.5%",
-        "bias6": "2.2%",
-        "vol_ratio": "51.4%",
+        "bias60": "-17.3%",
+        "bias24": "-3.7%",
+        "bias6": "2.0%",
+        "vol_ratio": "13.7%",
         "eps": 1.81,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -260,54 +261,7 @@
         "first_entry_price": 168.5
     },
     {
-        "date": "2026-09-18",
-        "code": "6155",
-        "name": "鈞寶",
-        "price": 56.8,
-        "exchange": "上市",
-        "score": 123,
-        "capital_rank": "A",
-        "trend_status": "🔥 L1_左側確認起漲",
-        "entry_price": 56.23,
-        "reversal_low": null,
-        "ex_dividend_date": null,
-        "bias60": "-7.3%",
-        "bias24": "0.4%",
-        "bias6": "1.6%",
-        "vol_ratio": "54.7%",
-        "eps": 0.64,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 5,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-09-15",
-        "first_entry_price": 55.6
-    },
-    {
-        "date": "2026-09-18",
-        "code": "2495",
-        "name": "普安",
-        "price": 38.05,
-        "exchange": "上市",
-        "score": 120,
-        "capital_rank": "A",
-        "trend_status": "🔥 L1_左側起漲",
-        "entry_price": 36.68,
-        "bias60": "-8.3%",
-        "bias24": "-1.5%",
-        "bias6": "0.1%",
-        "vol_ratio": "48.2%",
-        "eps": 0.28,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 3,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-09-11",
-        "first_entry_price": 37.45,
-        "sector": "電腦及週邊設備業"
-    },
-    {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "6719",
         "name": "力智",
         "price": 184.5,
@@ -330,7 +284,7 @@
         "sector": "半導體業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2472",
         "name": "立隆電",
         "price": 216.0,
@@ -353,7 +307,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3236",
         "name": "千如",
         "price": 43.35,
@@ -364,10 +318,10 @@
         "entry_price": 42.92,
         "reversal_low": null,
         "ex_dividend_date": null,
-        "bias60": "-9.1%",
+        "bias60": "-8.5%",
         "bias24": "-1.2%",
-        "bias6": "0.8%",
-        "vol_ratio": "35.7%",
+        "bias6": "0.6%",
+        "vol_ratio": "4.2%",
         "eps": 0.11,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -377,7 +331,7 @@
         "first_entry_price": 44.2
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2478",
         "name": "大毅",
         "price": 120.5,
@@ -388,10 +342,10 @@
         "entry_price": 119.3,
         "reversal_low": null,
         "ex_dividend_date": null,
-        "bias60": "-13.6%",
-        "bias24": "-1.7%",
-        "bias6": "1.4%",
-        "vol_ratio": "37.9%",
+        "bias60": "-12.8%",
+        "bias24": "-1.6%",
+        "bias6": "1.1%",
+        "vol_ratio": "4.9%",
         "eps": 1.77,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -401,7 +355,31 @@
         "first_entry_price": 120.5
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "3317",
+        "name": "尼克森",
+        "price": 56.2,
+        "exchange": "上櫃",
+        "score": 120,
+        "capital_rank": "A",
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 55.64,
+        "reversal_low": null,
+        "ex_dividend_date": null,
+        "bias60": "-21.4%",
+        "bias24": "-7.4%",
+        "bias6": "1.7%",
+        "vol_ratio": "16.8%",
+        "eps": 0.72,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 5,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-20",
+        "first_entry_price": 56.2
+    },
+    {
+        "date": "2026-09-20",
         "code": "3048",
         "name": "益登",
         "price": 51.0,
@@ -424,7 +402,7 @@
         "sector": "電子通路業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "6175",
         "name": "立敦",
         "price": 69.7,
@@ -447,7 +425,31 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "3209",
+        "name": "全科",
+        "price": 45.8,
+        "exchange": "上市",
+        "score": 115,
+        "capital_rank": "A",
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 45.34,
+        "reversal_low": 45.349998474121094,
+        "ex_dividend_date": null,
+        "bias60": "-8.0%",
+        "bias24": "-0.9%",
+        "bias6": "1.3%",
+        "vol_ratio": "3.5%",
+        "eps": 1.75,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-18",
+        "first_entry_price": 45.8
+    },
+    {
+        "date": "2026-09-20",
         "code": "3078",
         "name": "僑威",
         "price": 44.5,
@@ -456,12 +458,12 @@
         "capital_rank": "A",
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 44.05,
-        "reversal_low": 44.5,
+        "reversal_low": null,
         "ex_dividend_date": null,
-        "bias60": "-8.2%",
-        "bias24": "-4.8%",
-        "bias6": "0.6%",
-        "vol_ratio": "91.8%",
+        "bias60": "-8.0%",
+        "bias24": "-4.4%",
+        "bias6": "0.4%",
+        "vol_ratio": "7.6%",
         "eps": 0.3,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -471,7 +473,7 @@
         "first_entry_price": 44.95
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2365",
         "name": "昆盈",
         "price": 28.15,
@@ -495,7 +497,7 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2101",
         "name": "南港",
         "price": 30.6,
@@ -518,7 +520,7 @@
         "sector": "橡膠工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3645",
         "name": "達邁",
         "price": 68.7,
@@ -528,7 +530,6 @@
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 68.01,
         "reversal_low": null,
-        "ex_dividend_date": null,
         "bias60": "-5.1%",
         "bias24": "-1.1%",
         "bias6": "0.8%",
@@ -539,34 +540,11 @@
         "buy_days": 4,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-09-17",
-        "first_entry_price": 68.8
+        "first_entry_price": 68.8,
+        "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
-        "code": "9958",
-        "name": "世紀鋼",
-        "price": 94.0,
-        "exchange": "上市",
-        "score": 115,
-        "capital_rank": "A",
-        "trend_status": "🔥 L1_左側確認起漲",
-        "entry_price": 93.06,
-        "reversal_low": null,
-        "ex_dividend_date": null,
-        "bias60": "-8.8%",
-        "bias24": "1.1%",
-        "bias6": "3.1%",
-        "vol_ratio": "130.1%",
-        "eps": 1.45,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 5,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-09-09",
-        "first_entry_price": 91.7
-    },
-    {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1529",
         "name": "樂事綠能",
         "price": 15.25,
@@ -576,7 +554,6 @@
         "trend_status": "🔥 L1_左側確認起漲",
         "entry_price": 15.1,
         "reversal_low": null,
-        "ex_dividend_date": null,
         "bias60": "-13.0%",
         "bias24": "-6.9%",
         "bias6": "-0.2%",
@@ -587,10 +564,11 @@
         "buy_days": 5,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-09-18",
-        "first_entry_price": 15.25
+        "first_entry_price": 15.25,
+        "sector": "電機機械"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2375",
         "name": "凱美",
         "price": 119.5,
@@ -600,7 +578,6 @@
         "trend_status": "⏳ L0_左側築底",
         "entry_price": 118.3,
         "reversal_low": null,
-        "ex_dividend_date": null,
         "bias60": "-15.2%",
         "bias24": "-3.0%",
         "bias6": "0.6%",
@@ -611,10 +588,11 @@
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-09-18",
-        "first_entry_price": 119.5
+        "first_entry_price": 119.5,
+        "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2915",
         "name": "潤泰全",
         "price": 59.0,
@@ -637,7 +615,55 @@
         "sector": "貿易百貨業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "8016",
+        "name": "矽創",
+        "price": 281.0,
+        "exchange": "上市",
+        "score": 110,
+        "capital_rank": "A",
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 273.24,
+        "reversal_low": null,
+        "bias60": "-8.0%",
+        "bias24": "-4.5%",
+        "bias6": "-0.3%",
+        "vol_ratio": "66.8%",
+        "eps": 7.68,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-17",
+        "first_entry_price": 276.0,
+        "sector": "半導體業"
+    },
+    {
+        "date": "2026-09-20",
+        "code": "2495",
+        "name": "普安",
+        "price": 38.05,
+        "exchange": "上市",
+        "score": 110,
+        "capital_rank": "A",
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 37.67,
+        "reversal_low": null,
+        "ex_dividend_date": null,
+        "bias60": "-4.3%",
+        "bias24": "1.3%",
+        "bias6": "1.7%",
+        "vol_ratio": "31.0%",
+        "eps": 0.28,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-11",
+        "first_entry_price": 37.45
+    },
+    {
+        "date": "2026-09-20",
         "code": "8936",
         "name": "國統",
         "price": 52.1,
@@ -660,7 +686,7 @@
         "sector": "其他業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "6023",
         "name": "元大期",
         "price": 87.5,
@@ -683,7 +709,7 @@
         "sector": "金融保險業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2406",
         "name": "國碩",
         "price": 27.65,
@@ -706,7 +732,7 @@
         "sector": "光電業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "8110",
         "name": "華東",
         "price": 47.4,
@@ -729,7 +755,7 @@
         "sector": "半導體業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2355",
         "name": "敬鵬",
         "price": 41.0,
@@ -753,7 +779,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3702",
         "name": "大聯大",
         "price": 114.5,
@@ -776,7 +802,7 @@
         "sector": "電子通路業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1210",
         "name": "大成",
         "price": 52.7,
@@ -799,7 +825,7 @@
         "sector": "食品工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3357",
         "name": "臺慶科",
         "price": 207.5,
@@ -822,7 +848,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2484",
         "name": "希華",
         "price": 70.4,
@@ -834,9 +860,9 @@
         "reversal_low": null,
         "ex_dividend_date": null,
         "bias60": "-5.1%",
-        "bias24": "-2.3%",
-        "bias6": "2.0%",
-        "vol_ratio": "37.1%",
+        "bias24": "-2.2%",
+        "bias6": "1.1%",
+        "vol_ratio": "4.8%",
         "eps": 0.54,
         "yield_rate": 0.0,
         "yield_formula": "⚠️ 已除息或尚未宣告",
@@ -846,7 +872,54 @@
         "first_entry_price": 70.4
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "2401",
+        "name": "凌陽",
+        "price": 25.45,
+        "exchange": "上市",
+        "score": 110,
+        "capital_rank": "A",
+        "trend_status": "🔥 L1_左側確認起漲",
+        "entry_price": 25.2,
+        "reversal_low": null,
+        "ex_dividend_date": null,
+        "bias60": "-6.8%",
+        "bias24": "1.1%",
+        "bias6": "3.1%",
+        "vol_ratio": "11.0%",
+        "eps": 0.37,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 4,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-20",
+        "first_entry_price": 25.45
+    },
+    {
+        "date": "2026-09-20",
+        "code": "2636",
+        "name": "台驊控股",
+        "price": 71.2,
+        "exchange": "上市",
+        "score": 105,
+        "capital_rank": "A",
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": null,
+        "bias60": "nan%",
+        "bias24": "nan%",
+        "bias6": "nan%",
+        "vol_ratio": "32.9%",
+        "eps": 2.74,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-14",
+        "first_entry_price": 69.1,
+        "sector": "航運業"
+    },
+    {
+        "date": "2026-09-20",
         "code": "2493",
         "name": "揚博",
         "price": 192.5,
@@ -869,7 +942,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3550",
         "name": "聯穎",
         "price": 23.7,
@@ -893,7 +966,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1708",
         "name": "東鹼",
         "price": 50.7,
@@ -916,7 +989,7 @@
         "sector": "化學工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2329",
         "name": "華泰",
         "price": 44.35,
@@ -939,7 +1012,7 @@
         "sector": "半導體業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "6472",
         "name": "保瑞",
         "price": 444.5,
@@ -962,7 +1035,7 @@
         "sector": "生技醫療業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2515",
         "name": "中工",
         "price": 11.95,
@@ -985,7 +1058,7 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1503",
         "name": "士電",
         "price": 199.5,
@@ -1008,7 +1081,7 @@
         "sector": "重電"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "8105",
         "name": "凌巨",
         "price": 14.8,
@@ -1032,7 +1105,7 @@
         "sector": "光電業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2331",
         "name": "精英",
         "price": 18.9,
@@ -1056,7 +1129,7 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2405",
         "name": "輔信",
         "price": 15.2,
@@ -1080,7 +1153,7 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2428",
         "name": "興勤",
         "price": 260.0,
@@ -1104,7 +1177,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1515",
         "name": "力山",
         "price": 30.6,
@@ -1114,7 +1187,6 @@
         "trend_status": "🔥 L1_左側確認起漲",
         "entry_price": 30.29,
         "reversal_low": null,
-        "ex_dividend_date": null,
         "bias60": "-10.0%",
         "bias24": "-3.9%",
         "bias6": "2.5%",
@@ -1125,10 +1197,11 @@
         "buy_days": 3,
         "tag": "左側黃金坑",
         "first_entry_date": "2026-09-18",
-        "first_entry_price": 30.6
+        "first_entry_price": 30.6,
+        "sector": "電機機械"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2548",
         "name": "華固",
         "price": 96.5,
@@ -1151,7 +1224,7 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "5536",
         "name": "聖暉*",
         "price": 888.0,
@@ -1174,7 +1247,7 @@
         "sector": "其他電子業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2820",
         "name": "華票",
         "price": 17.45,
@@ -1197,7 +1270,7 @@
         "sector": "金融保險業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "6191",
         "name": "精成科",
         "price": 83.2,
@@ -1220,7 +1293,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1773",
         "name": "勝一",
         "price": 163.5,
@@ -1243,7 +1316,7 @@
         "sector": "化學工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2607",
         "name": "榮運",
         "price": 53.3,
@@ -1266,7 +1339,7 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3014",
         "name": "聯陽",
         "price": 135.5,
@@ -1289,7 +1362,7 @@
         "sector": "半導體業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2855",
         "name": "統一證",
         "price": 53.3,
@@ -1312,7 +1385,7 @@
         "sector": "金融保險業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2610",
         "name": "華航",
         "price": 20.15,
@@ -1335,7 +1408,7 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2637",
         "name": "慧洋-KY",
         "price": 102.0,
@@ -1358,7 +1431,7 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2606",
         "name": "裕民",
         "price": 77.4,
@@ -1381,7 +1454,7 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2612",
         "name": "中航",
         "price": 62.8,
@@ -1404,7 +1477,7 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "8422",
         "name": "可寧衛*",
         "price": 26.55,
@@ -1427,7 +1500,7 @@
         "sector": "綠能環保"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "8021",
         "name": "尖點",
         "price": 460.0,
@@ -1450,7 +1523,7 @@
         "sector": "其他電子業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1718",
         "name": "中纖",
         "price": 10.6,
@@ -1473,7 +1546,7 @@
         "sector": "化學工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1477",
         "name": "聚陽",
         "price": 194.0,
@@ -1496,7 +1569,7 @@
         "sector": "紡織纖維"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2208",
         "name": "台船",
         "price": 19.15,
@@ -1519,7 +1592,7 @@
         "sector": "航運業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2540",
         "name": "愛山林",
         "price": 50.6,
@@ -1542,7 +1615,7 @@
         "sector": "建材營造業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2385",
         "name": "群光",
         "price": 106.0,
@@ -1565,7 +1638,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2316",
         "name": "楠梓電",
         "price": 156.5,
@@ -1588,7 +1661,7 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1513",
         "name": "中興電",
         "price": 167.0,
@@ -1611,30 +1684,7 @@
         "sector": "電機機械"
     },
     {
-        "date": "2026-09-18",
-        "code": "1440",
-        "name": "南紡",
-        "price": 13.45,
-        "exchange": "上市",
-        "score": 90,
-        "capital_rank": "A",
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": null,
-        "bias60": "nan%",
-        "bias24": "nan%",
-        "bias6": "nan%",
-        "vol_ratio": "156.1%",
-        "eps": 0.18,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 4,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-08-27",
-        "first_entry_price": 13.7,
-        "sector": "紡織纖維"
-    },
-    {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2912",
         "name": "統一超",
         "price": 216.5,
@@ -1657,7 +1707,7 @@
         "sector": "貿易百貨業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2211",
         "name": "長榮鋼",
         "price": 80.8,
@@ -1680,7 +1730,7 @@
         "sector": "鋼鐵工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1104",
         "name": "環泥",
         "price": 26.9,
@@ -1703,7 +1753,7 @@
         "sector": "水泥工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1229",
         "name": "聯華",
         "price": 40.85,
@@ -1726,7 +1776,7 @@
         "sector": "食品工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1215",
         "name": "卜蜂",
         "price": 109.5,
@@ -1749,7 +1799,7 @@
         "sector": "食品工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1809",
         "name": "中釉",
         "price": 38.6,
@@ -1772,7 +1822,7 @@
         "sector": "玻璃陶瓷"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1102",
         "name": "亞泥",
         "price": 35.15,
@@ -1795,7 +1845,7 @@
         "sector": "水泥工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "8050",
         "name": "廣積",
         "price": 59.3,
@@ -1818,30 +1868,7 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-09-18",
-        "code": "2312",
-        "name": "金寶",
-        "price": 31.0,
-        "exchange": "上市",
-        "score": 80,
-        "capital_rank": "A",
-        "trend_status": "⏳ L0_左側築底",
-        "entry_price": 31.98,
-        "bias60": "-1.9%",
-        "bias24": "0.0%",
-        "bias6": "-0.9%",
-        "vol_ratio": "92.9%",
-        "eps": 0.35,
-        "yield_rate": 0.0,
-        "yield_formula": "⚠️ 已除息或尚未宣告",
-        "buy_days": 3,
-        "tag": "左側黃金坑",
-        "first_entry_date": "2026-08-28",
-        "first_entry_price": 31.8,
-        "sector": "其他電子業"
-    },
-    {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "6116",
         "name": "彩晶",
         "price": 14.0,
@@ -1864,7 +1891,7 @@
         "sector": "光電業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2352",
         "name": "佳世達",
         "price": 29.2,
@@ -1887,7 +1914,30 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "1707",
+        "name": "葡萄王",
+        "price": 87.3,
+        "exchange": "上市",
+        "score": 78,
+        "capital_rank": "A",
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 89.59,
+        "bias60": "-1.3%",
+        "bias24": "0.5%",
+        "bias6": "-0.4%",
+        "vol_ratio": "50.4%",
+        "eps": 1.57,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-09-07",
+        "first_entry_price": 91.0,
+        "sector": "生技醫療業"
+    },
+    {
+        "date": "2026-09-20",
         "code": "3545",
         "name": "敦泰",
         "price": 51.6,
@@ -1910,7 +1960,7 @@
         "sector": "半導體業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1722",
         "name": "台肥",
         "price": 42.4,
@@ -1933,7 +1983,7 @@
         "sector": "化學工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1434",
         "name": "福懋",
         "price": 17.8,
@@ -1956,7 +2006,7 @@
         "sector": "紡織纖維"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "9910",
         "name": "豐泰",
         "price": 68.4,
@@ -1979,7 +2029,7 @@
         "sector": "運動休閒"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "3712",
         "name": "永崴投控",
         "price": 20.6,
@@ -2002,7 +2052,7 @@
         "sector": "電腦及週邊設備業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1608",
         "name": "華榮",
         "price": 35.8,
@@ -2025,7 +2075,7 @@
         "sector": "電器電纜"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "2328",
         "name": "廣宇",
         "price": 46.4,
@@ -2048,7 +2098,30 @@
         "sector": "電子零組件業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
+        "code": "2312",
+        "name": "金寶",
+        "price": 31.0,
+        "exchange": "上市",
+        "score": 80,
+        "capital_rank": "B",
+        "trend_status": "⏳ L0_左側築底",
+        "entry_price": 31.98,
+        "bias60": "-1.9%",
+        "bias24": "0.0%",
+        "bias6": "-0.9%",
+        "vol_ratio": "92.9%",
+        "eps": 0.35,
+        "yield_rate": 0.0,
+        "yield_formula": "⚠️ 已除息或尚未宣告",
+        "buy_days": 3,
+        "tag": "左側黃金坑",
+        "first_entry_date": "2026-08-28",
+        "first_entry_price": 31.8,
+        "sector": "其他電子業"
+    },
+    {
+        "date": "2026-09-20",
         "code": "1563",
         "name": "巧新",
         "price": 73.8,
@@ -2071,7 +2144,7 @@
         "sector": "汽車工業"
     },
     {
-        "date": "2026-09-18",
+        "date": "2026-09-20",
         "code": "1304",
         "name": "台聚",
         "price": 12.25,
