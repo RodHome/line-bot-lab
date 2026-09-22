@@ -1521,13 +1521,18 @@ def handle_message(event):
         except Exception as e:
             print(f"並行錯誤: {e}")
             if not data: data = fetch_data_light(stock_id) # 補救
-            if not data: return
+
+        # ✅ 正確位置：移至 except 區塊外，並加入溫和的錯誤提示
+        if not data:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 無法取得 {name} 的市場數據，請稍後再試。"))
+            return
 
         print(f"⏱️ [效能追蹤] 1️⃣ FinMind爬蟲耗時: {time.time() - t_api_start:.2f} 秒")
         
         f_str, t_str, af_val, at_val, f_consec, t_consec = chips_res # 👈 解包 6 個變數
         is_etf = stock_id.startswith("00")
 
+        # 此時可保證 data 絕對有值，安全執行後續指標運算
         signals = get_technical_signals(data, af_val + at_val)
         
         # 🤖 加入高階量化模組判斷 (Python 擔任大腦皮層)
