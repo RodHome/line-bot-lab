@@ -1611,34 +1611,34 @@ def handle_message(event):
             print(f"[Debug] 撈取歷史紀錄失敗: {e}")
         print(f"⏱️ [效能追蹤] 2️⃣ GitHub讀取耗時: {time.time() - t_git_start:.2f} 秒")
         # ==========================================
-            raw_highs = data.get('raw_highs', [])
-            raw_lows = data.get('raw_lows', [])
-            six_m_high = max(raw_highs) if raw_highs else data['close']
-            six_m_low = min(raw_lows) if raw_lows else data['close']
-            cdp_res = data.get('resistance', data['close'])
-            cdp_sup = data.get('support', data['close'])
+        raw_highs = data.get('raw_highs', [])
+        raw_lows = data.get('raw_lows', [])
+        six_m_high = max(raw_highs) if raw_highs else data['close']
+        six_m_low = min(raw_lows) if raw_lows else data['close']
+        cdp_res = data.get('resistance', data['close'])
+        cdp_sup = data.get('support', data['close'])
             
-            sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
+        sector = STOCK_META.get(stock_id, {}).get('sector', '台股市場')
             
-            # 🔥 關鍵修復 1：把「今日」跟「5日」的數據徹底拆開
-            today_f = f_str.split(" ")[0] 
-            today_t = t_str.split(" ")[0] 
+        # 🔥 關鍵修復 1：把「今日」跟「5日」的數據徹底拆開
+        today_f = f_str.split(" ")[0] 
+        today_t = t_str.split(" ")[0] 
             
-            # 🤖 新增：專門給 AI 看的「防呆翻譯機」 (不影響 LINE 介面)
-            def translate_chips(val):
-                try:
-                    v = int(val)
-                    if v > 0: return f"買超{v}張"
-                    elif v < 0: return f"賣超{abs(v)}張"
-                    else: return "無買賣"
-                except:
-                    return str(val)
+        # 🤖 新增：專門給 AI 看的「防呆翻譯機」 (不影響 LINE 介面)
+        def translate_chips(val):
+            try:
+                v = int(val)
+                if v > 0: return f"買超{v}張"
+                elif v < 0: return f"賣超{abs(v)}張"
+                else: return "無買賣"
+            except:
+                return str(val)
 
-            # 將今日與5日的原始數字，全部過濾成中文字串
-            ai_today_f = translate_chips(today_f)
-            ai_today_t = translate_chips(today_t)
-            ai_af_val = translate_chips(af_val)
-            ai_at_val = translate_chips(at_val)
+        # 將今日與5日的原始數字，全部過濾成中文字串
+        ai_today_f = translate_chips(today_f)
+        ai_today_t = translate_chips(today_t)
+        ai_af_val = translate_chips(af_val)
+        ai_at_val = translate_chips(at_val)
         
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
