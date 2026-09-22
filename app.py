@@ -1611,7 +1611,7 @@ def handle_message(event):
             print(f"[Debug] 撈取歷史紀錄失敗: {e}")
         print(f"⏱️ [效能追蹤] 2️⃣ GitHub讀取耗時: {time.time() - t_git_start:.2f} 秒")
         # ==========================================
-        raw_highs = data.get('raw_highs', [])
+            raw_highs = data.get('raw_highs', [])
             raw_lows = data.get('raw_lows', [])
             six_m_high = max(raw_highs) if raw_highs else data['close']
             six_m_low = min(raw_lows) if raw_lows else data['close']
