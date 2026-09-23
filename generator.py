@@ -501,13 +501,18 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                                     is_above_5ma_hist, is_strong_rev_hist, is_anti_knife_hist,
                                     is_breaking_low_hist, bias60_hist, rsi_yest_hist, rsi_today_hist,
                                     old_s.get('buy_days', 0), old_s.get('eps', 0)
-                                )
+                                )                       
                         if old_s.get("capital_rank") == "C":
+                            print(f"📉 {code} 跌破生命線或觸發避雷針 (C級)，正式除名！")
                             continue
                         updated_history.append(old_s) 
                         
                 except Exception as e:
-                    print(f"⚠️ 學長 {code} 更新失敗: {e}")
+                    print(f"⚠️ 學長 {code} 更新失敗 (API 斷線或異常): {e}")
+                    # 👇 [核心修復]：如果是 API 斷線，不該錯殺股票！保留它原本的狀態進入明日觀察
+                    if old_s.get("capital_rank") != "C":
+                        updated_history.append(old_s)
+
     except Exception as e:
         print(f"⚠️ 讀取 {file_name} 失敗: {e}")
 
