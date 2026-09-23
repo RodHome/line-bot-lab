@@ -1522,11 +1522,22 @@ def handle_message(event):
             print(f"並行錯誤: {e}")
             if not data: data = fetch_data_light(stock_id) # 補救
 
-        # ✅ 正確位置：移至 except 區塊外，並加入溫和的錯誤提示
+        # ==========================================
+        # 🔥 修改點：取代原本直接 return 的「已讀不回」，改為發送精準的錯誤提示
+        # ==========================================
         if not data:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 無法取得 {name} 的市場數據，請稍後再試。"))
+            tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
+            
+            # 判斷是否為半夜維護熱區 (23:00 ~ 01:59)
+            if tw_now.hour >= 23 or tw_now.hour < 2:
+                err_msg = f"⚠️ 【系統提示】\n外部資料庫深夜結算及伺服器維護時段 (23:00~02:00)，暫停提供 {name}({stock_id}) 的報價，請明早再試喔！"
+            else:
+                # 非維護時段卻抓不到資料，明確標示為系統異常或代號錯誤
+                err_msg = f"❌ 【系統異常】\n無法解析 {name}({stock_id}) 的數據。若非輸入無效代號，極可能為 API 格式異動或程式碼錯誤，請至後台檢視 Log。"
+            
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=err_msg))
             return
-
+        # ==========================================
         print(f"⏱️ [效能追蹤] 1️⃣ FinMind爬蟲耗時: {time.time() - t_api_start:.2f} 秒")
         
         f_str, t_str, af_val, at_val, f_consec, t_consec = chips_res # 👈 解包 6 個變數
