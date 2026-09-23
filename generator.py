@@ -113,6 +113,9 @@ def merge_history_data(today_data, file_name, sort_key):
             print(f"⚠️ 讀取 {file_name} 歷史資料失敗: {e}")
 
     today_date_str = (datetime.now(timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d')
+    merged_list = []
+    
+    # 核心修正：以 today_data 為絕對基準，不再讓 history_dict 裡的殘留舊股復活
     for item in today_data:
         code = item['code']
         item_date = item.get('date', today_date_str) 
@@ -132,15 +135,12 @@ def merge_history_data(today_data, file_name, sort_key):
         new_item['first_entry_date'] = first_date
         new_item['first_entry_price'] = first_price
         
-        history_dict[code] = new_item
+        merged_list.append(new_item)
 
-    all_dates = set(v.get('date') for v in history_dict.values() if v.get('date'))
-    allowed_dates = sorted(list(all_dates), reverse=True)[:30]
+    # 依照指定的分數或邏輯重新排序
+    merged_list.sort(key=lambda x: x.get(sort_key, 0), reverse=True)
     
-    final_list = [v for v in history_dict.values() if v.get('date') in allowed_dates]
-    final_list.sort(key=lambda x: x.get(sort_key, 0), reverse=True)
-    
-    return final_list
+    return merged_list
 
 def get_finmind_chips(code):
     start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
