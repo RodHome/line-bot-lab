@@ -1294,7 +1294,7 @@ def handle_message(event):
         # 🔒 VIP 門禁系統結束
 
         # ⚡ 第一階段：秒回 Reply API (解除 30 秒斷線限制)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="收到，全庫存精算中，稍後將以推播發送資產儀表板..."))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="全庫存📦盤點中🔍，稍後推播報告..."))
 
         # ⚡ 第二階段：定義背景運算程式
         def background_inventory_check():
@@ -1453,6 +1453,7 @@ def handle_message(event):
                         "code": code, 
                         "name": name, 
                         "qty": qty_str,
+                        "cost": cost,  # 👈 新增這行：把成本傳遞給 UI 排版區塊
                         "status": status_msg, 
                         "action": action_msg,
                         "color": "#D32F2F" if alert_type == "warn" else "#2E7D32"
@@ -1467,16 +1468,17 @@ def handle_message(event):
                 safes_swing = [r for r in results if r['type'] == "safe" and r['s_type'] == "波段"]
                 safes_deposit = [r for r in results if r['type'] == "safe" and r['s_type'] == "定存"]
 
-                # 建立單檔股票的 Flex Box (含診斷按鈕)
+                # 建立單檔股票的 Flex Box (含雙診斷按鈕)
                 def build_flex_box(item):
                     return {
                         "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
                         "contents": [
                             {
-                                "type": "box", "layout": "horizontal", "alignItems": "center",
+                                "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "sm",
                                 "contents": [
-                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 3},
-                                    {"type": "button", "style": "primary", "color": "#1976D2", "height": "sm", "action": {"type": "message", "label": "診斷", "text": str(item['code'])}, "flex": 1}
+                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 4, "wrap": True},
+                                    {"type": "button", "style": "secondary", "color": "#1976D2", "height": "sm", "action": {"type": "message", "label": "診斷", "text": str(item['code'])}, "flex": 2},
+                                    {"type": "button", "style": "primary", "color": "#D32F2F", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 2}
                                 ]
                             },
                             {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
