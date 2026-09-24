@@ -1293,24 +1293,30 @@ def handle_message(event):
     # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(非同步推播 + 7大紀律全貌展開)
     # ==========================================
     if msg in ["盤點", "庫存", "持股檢查", "庫存盤點"]:
-        # 🔒 VIP 門禁系統開始
-        MY_VIP_ID = "Uba1e61555838f40ee9dcafb2be5aa4f6"  # 👈 你的 ID
+        # 🔒 多帳號權限與路由字典 (新增配偶資料)
+        USER_CSV_MAP = {
+            "Uba1e61555838f40ee9dcafb2be5aa4f6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv", # 你
+            "U232c6a8b89d6c5c95dd0f9bbbdac5675": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDGiG-D5ILcPVzvKe_1wMvqVRpOh4oDl5D3r24a93qORm6lvKD4GMtqxCrZ9rCVoKPkqBMHLp1XA2c/pub?gid=0&single=true&output=csv"  # 配偶
+        }
         
-        if event.source.user_id != MY_VIP_ID:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 權限不足：此為 VIP 專屬資產管理功能。"))
+        caller_id = event.source.user_id
+        
+        if caller_id not in USER_CSV_MAP:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 權限不足：此為專屬資產管理功能。"))
             return
-        # 🔒 VIP 門禁系統結束
+
+        # 取得發話者對應的雲端試算表網址
+        target_csv_url = USER_CSV_MAP[caller_id]
 
         # ⚡ 第一階段：秒回 Reply API (解除 30 秒斷線限制)
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="全庫存📦盤點中🔍，稍後推播報告..."))
 
-        # ⚡ 第二階段：定義背景運算程式
-        def background_inventory_check():
+        # ⚡ 第二階段：定義背景運算程式 (接收獨立的 id 與 url 參數)
+        def background_inventory_check(target_id, csv_url):
             try:
-                # 1. 讀取 Google 試算表 CSV
-                CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv"
+                # 1. 讀取專屬的 Google 試算表 CSV
                 import pandas as pd
-                df = pd.read_csv(CSV_URL).fillna('')
+                df = pd.read_csv(csv_url).fillna('')
                 
                 portfolio = []
                 for index, row in df.iterrows():
@@ -1330,7 +1336,7 @@ def handle_message(event):
                     })
 
                 if not portfolio:
-                    line_bot_api.push_message(MY_VIP_ID, TextSendMessage(text="💼 目前 Google 試算表庫存名單為空喔！"))
+                    line_bot_api.push_message(target_id, TextSendMessage(text="💼 目前 Google 試算表庫存名單為空喔！"))
                     return
 
                 # 2. 定義單檔股票判斷邏輯 (7 大紀律)
@@ -1528,14 +1534,14 @@ def handle_message(event):
                 }
 
                 # ⚡ 透過 Push API 主動推播 FlexSendMessage
-                line_bot_api.push_message(MY_VIP_ID, FlexSendMessage(alt_text="庫存盤點報告", contents=final_bubble))
+                line_bot_api.push_message(target_id, FlexSendMessage(alt_text="庫存盤點報告", contents=final_bubble))
                 
             except Exception as e:
                 print(f"庫存盤點背景執行錯誤: {e}")
-                line_bot_api.push_message(MY_VIP_ID, TextSendMessage(text="⚠️ 庫存大體檢發生錯誤，請檢視系統 Log。"))
+                line_bot_api.push_message(target_id, TextSendMessage(text="⚠️ 庫存大體檢發生錯誤，請檢視系統 Log。"))
 
         # ⚡ 啟動背景執行緒，讓主程式立刻脫離
-        threading.Thread(target=background_inventory_check).start()
+        threading.Thread(target=background_inventory_check, args=(caller_id, target_csv_url)).start()
         return
 
     #=================3/17==========================
