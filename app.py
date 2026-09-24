@@ -1449,6 +1449,7 @@ def handle_message(event):
 
                     return {
                         "type": alert_type, 
+                        "s_type": s_type,  # 👈 新增這行：記錄它是波段還是定存
                         "code": code, 
                         "name": name, 
                         "qty": qty_str,
@@ -1463,7 +1464,8 @@ def handle_message(event):
 
                 # 4. 區分與 Flex Message 排版組裝
                 warnings = [r for r in results if r['type'] == "warn"]
-                safes = [r for r in results if r['type'] == "safe"]
+                safes_swing = [r for r in results if r['type'] == "safe" and r['s_type'] == "波段"]
+                safes_deposit = [r for r in results if r['type'] == "safe" and r['s_type'] == "定存"]
 
                 # 建立單檔股票的 Flex Box (含診斷按鈕)
                 def build_flex_box(item):
@@ -1488,13 +1490,20 @@ def handle_message(event):
                     {"type": "separator", "margin": "md"}
                 ]
 
+                # 區塊 1：警示與動作區 (無論波段或定存，只要有狀況就置頂)
                 if warnings:
                     flex_contents.append({"type": "text", "text": "【🚨 警示與動作區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"})
                     for w in warnings: flex_contents.append(build_flex_box(w))
                         
-                if safes:
-                    flex_contents.append({"type": "text", "text": "【🛡️ 穩定持股區】", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
-                    for s in safes: flex_contents.append(build_flex_box(s))
+                # 區塊 2：波段穩定區
+                if safes_swing:
+                    flex_contents.append({"type": "text", "text": "【🛡️ 波段穩定區】", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
+                    for s in safes_swing: flex_contents.append(build_flex_box(s))
+
+                # 區塊 3：定存持股區 (新增獨立區塊)
+                if safes_deposit:
+                    flex_contents.append({"type": "text", "text": "【🏦 定存持股區】", "weight": "bold", "size": "sm", "color": "#E65100", "margin": "md"})
+                    for s in safes_deposit: flex_contents.append(build_flex_box(s))
 
                 flex_contents.append({"type": "text", "text": f"🕒 {get_taiwan_time_str()}", "size": "xxs", "color": "#999999", "margin": "md", "align": "end"})
 
