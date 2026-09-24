@@ -249,12 +249,17 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                 if system_instruction:
                     contents = [{"parts": [{"text": f"系統指令: {system_instruction}\n用戶: {final_prompt}"}]}]
             #--4/9修改以下-----------#    
-                # 🔥 優化 1 & 2：將溫度降至 0.1，並縮緊預期輸出的 Token (讓它精簡與加速)
+                # 🔥 優化 1 & 2：動態參數分流 (相容 3.8 與舊版)
                 gen_config = {
                     "maxOutputTokens": 4096, 
-                    "temperature": 0.1, 
                     "responseMimeType": "application/json"
                 }
+                
+                # 若為 3.8 模型，不帶入 temperature，避免 API 400 報錯
+                # 若為 3.5 或 2.5，則強制加上 0.1 的低溫限制以維持 JSON 穩定度
+                if "3.8" not in model:
+                    gen_config["temperature"] = 0.1
+                    
                 if schema:
                     gen_config["responseSchema"] = schema
                 
