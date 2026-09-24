@@ -1469,16 +1469,32 @@ def handle_message(event):
                 safes_deposit = [r for r in results if r['type'] == "safe" and r['s_type'] == "定存"]
 
                 # 建立單檔股票的 Flex Box (含雙診斷按鈕)
+                # 建立單檔股票的 Flex Box (同一排 + 縮小字體的偽按鈕)
                 def build_flex_box(item):
                     return {
                         "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
                         "contents": [
                             {
-                                "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "sm",
+                                "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "xs",
                                 "contents": [
-                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 4, "wrap": True},
-                                    {"type": "button", "style": "secondary", "color": "#1976D2", "height": "sm", "action": {"type": "message", "label": "診斷", "text": str(item['code'])}, "flex": 2},
-                                    {"type": "button", "style": "primary", "color": "#D32F2F", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 2}
+                                    # 股票名稱 (維持佔比)
+                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 10, "wrap": True},
+                                    
+                                    # 偽按鈕 1：個股診斷 (藍色)
+                                    {
+                                        "type": "box", "layout": "vertical", "flex": 7, 
+                                        "backgroundColor": "#1976D2", "cornerRadius": "4px", "paddingTop": "4px", "paddingBottom": "4px",
+                                        "action": {"type": "message", "label": "個股診斷", "text": str(item['code'])},
+                                        "contents": [{"type": "text", "text": "個股診斷", "size": "xxs", "color": "#ffffff", "align": "center", "weight": "bold"}]
+                                    },
+                                    
+                                    # 偽按鈕 2：持有分析 (紅色)
+                                    {
+                                        "type": "box", "layout": "vertical", "flex": 7, 
+                                        "backgroundColor": "#D32F2F", "cornerRadius": "4px", "paddingTop": "4px", "paddingBottom": "4px",
+                                        "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"},
+                                        "contents": [{"type": "text", "text": "持有分析", "size": "xxs", "color": "#ffffff", "align": "center", "weight": "bold"}]
+                                    }
                                 ]
                             },
                             {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
