@@ -646,6 +646,12 @@ def callback():
 def handle_message(event):
     global TWSE_CACHE
     msg = event.message.text.strip()
+
+    # 👇 加入這段隱藏指令：專門用來查 ID
+    if msg.lower() == "id":
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=event.source.user_id))
+        return
+    
     #🔥 [效能優化] 零成本引導教學攔截
     if msg in ["如何評估", "如何診斷"]:
         guide_text = (
