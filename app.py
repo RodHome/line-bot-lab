@@ -16,8 +16,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v19.2 
-BOT_VERSION = "v19.2 (盤點功能更新)"
+# 🤖 [版本號] v20.0 
+BOT_VERSION = "v20.0 (導入gemini-3.8)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -235,7 +235,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
     if not keys: return None, "No API Key"
     random.shuffle(keys)
     
-    target_models = ["gemini-3.5-flash","gemini-2.5-flash","gemini-2.5-flash-lite"]
+    target_models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash"]
     final_prompt = prompt 
     
     for model in target_models:
