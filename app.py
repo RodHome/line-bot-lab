@@ -235,7 +235,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
     if not keys: return None, "No API Key"
     random.shuffle(keys)
     
-    target_models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash"]
+    target_models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"]
     final_prompt = prompt 
     
     for model in target_models:
