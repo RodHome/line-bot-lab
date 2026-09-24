@@ -1353,7 +1353,8 @@ def handle_message(event):
                     bias_20 = (live_price - ma20) / ma20 * 100 if ma20 > 0 else 0
 
                     alert_type = "safe"
-                    alert_msg = ""
+                    status_msg = ""
+                    action_msg = ""
 
                     # ================= 波段策略 =================
                     if s_type == "波段":
@@ -1383,37 +1384,46 @@ def handle_message(event):
                         # 1. 絕對停損 (含防呆)
                         if profit_pct <= -8.0:
                             if bias_20 < -12.0 or vol_today < (vol_5ma * 0.5):
-                                alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   📉狀態：虧損達 {profit_pct}% (量縮/超跌)\n   🧘動作：【觀望/躺平等待反彈】切勿殺低！"
+                                status_msg = f"📉狀態：虧損達 {profit_pct}% (量縮/超跌)"
+                                action_msg = f"🧘動作：【觀望/躺平等待反彈】切勿殺低！"
                                 alert_type = "warn"
                             else:
-                                alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   🚨狀態：虧損達 {profit_pct}%\n   🔪動作：【無情砍倉】紀律停損，收回資金！"
+                                status_msg = f"🚨狀態：虧損達 {profit_pct}%"
+                                action_msg = f"🔪動作：【無情砍倉】紀律停損，收回資金！"
                                 alert_type = "warn"
                         # 2. 跌破高檔爆量最低價
                         elif high_vol_low > 0 and live_price < high_vol_low and bias_20 > 5.0 and max_vol > vol_5ma * 1.5:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   🚨狀態：跌破高檔爆量支撐 ({high_vol_low}元)\n   💣動作：【清倉出場】主力防線失守！(盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"🚨狀態：跌破高檔爆量支撐 ({high_vol_low}元)"
+                            action_msg = f"💣動作：【清倉出場】主力防線失守！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         # 3. 高檔爆量實體長黑
                         elif bias_20 > 8.0 and vol_today >= vol_5ma * 2.0 and is_black_k and live_price < ma5:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   🚨狀態：高檔爆量實體長黑且破 5MA\n   💣動作：【清倉出場】主力倒貨明確！(盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"🚨狀態：高檔爆量實體長黑且破 5MA"
+                            action_msg = f"💣動作：【清倉出場】主力倒貨明確！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         # 4. 高獲利移動停利
                         elif profit_pct > 15.0 and pullback >= 8.0 and live_price < ma10:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   💰狀態：自高點拉回達 {pullback:.1f}% 且破 10MA\n   🎯動作：【移動停利出場】保護豐厚獲利！(盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"💰狀態：自高點拉回達 {pullback:.1f}% 且破 10MA"
+                            action_msg = f"🎯動作：【移動停利出場】保護豐厚獲利！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         # 5. 過熱爆量滯漲
                         elif vol_today >= vol_5ma * 1.5 and bias_20 > 15.0 and (is_long_upper or is_doji) and live_price <= ((highs[-1]+lows[-1])/2 if highs and lows else live_price):
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   ⚠️狀態：月乖離過熱且爆量滯漲\n   ⚖️動作：【主動獲利減碼 1/2】鎖住利潤！(盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"⚠️狀態：月乖離過熱且爆量滯漲"
+                            action_msg = f"⚖️動作：【主動獲利減碼 1/2】鎖住利潤！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         # 6. 短線轉弱雙破 5MA/10MA
                         elif live_price < ma5 and live_price < ma10:
                             if vol_today > vol_5ma * 1.5:
-                                alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   ⚠️狀態：帶量跌破短均線雙殺\n   ⚖️動作：【提前減碼 1/2】賣壓湧現！(盈虧 {sign}{profit_pct}%)"
+                                status_msg = f"⚠️狀態：帶量跌破短均線雙殺"
+                                action_msg = f"⚖️動作：【提前減碼 1/2】賣壓湧現！(盈虧 {sign}{profit_pct}%)"
                             else:
-                                alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   ⚠️狀態：量縮跌破短均線\n   🛡️動作：【戒備狀態】防守退至 20MA！(盈虧 {sign}{profit_pct}%)"
+                                status_msg = f"⚠️狀態：量縮跌破短均線"
+                                action_msg = f"🛡️動作：【戒備狀態】防守退至 20MA！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         # 7. 正常狀態 (強勢續抱)
                         else:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   ✅狀態：均線與量價結構健康\n   🚀動作：【強勢續抱】(盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"✅狀態：均線與量價結構健康"
+                            action_msg = f"🚀動作：【強勢續抱】(盈虧 {sign}{profit_pct}%)"
 
                     # ================= 定存策略 =================
                     elif s_type == "定存":
@@ -1422,39 +1432,84 @@ def handle_message(event):
                         ma60 = data.get('ma60', 0)
 
                         if yld_val < 4.0 and bias_20 > 5.0:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   🔥狀態：大漲導致殖利率過低 (約 {yld_str})\n   🔄動作：【獲利換股】失去高息保護傘 (盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"🔥狀態：大漲導致殖利率過低 (約 {yld_str})"
+                            action_msg = f"🔄動作：【獲利換股】失去高息保護傘 (盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         elif live_price < ma60 and ma20 < ma60:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   ⚠️狀態：長線趨勢轉空 (月/季線死亡交叉)\n   🛑動作：【暫停扣款】觀望基本面是否惡化 (盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"⚠️狀態：長線趨勢轉空 (月/季線死亡交叉)"
+                            action_msg = f"🛑動作：【暫停扣款】觀望基本面是否惡化 (盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         elif bias_20 < -5.0:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   🛒狀態：股價委屈，殖利率攀升 (約 {yld_str})\n   🎯動作：【逢低加碼】定存買點浮現 (盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"🛒狀態：股價委屈，殖利率攀升 (約 {yld_str})"
+                            action_msg = f"🎯動作：【逢低加碼】定存買點浮現 (盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         else:
-                            alert_msg = f"▪️ {name} ({code}) [{qty_str}]\n   ✅狀態：定存體質健康\n   🛡️動作：【紀律扣款】領息降成本 (盈虧 {sign}{profit_pct}%)"
+                            status_msg = f"✅狀態：定存體質健康"
+                            action_msg = f"🛡️動作：【紀律扣款】領息降成本 (盈虧 {sign}{profit_pct}%)"
 
-                    return {"type": alert_type, "msg": alert_msg}
+                    return {
+                        "type": alert_type, 
+                        "code": code, 
+                        "name": name, 
+                        "qty": qty_str,
+                        "status": status_msg, 
+                        "action": action_msg,
+                        "color": "#D32F2F" if alert_type == "warn" else "#2E7D32"
+                    }
 
                 # 3. 並行處理
-                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
                     results = [res for res in executor.map(check_stock_worker, portfolio) if res is not None]
 
-                # 4. 區分與排版
-                warnings = [r['msg'] for r in results if r['type'] == "warn"]
-                safes = [r['msg'] for r in results if r['type'] == "safe"]
+                # 4. 區分與 Flex Message 排版組裝
+                warnings = [r for r in results if r['type'] == "warn"]
+                safes = [r for r in results if r['type'] == "safe"]
 
-                final_text = "📊 【庫存全貌盤點報告】\n" + "="*18 + "\n\n"
+                # 建立單檔股票的 Flex Box (含診斷按鈕)
+                def build_flex_box(item):
+                    return {
+                        "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
+                        "contents": [
+                            {
+                                "type": "box", "layout": "horizontal", "alignItems": "center",
+                                "contents": [
+                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 3},
+                                    {"type": "button", "style": "primary", "color": "#1976D2", "height": "sm", "action": {"type": "message", "label": "診斷", "text": str(item['code'])}, "flex": 1}
+                                ]
+                            },
+                            {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
+                            {"type": "text", "text": item['action'], "size": "xs", "color": item['color'], "weight": "bold", "wrap": True},
+                            {"type": "separator", "margin": "md"}
+                        ]
+                    }
+
+                flex_contents = [
+                    {"type": "text", "text": "📊 【庫存全貌盤點報告】", "weight": "bold", "size": "md", "color": "#1E88E5", "align": "center"},
+                    {"type": "separator", "margin": "md"}
+                ]
+
                 if warnings:
-                    final_text += "【🚨 警示與動作區】\n" + "\n\n".join(warnings) + "\n\n"
+                    flex_contents.append({"type": "text", "text": "【🚨 警示與動作區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"})
+                    for w in warnings: flex_contents.append(build_flex_box(w))
+                        
                 if safes:
-                    final_text += "【🛡️ 穩定持股區】\n" + "\n\n".join(safes)
-                if not warnings and not safes:
-                    final_text = "目前無符合條件的持股可盤點。"
+                    flex_contents.append({"type": "text", "text": "【🛡️ 穩定持股區】", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
+                    for s in safes: flex_contents.append(build_flex_box(s))
 
-                final_text += f"\n\n🕒 盤點時間: {get_taiwan_time_str()}"
+                flex_contents.append({"type": "text", "text": f"🕒 {get_taiwan_time_str()}", "size": "xxs", "color": "#999999", "margin": "md", "align": "end"})
 
-                # ⚡ 透過 Push API 主動推播給 VIP 使用者
-                line_bot_api.push_message(MY_VIP_ID, TextSendMessage(text=final_text))
+                final_bubble = {
+                    "type": "bubble",
+                    "size": "giga",
+                    "body": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": flex_contents
+                    }
+                }
+
+                # ⚡ 透過 Push API 主動推播 FlexSendMessage
+                line_bot_api.push_message(MY_VIP_ID, FlexSendMessage(alt_text="庫存盤點報告", contents=final_bubble))
                 
             except Exception as e:
                 print(f"庫存盤點背景執行錯誤: {e}")
