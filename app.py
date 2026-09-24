@@ -5,6 +5,8 @@ import math
 import concurrent.futures
 import twstock
 import yfinance as yf # 👈 加上這一行
+import logging
+logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 import threading
 from datetime import datetime, timedelta, time as dtime, timezone
 from flask import Flask, request, abort
