@@ -655,15 +655,14 @@ def handle_message(event):
     #🔥 [效能優化] 零成本引導教學攔截
     if msg in ["如何評估", "如何診斷"]:
         guide_text = (
-            "💡 【個股與持股診斷教學】\n"
-            "請直接在對話框輸入您的目標，系統將自動啟動 AI 運算：\n\n"
+            "💡 【個股與持股診斷教學】\n"\n"
             "🔎 單純評估個股：\n"
             "請輸入「股票代號」或「名稱」。\n"
             "👉 例如：2330 或 台積電\n\n"
             "📊 帶有成本的持股健檢：\n"
             "請輸入「代號」加上「成本 XX」。\n"
             "👉 例如：2330 成本 800\n\n"
-            "⚠️ 注意：每次深度診斷約需 8-15 秒，請耐心等候喔！"
+            "⚠️ 注意：每次AI診斷約 8-15 秒，請耐心等候喔！"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=guide_text))
         return
@@ -671,20 +670,18 @@ def handle_message(event):
     # 🔥 [新增功能] 選股邏輯說明
     if msg in ["選股邏輯", "推薦說明", "篩選條件","右側邏輯"]:
         logic_text = (
-            "🤖【AI 右側動能雷達：篩選邏輯】\n"
-            "1️⃣ 第一關：雙軌資金漏斗\n"
-            " ‧ 權值股：成交額前 30 名。\n"
-            " ‧ 中小黑馬：成交額 > 1億 且 週轉率 > 3%。\n\n"
-            "2️⃣ 第二關：大戶業績定錨\n"
-            " ‧ 營收真成長：最新營收 YoY 必須 > 10%。\n"
-            " ‧ 大戶共識：近 5 日「外資+投信」買超合計 > 3 億元。\n\n"
-            "3️⃣ 第三關：客觀狀態與避雷\n"
-            " ‧ 🥇 S級 / 🥈 A級：帶量突破或沿均線推升，優先推播。\n"
-            " ‧ ⚠️ 爆天量防線：單日量比 > 3.0倍強制壓制為 B 級(不推播)，嚴防隔日沖倒貨。\n"
+            "🤖【AI 右側動能飆股：篩選邏輯】\n"
+            "1️⃣ 雙軌資金漏斗：權值股與中小黑馬 (週轉率 > 3%) 前 30 名。\n"
+            "2️⃣ 大戶業績定錨：最新營收 YoY > 10% 且近 5 日法人買超 > 3 億元。\n"
+            "3️⃣ 動態資金投入級別 (S/A/B/C Rank)：\n"
+            " ‧ 🥇 S級：帶量溫和突破平台 (優先建倉)\n"
+            " ‧ 🥈 A級：均線多頭推升中 (拉回防守買)\n"
+            " ‧ 🟡 B級：單日爆天量或震盪 (防隔日沖，不推播)\n"
+            " ‧ 🔴 C級：破線或主力出貨 (強制淘汰)\n"
             "────────────────\n"
             "🎯 【波段無情出場鐵律】\n"
-            " ‧ 獲利奔跑：未破 10MA 或波段紅K低點前，死抱不賣。\n"
-            " ‧ 降級警示：歷史庫存若轉為 B/C 級，系統主動發出撤退警告！"
+            " ‧ 沿 10MA 或波段紅K低點抱緊不賣。\n"
+            " ‧ 歷史推薦標的若轉弱降級至 B/C 級，系統將發出 15 日內降級警告！"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=logic_text))
         return
@@ -692,19 +689,15 @@ def handle_message(event):
     # 🔥 [新增功能] 左側黃金坑邏輯說明
     if msg in ["左側邏輯", "左側說明", "左側條件", "黃金坑邏輯"]:
         left_logic_text = (
-            "🤖【AI 左側潛伏雷達：篩選邏輯】\n"
-            "1️⃣ 第一關：流動性降維\n"
-            " ‧ 成交額 1000萬~5億：避開當沖熱門，鎖定冷門潛伏區。\n\n"
-            "2️⃣ 第二關：技術面尋底\n"
-            " ‧ 跌深委屈：股價必須在季線下方 (負乖離)。\n"
-            " ‧ 尚未起漲：近 5 日漲幅 < 8% (買在安全點)。\n\n"
-            "3️⃣ 第三關：重罰虧損與籌碼定錨\n"
-            " ‧ 嚴懲殭屍股：若 EPS < 0 且營收 YoY < 20%，直接一票否決或重扣 30 分！\n"
-            " ‧ 大戶試單：近 5 日內法人至少買超 1 天，且買超金額/佔比達標。\n"
+            "🤖【AI 左側黃金坑：篩選邏輯】\n"
+            "1️⃣ 流動性降維：成交額 1000萬~5億，避開熱門當沖，鎖定冷門潛伏區。\n"
+            "2️⃣ 技術面尋底：股價在季線(60MA)下方，嚴選量縮窒息或出現防守K線(長下影線/吞噬)。\n"
+            "3️⃣ 重罰虧損殭屍股：若 EPS < 0 且營收 YoY < 20%，直接一票否決或重扣分！\n"
+            "4️⃣ 資金級別與 PTS 評分：結合 RSI 超賣反轉與籌碼集中度進行綜合評分，並賦予 S/A/B/C 資金優先順位。\n"
             "────────────────\n"
             "🎯 【左側無情出場鐵律】\n"
             " ‧ 達標停利：底部反彈達 15%~20%，或撞擊季線壓力即停利。\n"
-            " ‧ 破底停損：一旦跌破前波低點，或入榜滿 30 天未發動，強制除名！"
+            " ‧ 破底停損：一旦跌破系統精算的防守低點，或入榜滿 30 天未發動，系統將強制除名！"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=left_logic_text))
         return
@@ -1560,7 +1553,7 @@ def handle_message(event):
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
                     {"type": "text", "text": "⚠️ 找不到您輸入的代號或指令喔！", "weight": "bold", "color": "#D32F2F", "wrap": True},
-                    {"type": "text", "text": "💡 【程式高手 Bot 使用指南】\n請直接輸入股票名稱/代號，或點擊下方按鈕探索三大策略：", "wrap": True, "size": "sm", "color": "#666666"},
+                    {"type": "text", "text": "💡 【V20.0 雙引擎戰情室 指南】\n請直接輸入股票代號進行 AI 診斷，或點擊下方按鈕探索：", "wrap": True, "size": "sm", "color": "#666666"},
                     
                     # --- 三大主力策略區 (用顏色區分) ---
                     {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🚀 右側動能：今日推薦", "text": "推薦"}, "margin": "md"},
@@ -1569,9 +1562,11 @@ def handle_message(event):
                     
                     # --- 個股與進階查詢區 (灰色次要按鈕) ---
                     {"type": "separator", "margin": "lg"},
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 個股評估 (輸入代號)", "text": "如何評估"}, "margin": "md"},
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📊 持股診斷 (帶成本)", "text": "如何診斷"}, "margin": "sm"},
-                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖券商名單", "text": "隔日沖"}, "margin": "sm"},
+                    {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📦 一鍵庫存盤點 (支援多帳號)", "text": "盤點"}, "margin": "md"},
+                    {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "sm", "contents": [
+                        {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 診斷教學", "text": "如何評估"}},
+                        {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖名單", "text": "隔日沖"}}
+                    ]},
 
                     # --- 說明區 (雙按鈕並排) ---
                     {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "md", "contents": [
