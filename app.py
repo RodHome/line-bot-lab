@@ -5,6 +5,8 @@ import math
 import concurrent.futures
 import twstock
 import yfinance as yf # 👈 加上這一行
+import logging
+logging.getLogger('yfinance').setLevel(logging.CRITICAL)
 import threading
 from datetime import datetime, timedelta, time as dtime, timezone
 from flask import Flask, request, abort
@@ -1476,9 +1478,9 @@ def handle_message(event):
                             {
                                 "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "sm",
                                 "contents": [
-                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 3, "wrap": True},
-                                    {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "個股診斷", "text": str(item['code'])}, "flex": 2.5},
-                                    {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 2.5}
+                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 4, "wrap": True},
+                                    {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "診斷", "text": str(item['code'])}, "flex": 2},
+                                    {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 2}
                                 ]
                             },
                             {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
