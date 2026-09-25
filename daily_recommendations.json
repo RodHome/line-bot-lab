@@ -27,6 +27,31 @@
     },
     {
         "date": "2026-09-24",
+        "code": "3293",
+        "name": "鈊象",
+        "exchange": "上櫃",
+        "sector": "文化創意業",
+        "cap_size": "中小型股",
+        "m_score": 104.64,
+        "capital_rank": "S",
+        "price": 761.0,
+        "turnover": 1435173000.0,
+        "chips_display": "3977張 (30.3億)",
+        "buy_value": 3026497000.0,
+        "yoy": 24.8,
+        "tag": "投信作帳",
+        "debug_info": {
+            "this_rev": 2268408000,
+            "last_rev": 1817575000,
+            "this_period": "2026/8",
+            "last_period": "2025/8",
+            "formula": "(2268408000 - 1817575000) / 1817575000"
+        },
+        "first_entry_date": "2026-09-17",
+        "first_entry_price": 725.0
+    },
+    {
+        "date": "2026-09-24",
         "code": "6213",
         "name": "聯茂",
         "exchange": "上市",
@@ -838,31 +863,6 @@
         },
         "first_entry_date": "2026-09-23",
         "first_entry_price": 840.0
-    },
-    {
-        "date": "2026-09-24",
-        "code": "3293",
-        "name": "鈊象",
-        "exchange": "上櫃",
-        "sector": "文化創意業",
-        "cap_size": "中小型股",
-        "m_score": 104.64,
-        "capital_rank": "B",
-        "price": 761.0,
-        "turnover": 1435173000.0,
-        "chips_display": "3977張 (30.3億)",
-        "buy_value": 3026497000.0,
-        "yoy": 24.8,
-        "tag": "投信作帳",
-        "debug_info": {
-            "this_rev": 2268408000,
-            "last_rev": 1817575000,
-            "this_period": "2026/8",
-            "last_period": "2025/8",
-            "formula": "(2268408000 - 1817575000) / 1817575000"
-        },
-        "first_entry_date": "2026-09-17",
-        "first_entry_price": 725.0
     },
     {
         "date": "2026-09-24",
