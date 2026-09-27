@@ -664,31 +664,6 @@
     },
     {
         "date": "2026-09-24",
-        "code": "6770",
-        "name": "力積電",
-        "exchange": "上市",
-        "sector": "半導體業",
-        "cap_size": "中小型股",
-        "m_score": 197.14,
-        "capital_rank": "B",
-        "price": 72.0,
-        "turnover": 8695856492.0,
-        "chips_display": "47665張 (34.3億)",
-        "buy_value": 3431880000.0,
-        "yoy": 76.19,
-        "tag": "外資大買",
-        "debug_info": {
-            "this_rev": 7008845000,
-            "last_rev": 3977940000,
-            "this_period": "2026/8",
-            "last_period": "2025/8",
-            "formula": "(7008845000 - 3977940000) / 3977940000"
-        },
-        "first_entry_date": "2026-08-28",
-        "first_entry_price": 70.0
-    },
-    {
-        "date": "2026-09-24",
         "code": "3443",
         "name": "創意",
         "exchange": "上市",
@@ -1289,30 +1264,5 @@
         },
         "first_entry_date": "2026-09-15",
         "first_entry_price": 200.0
-    },
-    {
-        "date": "2026-09-24",
-        "code": "3374",
-        "name": "精材",
-        "exchange": "上櫃",
-        "sector": "半導體業",
-        "cap_size": "中小型股",
-        "m_score": -68.19,
-        "capital_rank": "B",
-        "price": 449.0,
-        "turnover": 5406761500.0,
-        "chips_display": "-4986張 (-22.4億)",
-        "buy_value": -2238714000.0,
-        "yoy": 36.74,
-        "tag": "投信作帳",
-        "debug_info": {
-            "this_rev": 908948000,
-            "last_rev": 664725000,
-            "this_period": "2026/8",
-            "last_period": "2025/8",
-            "formula": "(908948000 - 664725000) / 664725000"
-        },
-        "first_entry_date": "2026-08-28",
-        "first_entry_price": 386.0
     }
 ]

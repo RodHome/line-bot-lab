@@ -39,8 +39,8 @@
         "bias_24": 0.67,
         "bias_20": -0.79,
         "bias_60": 7.84,
-        "yield_rate": 3.17,
-        "yield_formula": "預估配息 3.500 / 股價 110.50",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 110.50",
         "signal": "🟢 平穩",
         "action": "【定期定額】價值平衡。"
     },
@@ -54,8 +54,8 @@
         "bias_24": 0.02,
         "bias_20": -0.31,
         "bias_60": 0.7,
-        "yield_rate": 2.86,
-        "yield_formula": "預估配息 7.172 / 股價 250.50",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 250.50",
         "signal": "🟢 平穩",
         "action": "【定期定額】價值平衡。"
     },
@@ -69,8 +69,8 @@
         "bias_24": 1.64,
         "bias_20": 0.38,
         "bias_60": 11.08,
-        "yield_rate": 2.83,
-        "yield_formula": "預估配息 4.250 / 股價 150.00",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 150.00",
         "signal": "🟢 平穩",
         "action": "【定期定額】價值平衡。"
     },
@@ -99,8 +99,8 @@
         "bias_24": 1.61,
         "bias_20": 0.63,
         "bias_60": 3.78,
-        "yield_rate": 3.65,
-        "yield_formula": "預估配息 2.500 / 股價 68.50",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 68.50",
         "signal": "🟢 平穩",
         "action": "【定期定額】價值平衡。"
     },
@@ -189,8 +189,8 @@
         "bias_24": 2.19,
         "bias_20": 1.94,
         "bias_60": 3.35,
-        "yield_rate": 0.28,
-        "yield_formula": "預估配息 7.000 / 股價 2475.00",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 2475.00",
         "signal": "🟢 平穩",
         "action": "【定期定額】價值平衡。"
     },
@@ -204,8 +204,8 @@
         "bias_24": 5.21,
         "bias_20": 2.95,
         "bias_60": 16.29,
-        "yield_rate": 3.07,
-        "yield_formula": "預估配息 1.400 / 股價 45.60",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 45.60",
         "signal": "🟢 平穩",
         "action": "【定期定額】價值平衡。"
     },
@@ -249,8 +249,8 @@
         "bias_24": 3.96,
         "bias_20": 3.38,
         "bias_60": 6.82,
-        "yield_rate": 1.07,
-        "yield_formula": "預估配息 1.200 / 股價 112.40",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 112.40",
         "signal": "🟡 觀望",
         "action": "【維持現狀】穩定上漲中。"
     },
@@ -309,8 +309,8 @@
         "bias_24": 6.72,
         "bias_20": 4.03,
         "bias_60": 18.64,
-        "yield_rate": 2.57,
-        "yield_formula": "預估配息 1.000 / 股價 38.95",
+        "yield_rate": 0.0,
+        "yield_formula": "預估配息 0.000 / 股價 38.95",
         "signal": "🟡 觀望",
         "action": "【維持現狀】穩定上漲中。"
     }
