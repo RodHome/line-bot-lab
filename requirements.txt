@@ -5,3 +5,4 @@ twstock
 gunicorn
 lxml
 yfinance
+APScheduler==3.10.4
