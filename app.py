@@ -320,6 +320,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
     return None, "Error"
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
+# --- 🔥 優化版：數據並行擷取 (Safe Mode + 詳細報錯) ---
 def fetch_data_light(stock_id):
     # 定義內部子任務
     def get_history():
@@ -329,32 +330,37 @@ def fetch_data_light(stock_id):
             start = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
             res = requests.get(url_hist, params={
                 "dataset": "TaiwanStockPrice", "data_id": stock_id, "start_date": start, "token": token
-            }, timeout=4)
-            return res.json().get('data', [])
-        except: return []
+            }, timeout=6)
+            data = res.json().get('data', [])
+            return data
+        except Exception as err:
+            print(f"[Warn] {stock_id} FinMind 歷史價格失敗: {err}")
+            return []
 
     def get_realtime():
         try:
             return twstock.realtime.get(stock_id)
-        except: return None
+        except Exception as err:
+            return None
 
     # 並行執行
     hist_data = []
     stock_rt = None
     try:
-        # max_workers=2 為 Zeabur 安全值
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             future_hist = executor.submit(get_history)
             future_rt = executor.submit(get_realtime)
             
-            hist_data = future_hist.result(timeout=5)
-            stock_rt = future_rt.result(timeout=5)
+            hist_data = future_hist.result(timeout=8)
+            stock_rt = future_rt.result(timeout=8)
     except Exception as e:
-        print(f"[Warn] 並行擷取失敗，改為序列執行: {e}")
+        print(f"[Warn] {stock_id} 並行擷取逾時/失敗 ({e})，改為序列執行...")
         hist_data = get_history()
         stock_rt = get_realtime()
 
-    if not hist_data: return None
+    if not hist_data:
+        print(f"❌ [爬蟲失敗] {stock_id} 無法取得任何歷史 K 棒資料！")
+        return None
 
     # 數據縫合
     latest_price = 0
@@ -378,13 +384,11 @@ def fetch_data_light(stock_id):
                     source_name = "TWSE(試)"
     except: pass
 
-    # 🔥 第二道防線：如果 twstock 被擋，啟動 Yahoo 即時備援引擎！
+    # 第二道防線：Yahoo 即時備援引擎
     if latest_price == 0:
         try:
-            # 先當作上市股票 (.TW) 查詢
             df = yf.Ticker(f"{stock_id}.TW").history(period="1d")
             if df.empty:
-                # 找不到就換成上櫃股票 (.TWO) 查詢 (完美解決 6125 廣運問題！)
                 df = yf.Ticker(f"{stock_id}.TWO").history(period="1d")
                 
             if not df.empty:
@@ -392,9 +396,9 @@ def fetch_data_light(stock_id):
                 source_name = "Yahoo備援"
                 update_time = get_taiwan_time_str()
         except Exception as e:
-            print(f"Yahoo 備援失敗: {e}")
+            print(f"[Warn] {stock_id} Yahoo 備援失敗: {e}")
 
-    # 🛡️ 第三道防線：如果連 Yahoo 都掛了，才拿昨天的收盤價墊底
+    # 第三道防線：拿前一日收盤價墊底
     if latest_price == 0:
         latest_price = hist_data[-1]['close']
 
@@ -415,7 +419,7 @@ def fetch_data_light(stock_id):
         closes[-1] = latest_price
 
     ma5 = round(sum(closes[-5:]) / 5, 2) if len(closes) >= 5 else 0
-    ma10 = round(sum(closes[-10:]) / 10, 2) if len(closes) >= 10 else 0  # 👈 新增這行
+    ma10 = round(sum(closes[-10:]) / 10, 2) if len(closes) >= 10 else 0
     ma20 = round(sum(closes[-20:]) / 20, 2) if len(closes) >= 20 else 0
     ma60 = round(sum(closes[-60:]) / 60, 2) if len(closes) >= 60 else 0
 
@@ -433,7 +437,7 @@ def fetch_data_light(stock_id):
         "close": latest_price, 
         "update_time": f"{update_time} ({source_name})",
         "resistance": res_price, "support": sup_price,
-        "ma5": ma5, "ma10": ma10, "ma20": ma20, "ma60": ma60,  # 👈 補上 "ma10": ma10
+        "ma5": ma5, "ma10": ma10, "ma20": ma20, "ma60": ma60,
         "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
         "color": color,
         "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
@@ -1288,10 +1292,9 @@ def handle_message(event):
             return
     
     # ==========================================
-    # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(非同步推播 + 7大紀律全貌展開)
+    # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(含完整除錯日誌與防空白防呆)
     # ==========================================
     if msg in ["盤點", "庫存", "持股檢查", "庫存盤點"]:
-        # 🔒 多帳號權限與路由字典 (新增配偶資料)
         USER_CSV_MAP = {
             "Uba1e61555838f40ee9dcafb2be5aa4f6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv", # 你
             "U232c6a8b89d6c5c95dd0f9bbbdac5675": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDGiG-D5ILcPVzvKe_1wMvqVRpOh4oDl5D3r24a93qORm6lvKD4GMtqxCrZ9rCVoKPkqBMHLp1XA2c/pub?gid=0&single=true&output=csv"  # 配偶
@@ -1300,54 +1303,95 @@ def handle_message(event):
         caller_id = event.source.user_id
         
         if caller_id not in USER_CSV_MAP:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 權限不足：此為專屬資產管理功能。"))
+            print(f"⚠️ [盤點未授權] 收到未授權 ID 呼叫: {caller_id}")
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 權限不足：此為專屬資產管理功能。(您的ID: {caller_id})"))
             return
 
-        # 取得發話者對應的雲端試算表網址
         target_csv_url = USER_CSV_MAP[caller_id]
+        print(f"📦 [盤點啟動] User: {caller_id} 開始進行盤點...")
 
-        # ⚡ 第一階段：秒回 Reply API (解除 30 秒斷線限制)
+        # ⚡ 第一階段：秒回 Reply API
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="全庫存📦盤點中🔍，稍後推播報告..."))
 
-        # ⚡ 第二階段：定義背景運算程式 (接收獨立的 id 與 url 參數)
+        # ⚡ 第二階段：背景運算程式
         def background_inventory_check(target_id, csv_url):
             try:
-                # 1. 讀取專屬的 Google 試算表 CSV
                 import pandas as pd
+                print(f"📥 [盤點Debug] 正在下載 CSV 試算表: {csv_url}")
                 df = pd.read_csv(csv_url).fillna('')
                 
+                # 自動清理所有欄位前後空白
+                df.columns = [str(c).strip() for c in df.columns]
+                print(f"📋 [盤點Debug] 讀取到的欄位列表: {list(df.columns)} (共 {len(df)} 列)")
+
+                # 模糊匹配欄位名稱
+                def find_col(possible_names):
+                    for col in df.columns:
+                        for p in possible_names:
+                            if p in col:
+                                return col
+                    return None
+
+                col_code = find_col(['股票代號', '代號', 'code'])
+                col_cost = find_col(['成本價', '成本', 'cost'])
+                col_qty = find_col(['持有股數', '股數', 'quantity', '數量'])
+                col_type = find_col(['策略分類', '分類', 'type'])
+                col_broker = find_col(['證券商', '券商', 'broker'])
+
+                if not col_code:
+                    err_msg = f"❌ [盤點失敗] 找不到股票代號欄位！目前欄位: {list(df.columns)}"
+                    print(err_msg)
+                    line_bot_api.push_message(target_id, TextSendMessage(text=f"⚠️️ 試算表格式錯誤：找不到股票代號欄位。"))
+                    return
+
                 portfolio = []
                 for index, row in df.iterrows():
-                    code_str = str(row.get('股票代號 (code)', '')).strip()
-                    if not code_str: continue
-                        
+                    code_raw = str(row.get(col_code, '')).strip()
+                    if not code_raw or code_raw.lower() == 'nan': continue
+
+                    # 移除小數點 (例如 2330.0 -> 2330)
+                    if code_raw.endswith('.0'):
+                        code_raw = code_raw[:-2]
+                    if len(code_raw) < 4 and code_raw.isdigit():
+                        code_raw = code_raw.zfill(4)
+
                     try:
-                        cost = float(str(row.get('成本價 (cost)', '0')).replace(',', ''))
-                        qty = float(str(row.get('持有股數 (quantity)', '0')).replace(',', ''))
-                    except ValueError:
+                        cost_str = str(row.get(col_cost, '0')).replace(',', '').strip() if col_cost else '0'
+                        qty_str = str(row.get(col_qty, '0')).replace(',', '').strip() if col_qty else '0'
+                        cost = float(cost_str) if cost_str else 0.0
+                        qty = float(qty_str) if qty_str else 0.0
+                    except Exception as parse_err:
+                        print(f"[Warn] {code_raw} 成本/數量轉換異常: {parse_err}")
                         cost, qty = 0.0, 0.0
-                    
+
+                    s_type = str(row.get(col_type, '波段')).strip() if col_type else '波段'
+                    broker = str(row.get(col_broker, '未指定')).strip() if col_broker else '未指定'
+
                     portfolio.append({
-                        "code": code_str, "cost": cost, "quantity": qty,
-                        "type": str(row.get('策略分類 (type)', '波段')).strip(),
-                        "broker": str(row.get('證券商 (broker)', '未指定')).strip()
+                        "code": code_raw, "cost": cost, "quantity": qty,
+                        "type": s_type if s_type else '波段',
+                        "broker": broker
                     })
 
+                print(f"📊 [盤點Debug] 解析成功，有效持股清單 ({len(portfolio)} 檔): {[p['code'] for p in portfolio]}")
+
                 if not portfolio:
+                    print("⚠️ [盤點警告] Google 試算表庫存名單為空！")
                     line_bot_api.push_message(target_id, TextSendMessage(text="💼 目前 Google 試算表庫存名單為空喔！"))
                     return
 
-                # 2. 定義單檔股票判斷邏輯 (7 大紀律)
+                # 定義單檔股票判斷邏輯
                 def check_stock_worker(item):
                     code = str(item['code'])
-                    if len(code) < 4 and code.isdigit(): code = code.zfill(4)
                     cost = float(item.get('cost', 0))
                     qty = item.get('quantity', 0)
                     s_type = item.get('type', '波段')
                     broker = item.get('broker', '未指定')
                     
                     data = fetch_data_light(code)
-                    if not data: return None
+                    if not data:
+                        print(f"❌ [盤點Debug] {code} 爬蟲抓取報價失敗，已跳過該標的！")
+                        return None
 
                     name = CODE_TO_NAME.get(code, code)
                     live_price = data['close']
@@ -1355,7 +1399,6 @@ def handle_message(event):
                     sign = "+" if profit_pct > 0 else ""
                     qty_str = f"{int(qty)}股" if float(qty).is_integer() else f"{qty}股"
 
-                    # 提取基礎量價特徵
                     volumes = data.get('raw_volumes', [])
                     highs = data.get('raw_highs', [])
                     lows = data.get('raw_lows', [])
@@ -1393,7 +1436,6 @@ def handle_message(event):
                         is_doji = (body / amplitude <= 0.15) if amplitude > 0 else False
                         is_black_k = (body / amplitude >= 0.6) and (live_price < today_open) if amplitude > 0 else False
 
-                        # 1. 絕對停損 (含防呆)
                         if profit_pct <= -8.0:
                             if bias_20 < -12.0 or vol_today < (vol_5ma * 0.5):
                                 status_msg = f"📉狀態：虧損達 {profit_pct}% (量縮/超跌)"
@@ -1403,27 +1445,22 @@ def handle_message(event):
                                 status_msg = f"🚨狀態：虧損達 {profit_pct}%"
                                 action_msg = f"🔪動作：【無情砍倉】紀律停損，收回資金！"
                                 alert_type = "warn"
-                        # 2. 跌破高檔爆量最低價
                         elif high_vol_low > 0 and live_price < high_vol_low and bias_20 > 5.0 and max_vol > vol_5ma * 1.5:
                             status_msg = f"🚨狀態：跌破高檔爆量支撐 ({high_vol_low}元)"
                             action_msg = f"💣動作：【清倉出場】主力防線失守！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
-                        # 3. 高檔爆量實體長黑
                         elif bias_20 > 8.0 and vol_today >= vol_5ma * 2.0 and is_black_k and live_price < ma5:
                             status_msg = f"🚨狀態：高檔爆量實體長黑且破 5MA"
                             action_msg = f"💣動作：【清倉出場】主力倒貨明確！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
-                        # 4. 高獲利移動停利
                         elif profit_pct > 15.0 and pullback >= 8.0 and live_price < ma10:
                             status_msg = f"💰狀態：自高點拉回達 {pullback:.1f}% 且破 10MA"
                             action_msg = f"🎯動作：【移動停利出場】保護豐厚獲利！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
-                        # 5. 過熱爆量滯漲
                         elif vol_today >= vol_5ma * 1.5 and bias_20 > 15.0 and (is_long_upper or is_doji) and live_price <= ((highs[-1]+lows[-1])/2 if highs and lows else live_price):
                             status_msg = f"⚠️狀態：月乖離過熱且爆量滯漲"
                             action_msg = f"⚖️動作：【主動獲利減碼 1/2】鎖住利潤！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
-                        # 6. 短線轉弱雙破 5MA/10MA
                         elif live_price < ma5 and live_price < ma10:
                             if vol_today > vol_5ma * 1.5:
                                 status_msg = f"⚠️狀態：帶量跌破短均線雙殺"
@@ -1432,7 +1469,6 @@ def handle_message(event):
                                 status_msg = f"⚠️狀態：量縮跌破短均線"
                                 action_msg = f"🛡️動作：【戒備狀態】防守退至 20MA！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
-                        # 7. 正常狀態 (強勢續抱)
                         else:
                             status_msg = f"✅狀態：均線與量價結構健康"
                             action_msg = f"🚀動作：【強勢續抱】(盈虧 {sign}{profit_pct}%)"
@@ -1457,30 +1493,40 @@ def handle_message(event):
                             alert_type = "warn"
                         else:
                             status_msg = f"✅狀態：定存體質健康"
-                            action_msg = f"🛡️動作：【紀律扣款】領息降成本 (盈虧 {sign}{profit_pct}%)"
+                            action_msg = f"🛡️️動作：【紀律扣款】領息降成本 (盈虧 {sign}{profit_pct}%)"
 
                     return {
                         "type": alert_type, 
-                        "s_type": s_type,  # 👈 新增這行：記錄它是波段還是定存
+                        "s_type": s_type,
                         "code": code, 
                         "name": name, 
                         "qty": qty_str,
-                        "cost": cost,  # 👈 新增這行：把成本傳遞給 UI 排版區塊
+                        "cost": cost,
                         "status": status_msg, 
                         "action": action_msg,
                         "color": "#D32F2F" if alert_type == "warn" else "#2E7D32"
                     }
 
-                # 3. 並行處理
-                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                    results = [res for res in executor.map(check_stock_worker, portfolio) if res is not None]
+                # 💡 改為序列執行（避免巢狀 ThreadPool 搶資源導致 Timeout）
+                results = []
+                for p in portfolio:
+                    res = check_stock_worker(p)
+                    if res:
+                        results.append(res)
 
-                # 4. 區分與 Flex Message 排版組裝
                 warnings = [r for r in results if r['type'] == "warn"]
                 safes_swing = [r for r in results if r['type'] == "safe" and r['s_type'] == "波段"]
                 safes_deposit = [r for r in results if r['type'] == "safe" and r['s_type'] == "定存"]
 
-                # 建立單檔股票的 Flex Box (含雙診斷按鈕)
+                print(f"🏁 [盤點Debug] 彙整完畢: 警示 {len(warnings)} 檔 | 波段 {len(safes_swing)} 檔 | 定存 {len(safes_deposit)} 檔")
+
+                # 防呆阻斷：若完全沒有有效股票，不發出空白卡片
+                if not results:
+                    print("❌ [盤點異常] 所有持股均報價失敗，阻斷推播空白卡片！")
+                    line_bot_api.push_message(target_id, TextSendMessage(text="⚠️ 盤點警報：所有持股皆無法取得即時報價，請稍後再試或檢視後台 Log。"))
+                    return
+
+                # 建立單檔股票 Flex Box
                 def build_flex_box(item):
                     return {
                         "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
@@ -1488,9 +1534,9 @@ def handle_message(event):
                             {
                                 "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "sm",
                                 "contents": [
-                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 4, "wrap": True},
-                                    {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "診斷", "text": str(item['code'])}, "flex": 2},
-                                    {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 2}
+                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 3, "wrap": True},
+                                    {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "個股診斷", "text": str(item['code'])}, "flex": 2.5},
+                                    {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 2.5}
                                 ]
                             },
                             {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
@@ -1504,17 +1550,14 @@ def handle_message(event):
                     {"type": "separator", "margin": "md"}
                 ]
 
-                # 區塊 1：警示與動作區 (無論波段或定存，只要有狀況就置頂)
                 if warnings:
                     flex_contents.append({"type": "text", "text": "【🚨 警示與動作區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"})
                     for w in warnings: flex_contents.append(build_flex_box(w))
                         
-                # 區塊 2：波段穩定區
                 if safes_swing:
                     flex_contents.append({"type": "text", "text": "【🛡️ 波段穩定區】", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
                     for s in safes_swing: flex_contents.append(build_flex_box(s))
 
-                # 區塊 3：定存持股區 (新增獨立區塊)
                 if safes_deposit:
                     flex_contents.append({"type": "text", "text": "【🏦 定存持股區】", "weight": "bold", "size": "sm", "color": "#E65100", "margin": "md"})
                     for s in safes_deposit: flex_contents.append(build_flex_box(s))
@@ -1531,14 +1574,13 @@ def handle_message(event):
                     }
                 }
 
-                # ⚡ 透過 Push API 主動推播 FlexSendMessage
                 line_bot_api.push_message(target_id, FlexSendMessage(alt_text="庫存盤點報告", contents=final_bubble))
-                
+                print(f"✅ [盤點完成] 成功推播卡片給 {target_id}")
+
             except Exception as e:
-                print(f"庫存盤點背景執行錯誤: {e}")
+                print(f"🚨 [盤點致命崩潰] 錯誤原因: {e}")
                 line_bot_api.push_message(target_id, TextSendMessage(text="⚠️ 庫存大體檢發生錯誤，請檢視系統 Log。"))
 
-        # ⚡ 啟動背景執行緒，讓主程式立刻脫離
         threading.Thread(target=background_inventory_check, args=(caller_id, target_csv_url)).start()
         return
 
