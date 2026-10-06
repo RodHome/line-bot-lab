@@ -1352,7 +1352,10 @@ def handle_message(event):
                     # 移除小數點 (例如 2330.0 -> 2330)
                     if code_raw.endswith('.0'):
                         code_raw = code_raw[:-2]
-                    if len(code_raw) < 4 and code_raw.isdigit():
+                    # 若為純數字且長度為 3 碼(如 878, 919)，補成 5 碼 ETF 格式 (00878, 00919)
+                    if len(code_raw) == 3 and code_raw.isdigit():
+                        code_raw = "00" + code_raw
+                    elif len(code_raw) < 4 and code_raw.isdigit():
                         code_raw = code_raw.zfill(4)
 
                     try:
@@ -1526,7 +1529,7 @@ def handle_message(event):
                     line_bot_api.push_message(target_id, TextSendMessage(text="⚠️ 盤點警報：所有持股皆無法取得即時報價，請稍後再試或檢視後台 Log。"))
                     return
 
-                # 建立單檔股票 Flex Box
+                # 建立單檔股票 Flex Box (flex 修正為整數)
                 def build_flex_box(item):
                     return {
                         "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
@@ -1534,9 +1537,9 @@ def handle_message(event):
                             {
                                 "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "sm",
                                 "contents": [
-                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 3, "wrap": True},
-                                    {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "個股診斷", "text": str(item['code'])}, "flex": 2.5},
-                                    {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 2.5}
+                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 5, "wrap": True},
+                                    {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "個股診斷", "text": str(item['code'])}, "flex": 4},
+                                    {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 4}
                                 ]
                             },
                             {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
