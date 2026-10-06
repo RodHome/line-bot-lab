@@ -19,6 +19,202 @@ app = Flask(__name__)
 # 🤖 [版本號] v20 
 BOT_VERSION = "v20 (導入gemini-3.8)"
 
+
+# ---0.盤點功能自動化 ---
+from apscheduler.schedulers.background import BackgroundScheduler
+
+# 🔒 全域多帳號權限字典
+USER_CSV_MAP = {
+    "Uba1e61555838f40ee9dcafb2be5aa4f6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv",
+    "U232c6a8b89d6c5c95dd0f9bbbdac5675": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDGiG-D5ILcPVzvKe_1wMvqVRpOh4oDl5D3r24a93qORm6lvKD4GMtqxCrZ9rCVoKPkqBMHLp1XA2c/pub?gid=0&single=true&output=csv"
+}
+
+# ⚡ 將盤點邏輯獨立為全域函數，供手動與排程共用
+def run_inventory_job(target_id, csv_url):
+    try:
+        import pandas as pd
+        print(f"📥 [盤點啟動] 正在下載 CSV 試算表: {csv_url}")
+        df = pd.read_csv(csv_url).fillna('')
+        df.columns = [str(c).strip() for c in df.columns]
+
+        def find_col(possible_names):
+            for col in df.columns:
+                for p in possible_names:
+                    if p in col: return col
+            return None
+
+        col_code = find_col(['股票代號', '代號', 'code'])
+        col_cost = find_col(['成本價', '成本', 'cost'])
+        col_qty = find_col(['持有股數', '股數', 'quantity', '數量'])
+        col_type = find_col(['策略分類', '分類', 'type'])
+        col_broker = find_col(['證券商', '券商', 'broker'])
+
+        if not col_code:
+            print("❌ [盤點失敗] 找不到股票代號欄位！")
+            line_bot_api.push_message(target_id, TextSendMessage(text="⚠ 試算表格式錯誤：找不到股票代號欄位。"))
+            return
+
+        portfolio = []
+        for index, row in df.iterrows():
+            code_raw = str(row.get(col_code, '')).strip()
+            if not code_raw or code_raw.lower() == 'nan': continue
+
+            if code_raw.endswith('.0'): code_raw = code_raw[:-2]
+            # ETF 補零防呆
+            if len(code_raw) == 3 and code_raw.isdigit(): code_raw = "00" + code_raw
+            elif len(code_raw) < 4 and code_raw.isdigit(): code_raw = code_raw.zfill(4)
+
+            try:
+                cost = float(str(row.get(col_cost, '0')).replace(',', '').strip() or '0')
+                qty = float(str(row.get(col_qty, '0')).replace(',', '').strip() or '0')
+            except: cost, qty = 0.0, 0.0
+
+            s_type = str(row.get(col_type, '波段')).strip() or '波段'
+            broker = str(row.get(col_broker, '未指定')).strip() or '未指定'
+            portfolio.append({"code": code_raw, "cost": cost, "quantity": qty, "type": s_type, "broker": broker})
+
+        if not portfolio:
+            line_bot_api.push_message(target_id, TextSendMessage(text="💼 目前 Google 試算表庫存名單為空喔！"))
+            return
+
+        def check_stock_worker(item):
+            code, cost, qty, s_type = item['code'], item['cost'], item['quantity'], item['type']
+            data = fetch_data_light(code)
+            if not data: return None
+
+            name = CODE_TO_NAME.get(code, code)
+            live_price = data['close']
+            profit_pct = round((live_price - cost) / cost * 100, 1) if cost > 0 else 0
+            sign = "+" if profit_pct > 0 else ""
+
+            volumes = data.get('raw_volumes', [])
+            highs = data.get('raw_highs', [])
+            lows = data.get('raw_lows', [])
+            ma5 = data.get('ma5', 0)
+            ma10 = data.get('ma10', 0)
+            ma20 = data.get('ma20', 0)
+            bias_20 = (live_price - ma20) / ma20 * 100 if ma20 > 0 else 0
+
+            alert_type, status_msg, action_msg = "safe", "", ""
+
+            if s_type == "波段":
+                vol_today = volumes[-1] if volumes else 0
+                vol_5ma = sum(volumes[-6:-1]) / 5 if len(volumes) >= 6 else 1
+                highest_recent = max(highs[-20:]) if len(highs) >= 20 else live_price
+                pullback = (highest_recent - live_price) / highest_recent * 100 if highest_recent > 0 else 0
+                
+                high_vol_low, max_vol = 0, 0
+                recent_vols = volumes[-21:-1] if len(volumes) > 21 else volumes[:-1]
+                if recent_vols:
+                    max_vol = max(recent_vols)
+                    max_vol_idx = volumes.index(max_vol)
+                    high_vol_low = lows[max_vol_idx] if max_vol_idx < len(lows) else 0
+
+                amplitude = highs[-1] - lows[-1] if highs and lows else 0
+                today_open = data.get('open', live_price)
+                upper_shadow = highs[-1] - max(today_open, live_price) if highs else 0
+                body = abs(today_open - live_price)
+                is_long_upper = (upper_shadow / amplitude >= 0.4) if amplitude > 0 else False
+                is_doji = (body / amplitude <= 0.15) if amplitude > 0 else False
+                is_black_k = (body / amplitude >= 0.6) and (live_price < today_open) if amplitude > 0 else False
+
+                if profit_pct <= -8.0:
+                    status_msg = f"📉狀態：虧損達 {profit_pct}%" + (" (量縮/超跌)" if bias_20 < -12.0 or vol_today < (vol_5ma * 0.5) else "")
+                    action_msg = "🧘動作：【觀望/躺平等待反彈】切勿殺低！" if bias_20 < -12.0 or vol_today < (vol_5ma * 0.5) else "🔪動作：【無情砍倉】紀律停損！"
+                    alert_type = "warn"
+                elif high_vol_low > 0 and live_price < high_vol_low and bias_20 > 5.0 and max_vol > vol_5ma * 1.5:
+                    status_msg, action_msg, alert_type = f"🚨狀態：跌破高檔爆量支撐", f"💣動作：【清倉出場】(盈虧 {sign}{profit_pct}%)", "warn"
+                elif bias_20 > 8.0 and vol_today >= vol_5ma * 2.0 and is_black_k and live_price < ma5:
+                    status_msg, action_msg, alert_type = f"🚨狀態：高檔爆量實體長黑", f"💣動作：【清倉出場】(盈虧 {sign}{profit_pct}%)", "warn"
+                elif profit_pct > 15.0 and pullback >= 8.0 and live_price < ma10:
+                    status_msg, action_msg, alert_type = f"💰狀態：高點拉回達 {pullback:.1f}%", f"🎯動作：【移動停利出場】(盈虧 {sign}{profit_pct}%)", "warn"
+                elif vol_today >= vol_5ma * 1.5 and bias_20 > 15.0 and (is_long_upper or is_doji) and live_price <= ((highs[-1]+lows[-1])/2 if highs and lows else live_price):
+                    status_msg, action_msg, alert_type = f"⚠️狀態：月乖離過熱且爆量", f"⚖️動作：【主動獲利減碼】(盈虧 {sign}{profit_pct}%)", "warn"
+                elif live_price < ma5 and live_price < ma10:
+                    status_msg = f"⚠️狀態：帶量跌破短均線" if vol_today > vol_5ma * 1.5 else f"⚠️狀態：量縮跌破短均線"
+                    action_msg = f"⚖️動作：【提前減碼】(盈虧 {sign}{profit_pct}%)" if vol_today > vol_5ma * 1.5 else f"🛡️動作：【退守月線】(盈虧 {sign}{profit_pct}%)"
+                    alert_type = "warn"
+                else:
+                    status_msg, action_msg = f"✅狀態：均線量價健康", f"🚀動作：【強勢續抱】(盈虧 {sign}{profit_pct}%)"
+
+            elif s_type == "定存":
+                yld_str = fetch_dividend_yield(code, live_price)
+                yld_val = float(yld_str.replace('%', '')) if yld_str != "N/A" else 5.0
+                ma60 = data.get('ma60', 0)
+                if yld_val < 4.0 and bias_20 > 5.0:
+                    status_msg, action_msg, alert_type = f"🔥狀態：殖利率降至 {yld_str}", f"🔄動作：【獲利換股】(盈虧 {sign}{profit_pct}%)", "warn"
+                elif live_price < ma60 and ma20 < ma60:
+                    status_msg, action_msg, alert_type = f"⚠️狀態：長線趨勢轉空", f"🛑動作：【暫停扣款】(盈虧 {sign}{profit_pct}%)", "warn"
+                elif bias_20 < -5.0:
+                    status_msg, action_msg, alert_type = f"🛒狀態：委屈超跌 (殖 {yld_str})", f"🎯動作：【逢低加碼】(盈虧 {sign}{profit_pct}%)", "warn"
+                else:
+                    status_msg, action_msg = f"✅狀態：定存體質健康", f"🛡️動作：【紀律扣款】(盈虧 {sign}{profit_pct}%)"
+
+            return {"type": alert_type, "s_type": s_type, "code": code, "name": name, "cost": cost, "status": status_msg, "action": action_msg, "color": "#D32F2F" if alert_type == "warn" else "#2E7D32"}
+
+        results = [res for res in (check_stock_worker(p) for p in portfolio) if res]
+        if not results:
+            line_bot_api.push_message(target_id, TextSendMessage(text="⚠️ 盤點警報：持股皆無法取得即時報價，請檢視 Log。"))
+            return
+
+        warnings = [r for r in results if r['type'] == "warn"]
+        safes_swing = [r for r in results if r['type'] == "safe" and r['s_type'] == "波段"]
+        safes_deposit = [r for r in results if r['type'] == "safe" and r['s_type'] == "定存"]
+
+        def build_flex_box(item):
+            return {
+                "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
+                "contents": [
+                    {
+                        "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "sm",
+                        "contents": [
+                            {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 5, "wrap": True},
+                            {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "個股診斷", "text": str(item['code'])}, "flex": 4},
+                            {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 4}
+                        ]
+                    },
+                    {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
+                    {"type": "text", "text": item['action'], "size": "xs", "color": item['color'], "weight": "bold", "wrap": True},
+                    {"type": "separator", "margin": "md"}
+                ]
+            }
+
+        flex_contents = [{"type": "text", "text": "📊 【早晨盤點自動推播報告】", "weight": "bold", "size": "md", "color": "#1E88E5", "align": "center"}, {"type": "separator", "margin": "md"}]
+        
+        if warnings:
+            flex_contents.extend([{"type": "text", "text": "【🚨 警示與動作區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"}])
+            flex_contents.extend([build_flex_box(w) for w in warnings])
+        if safes_swing:
+            flex_contents.extend([{"type": "text", "text": "【🛡️ 波段穩定區】", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"}])
+            flex_contents.extend([build_flex_box(s) for s in safes_swing])
+        if safes_deposit:
+            flex_contents.extend([{"type": "text", "text": "【🏦 定存持股區】", "weight": "bold", "size": "sm", "color": "#E65100", "margin": "md"}])
+            flex_contents.extend([build_flex_box(s) for s in safes_deposit])
+            
+        flex_contents.append({"type": "text", "text": f"🕒 {get_taiwan_time_str()}", "size": "xxs", "color": "#999999", "margin": "md", "align": "end"})
+        
+        line_bot_api.push_message(target_id, FlexSendMessage(alt_text="每日盤點報告", contents={"type": "bubble", "size": "giga", "body": {"type": "box", "layout": "vertical", "contents": flex_contents}}))
+        
+    except Exception as e:
+        print(f"🚨 [排程錯誤] {e}")
+
+# 🚀 註冊每日早晨排程
+def daily_morning_routine():
+    print("🌅 [自動排程] 觸發 08:00 盤點推播...")
+    for uid, url in USER_CSV_MAP.items():
+        threading.Thread(target=run_inventory_job, args=(uid, url)).start()
+
+try:
+    scheduler = BackgroundScheduler(timezone="Asia/Taipei")
+    # 設定週一至週五，早上 8 點執行
+    scheduler.add_job(daily_morning_routine, 'cron', day_of_week='mon-fri', hour=16, minute=27)
+    scheduler.start()
+    print("✅ [系統] 內建 APScheduler 自動排程已成功啟動！")
+except Exception as e:
+    print(f"❌ [系統] 排程啟動失敗: {e}")
+
+
+
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
 TWSE_CACHE = {"date": "", "data": []}
@@ -1292,299 +1488,20 @@ def handle_message(event):
             return
     
     # ==========================================
-    # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(含完整除錯日誌與防空白防呆)
+    # 🌟 功能 5：一鍵庫存盤點 (呼叫共用全域函數)
     # ==========================================
     if msg in ["盤點", "庫存", "持股檢查", "庫存盤點"]:
-        USER_CSV_MAP = {
-            "Uba1e61555838f40ee9dcafb2be5aa4f6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv", # 你
-            "U232c6a8b89d6c5c95dd0f9bbbdac5675": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDGiG-D5ILcPVzvKe_1wMvqVRpOh4oDl5D3r24a93qORm6lvKD4GMtqxCrZ9rCVoKPkqBMHLp1XA2c/pub?gid=0&single=true&output=csv"  # 配偶
-        }
-        
         caller_id = event.source.user_id
         
         if caller_id not in USER_CSV_MAP:
-            print(f"⚠️ [盤點未授權] 收到未授權 ID 呼叫: {caller_id}")
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 權限不足：此為專屬資產管理功能。(您的ID: {caller_id})"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 權限不足：此為專屬資產管理功能。"))
             return
 
         target_csv_url = USER_CSV_MAP[caller_id]
-        print(f"📦 [盤點啟動] User: {caller_id} 開始進行盤點...")
-
-        # ⚡ 第一階段：秒回 Reply API
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text="全庫存📦盤點中🔍，稍後推播報告..."))
 
-        # ⚡ 第二階段：背景運算程式
-        def background_inventory_check(target_id, csv_url):
-            try:
-                import pandas as pd
-                print(f"📥 [盤點Debug] 正在下載 CSV 試算表: {csv_url}")
-                df = pd.read_csv(csv_url).fillna('')
-                
-                # 自動清理所有欄位前後空白
-                df.columns = [str(c).strip() for c in df.columns]
-                print(f"📋 [盤點Debug] 讀取到的欄位列表: {list(df.columns)} (共 {len(df)} 列)")
-
-                # 模糊匹配欄位名稱
-                def find_col(possible_names):
-                    for col in df.columns:
-                        for p in possible_names:
-                            if p in col:
-                                return col
-                    return None
-
-                col_code = find_col(['股票代號', '代號', 'code'])
-                col_cost = find_col(['成本價', '成本', 'cost'])
-                col_qty = find_col(['持有股數', '股數', 'quantity', '數量'])
-                col_type = find_col(['策略分類', '分類', 'type'])
-                col_broker = find_col(['證券商', '券商', 'broker'])
-
-                if not col_code:
-                    err_msg = f"❌ [盤點失敗] 找不到股票代號欄位！目前欄位: {list(df.columns)}"
-                    print(err_msg)
-                    line_bot_api.push_message(target_id, TextSendMessage(text=f"⚠️️ 試算表格式錯誤：找不到股票代號欄位。"))
-                    return
-
-                portfolio = []
-                for index, row in df.iterrows():
-                    code_raw = str(row.get(col_code, '')).strip()
-                    if not code_raw or code_raw.lower() == 'nan': continue
-
-                    # 移除小數點 (例如 2330.0 -> 2330)
-                    if code_raw.endswith('.0'):
-                        code_raw = code_raw[:-2]
-                    # 若為純數字且長度為 3 碼(如 878, 919)，補成 5 碼 ETF 格式 (00878, 00919)
-                    if len(code_raw) == 3 and code_raw.isdigit():
-                        code_raw = "00" + code_raw
-                    elif len(code_raw) < 4 and code_raw.isdigit():
-                        code_raw = code_raw.zfill(4)
-
-                    try:
-                        cost_str = str(row.get(col_cost, '0')).replace(',', '').strip() if col_cost else '0'
-                        qty_str = str(row.get(col_qty, '0')).replace(',', '').strip() if col_qty else '0'
-                        cost = float(cost_str) if cost_str else 0.0
-                        qty = float(qty_str) if qty_str else 0.0
-                    except Exception as parse_err:
-                        print(f"[Warn] {code_raw} 成本/數量轉換異常: {parse_err}")
-                        cost, qty = 0.0, 0.0
-
-                    s_type = str(row.get(col_type, '波段')).strip() if col_type else '波段'
-                    broker = str(row.get(col_broker, '未指定')).strip() if col_broker else '未指定'
-
-                    portfolio.append({
-                        "code": code_raw, "cost": cost, "quantity": qty,
-                        "type": s_type if s_type else '波段',
-                        "broker": broker
-                    })
-
-                print(f"📊 [盤點Debug] 解析成功，有效持股清單 ({len(portfolio)} 檔): {[p['code'] for p in portfolio]}")
-
-                if not portfolio:
-                    print("⚠️ [盤點警告] Google 試算表庫存名單為空！")
-                    line_bot_api.push_message(target_id, TextSendMessage(text="💼 目前 Google 試算表庫存名單為空喔！"))
-                    return
-
-                # 定義單檔股票判斷邏輯
-                def check_stock_worker(item):
-                    code = str(item['code'])
-                    cost = float(item.get('cost', 0))
-                    qty = item.get('quantity', 0)
-                    s_type = item.get('type', '波段')
-                    broker = item.get('broker', '未指定')
-                    
-                    data = fetch_data_light(code)
-                    if not data:
-                        print(f"❌ [盤點Debug] {code} 爬蟲抓取報價失敗，已跳過該標的！")
-                        return None
-
-                    name = CODE_TO_NAME.get(code, code)
-                    live_price = data['close']
-                    profit_pct = round((live_price - cost) / cost * 100, 1) if cost > 0 else 0
-                    sign = "+" if profit_pct > 0 else ""
-                    qty_str = f"{int(qty)}股" if float(qty).is_integer() else f"{qty}股"
-
-                    volumes = data.get('raw_volumes', [])
-                    highs = data.get('raw_highs', [])
-                    lows = data.get('raw_lows', [])
-                    ma5 = data.get('ma5', 0)
-                    ma10 = data.get('ma10', 0)
-                    ma20 = data.get('ma20', 0)
-                    bias_20 = (live_price - ma20) / ma20 * 100 if ma20 > 0 else 0
-
-                    alert_type = "safe"
-                    status_msg = ""
-                    action_msg = ""
-
-                    # ================= 波段策略 =================
-                    if s_type == "波段":
-                        vol_today = volumes[-1] if volumes else 0
-                        vol_5ma = sum(volumes[-6:-1]) / 5 if len(volumes) >= 6 else 1
-                        
-                        highest_recent = max(highs[-20:]) if len(highs) >= 20 else live_price
-                        pullback = (highest_recent - live_price) / highest_recent * 100 if highest_recent > 0 else 0
-                        
-                        recent_vols = volumes[-21:-1] if len(volumes) > 21 else volumes[:-1]
-                        high_vol_low = 0
-                        max_vol = 0
-                        if recent_vols:
-                            max_vol = max(recent_vols)
-                            max_vol_idx = volumes.index(max_vol)
-                            high_vol_low = lows[max_vol_idx] if max_vol_idx < len(lows) else 0
-
-                        amplitude = highs[-1] - lows[-1] if highs and lows else 0
-                        today_open = data.get('open', live_price)
-                        upper_shadow = highs[-1] - max(today_open, live_price) if highs else 0
-                        body = abs(today_open - live_price)
-                        
-                        is_long_upper = (upper_shadow / amplitude >= 0.4) if amplitude > 0 else False
-                        is_doji = (body / amplitude <= 0.15) if amplitude > 0 else False
-                        is_black_k = (body / amplitude >= 0.6) and (live_price < today_open) if amplitude > 0 else False
-
-                        if profit_pct <= -8.0:
-                            if bias_20 < -12.0 or vol_today < (vol_5ma * 0.5):
-                                status_msg = f"📉狀態：虧損達 {profit_pct}% (量縮/超跌)"
-                                action_msg = f"🧘動作：【觀望/躺平等待反彈】切勿殺低！"
-                                alert_type = "warn"
-                            else:
-                                status_msg = f"🚨狀態：虧損達 {profit_pct}%"
-                                action_msg = f"🔪動作：【無情砍倉】紀律停損，收回資金！"
-                                alert_type = "warn"
-                        elif high_vol_low > 0 and live_price < high_vol_low and bias_20 > 5.0 and max_vol > vol_5ma * 1.5:
-                            status_msg = f"🚨狀態：跌破高檔爆量支撐 ({high_vol_low}元)"
-                            action_msg = f"💣動作：【清倉出場】主力防線失守！(盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        elif bias_20 > 8.0 and vol_today >= vol_5ma * 2.0 and is_black_k and live_price < ma5:
-                            status_msg = f"🚨狀態：高檔爆量實體長黑且破 5MA"
-                            action_msg = f"💣動作：【清倉出場】主力倒貨明確！(盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        elif profit_pct > 15.0 and pullback >= 8.0 and live_price < ma10:
-                            status_msg = f"💰狀態：自高點拉回達 {pullback:.1f}% 且破 10MA"
-                            action_msg = f"🎯動作：【移動停利出場】保護豐厚獲利！(盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        elif vol_today >= vol_5ma * 1.5 and bias_20 > 15.0 and (is_long_upper or is_doji) and live_price <= ((highs[-1]+lows[-1])/2 if highs and lows else live_price):
-                            status_msg = f"⚠️狀態：月乖離過熱且爆量滯漲"
-                            action_msg = f"⚖️動作：【主動獲利減碼 1/2】鎖住利潤！(盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        elif live_price < ma5 and live_price < ma10:
-                            if vol_today > vol_5ma * 1.5:
-                                status_msg = f"⚠️狀態：帶量跌破短均線雙殺"
-                                action_msg = f"⚖️動作：【提前減碼 1/2】賣壓湧現！(盈虧 {sign}{profit_pct}%)"
-                            else:
-                                status_msg = f"⚠️狀態：量縮跌破短均線"
-                                action_msg = f"🛡️動作：【戒備狀態】防守退至 20MA！(盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        else:
-                            status_msg = f"✅狀態：均線與量價結構健康"
-                            action_msg = f"🚀動作：【強勢續抱】(盈虧 {sign}{profit_pct}%)"
-
-                    # ================= 定存策略 =================
-                    elif s_type == "定存":
-                        yld_str = fetch_dividend_yield(code, live_price)
-                        yld_val = float(yld_str.replace('%', '')) if yld_str != "N/A" else 5.0
-                        ma60 = data.get('ma60', 0)
-
-                        if yld_val < 4.0 and bias_20 > 5.0:
-                            status_msg = f"🔥狀態：大漲導致殖利率過低 (約 {yld_str})"
-                            action_msg = f"🔄動作：【獲利換股】失去高息保護傘 (盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        elif live_price < ma60 and ma20 < ma60:
-                            status_msg = f"⚠️狀態：長線趨勢轉空 (月/季線死亡交叉)"
-                            action_msg = f"🛑動作：【暫停扣款】觀望基本面是否惡化 (盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        elif bias_20 < -5.0:
-                            status_msg = f"🛒狀態：股價委屈，殖利率攀升 (約 {yld_str})"
-                            action_msg = f"🎯動作：【逢低加碼】定存買點浮現 (盈虧 {sign}{profit_pct}%)"
-                            alert_type = "warn"
-                        else:
-                            status_msg = f"✅狀態：定存體質健康"
-                            action_msg = f"🛡️️動作：【紀律扣款】領息降成本 (盈虧 {sign}{profit_pct}%)"
-
-                    return {
-                        "type": alert_type, 
-                        "s_type": s_type,
-                        "code": code, 
-                        "name": name, 
-                        "qty": qty_str,
-                        "cost": cost,
-                        "status": status_msg, 
-                        "action": action_msg,
-                        "color": "#D32F2F" if alert_type == "warn" else "#2E7D32"
-                    }
-
-                # 💡 改為序列執行（避免巢狀 ThreadPool 搶資源導致 Timeout）
-                results = []
-                for p in portfolio:
-                    res = check_stock_worker(p)
-                    if res:
-                        results.append(res)
-
-                warnings = [r for r in results if r['type'] == "warn"]
-                safes_swing = [r for r in results if r['type'] == "safe" and r['s_type'] == "波段"]
-                safes_deposit = [r for r in results if r['type'] == "safe" and r['s_type'] == "定存"]
-
-                print(f"🏁 [盤點Debug] 彙整完畢: 警示 {len(warnings)} 檔 | 波段 {len(safes_swing)} 檔 | 定存 {len(safes_deposit)} 檔")
-
-                # 防呆阻斷：若完全沒有有效股票，不發出空白卡片
-                if not results:
-                    print("❌ [盤點異常] 所有持股均報價失敗，阻斷推播空白卡片！")
-                    line_bot_api.push_message(target_id, TextSendMessage(text="⚠️ 盤點警報：所有持股皆無法取得即時報價，請稍後再試或檢視後台 Log。"))
-                    return
-
-                # 建立單檔股票 Flex Box (flex 修正為整數)
-                def build_flex_box(item):
-                    return {
-                        "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
-                        "contents": [
-                            {
-                                "type": "box", "layout": "horizontal", "alignItems": "center", "spacing": "sm",
-                                "contents": [
-                                    {"type": "text", "text": f"▪️ {item['name']} ({item['code']})", "weight": "bold", "size": "sm", "color": "#333333", "flex": 5, "wrap": True},
-                                    {"type": "button", "style": "primary", "color": "#64B5F6", "height": "sm", "action": {"type": "message", "label": "個股診斷", "text": str(item['code'])}, "flex": 4},
-                                    {"type": "button", "style": "primary", "color": "#E57373", "height": "sm", "action": {"type": "message", "label": "持有分析", "text": f"{item['code']} 成本 {item['cost']}"}, "flex": 4}
-                                ]
-                            },
-                            {"type": "text", "text": item['status'], "size": "xs", "color": "#666666", "wrap": True},
-                            {"type": "text", "text": item['action'], "size": "xs", "color": item['color'], "weight": "bold", "wrap": True},
-                            {"type": "separator", "margin": "md"}
-                        ]
-                    }
-
-                flex_contents = [
-                    {"type": "text", "text": "📊 【庫存全貌盤點報告】", "weight": "bold", "size": "md", "color": "#1E88E5", "align": "center"},
-                    {"type": "separator", "margin": "md"}
-                ]
-
-                if warnings:
-                    flex_contents.append({"type": "text", "text": "【🚨 警示與動作區】", "weight": "bold", "size": "sm", "color": "#D32F2F", "margin": "md"})
-                    for w in warnings: flex_contents.append(build_flex_box(w))
-                        
-                if safes_swing:
-                    flex_contents.append({"type": "text", "text": "【🛡️ 波段穩定區】", "weight": "bold", "size": "sm", "color": "#2E7D32", "margin": "md"})
-                    for s in safes_swing: flex_contents.append(build_flex_box(s))
-
-                if safes_deposit:
-                    flex_contents.append({"type": "text", "text": "【🏦 定存持股區】", "weight": "bold", "size": "sm", "color": "#E65100", "margin": "md"})
-                    for s in safes_deposit: flex_contents.append(build_flex_box(s))
-
-                flex_contents.append({"type": "text", "text": f"🕒 {get_taiwan_time_str()}", "size": "xxs", "color": "#999999", "margin": "md", "align": "end"})
-
-                final_bubble = {
-                    "type": "bubble",
-                    "size": "giga",
-                    "body": {
-                        "type": "box",
-                        "layout": "vertical",
-                        "contents": flex_contents
-                    }
-                }
-
-                line_bot_api.push_message(target_id, FlexSendMessage(alt_text="庫存盤點報告", contents=final_bubble))
-                print(f"✅ [盤點完成] 成功推播卡片給 {target_id}")
-
-            except Exception as e:
-                print(f"🚨 [盤點致命崩潰] 錯誤原因: {e}")
-                line_bot_api.push_message(target_id, TextSendMessage(text="⚠️ 庫存大體檢發生錯誤，請檢視系統 Log。"))
-
-        threading.Thread(target=background_inventory_check, args=(caller_id, target_csv_url)).start()
+        # 啟動背景執行緒，直接呼叫上方的 run_inventory_job
+        threading.Thread(target=run_inventory_job, args=(caller_id, target_csv_url)).start()
         return
 
     #=================3/17==========================
