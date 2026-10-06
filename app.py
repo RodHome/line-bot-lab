@@ -207,7 +207,7 @@ def daily_morning_routine():
 try:
     scheduler = BackgroundScheduler(timezone="Asia/Taipei")
     # 設定週一至週五，早上 8 點執行
-    scheduler.add_job(daily_morning_routine, 'cron', day_of_week='mon-fri', hour=16, minute=27)
+    scheduler.add_job(daily_morning_routine, 'cron', day_of_week='mon-fri', hour=16, minute=45)
     scheduler.start()
     print("✅ [系統] 內建 APScheduler 自動排程已成功啟動！")
 except Exception as e:
