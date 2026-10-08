@@ -179,8 +179,15 @@ def get_finmind_chips(code):
                     daily_net[row['date']] = daily_net.get(row['date'], 0) + val
                     
         buy_days = sum(1 for v in daily_net.values() if v > 0)
-        return acc_f, acc_t, buy_days
-    except: return None, None, 0
+        
+        # 👇 [新增] 獨立抓出 T (最新單日) 與 T-1 (前一日) 的法人合計淨買賣超
+        t_date = target_dates[0] if len(target_dates) > 0 else None
+        t1_date = target_dates[1] if len(target_dates) > 1 else None
+        net_t = daily_net.get(t_date, 0)
+        net_t1 = daily_net.get(t1_date, 0)
+        
+        return acc_f, acc_t, buy_days, net_t, net_t1
+    except: return None, None, 0, 0, 0
 
 def get_finmind_revenue_yoy(code):
     start = (datetime.now() - timedelta(days=480)).strftime('%Y-%m-%d')
@@ -437,7 +444,7 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                         if strategy_type == 'RIGHT' and taiwan_50_list:
                             old_s['cap_size'] = "大型權值股" if code in taiwan_50_list else "中小型股"
                             
-                            acc_f, acc_t, _ = get_finmind_chips(code)
+                            acc_f, acc_t, _, _, _ = get_finmind_chips(code)
                             if acc_f is not None:
                                 chips_sum = acc_f + acc_t
                                 buy_value = chips_sum * 1000 * new_p
@@ -807,7 +814,7 @@ def generate_daily_recommendations():
                     
                     stock_cap_size = "大型權值股" if code in TAIWAN_50 else "中小型股"
                     
-                    acc_f, acc_t, buy_days_5d = get_finmind_chips(code)
+                    acc_f, acc_t, buy_days_5d, net_t, net_t1 = get_finmind_chips(code)
                     if acc_f is None: 
                         continue
                         
@@ -887,7 +894,17 @@ def generate_daily_recommendations():
                         if stock_cap_size == "中小型股":
                             m_score = m_score * 1.2
                             
-                        final_tag = "外資大買" if acc_f > acc_t else "投信作帳"
+                        # 👇 2. 替換為動態戰術標籤邏輯
+                        if net_t1 < 0 and net_t > 0:
+                            final_tag = "🔥 籌碼換手 (洗盤結束)"
+                        elif net_t1 > 0 and net_t < 0:
+                            final_tag = "⚠️ 單日調節 (留意防守)"
+                        elif net_t1 > 0 and net_t > 0:
+                            final_tag = "🚀 強勢推升 (連續買超)"
+                        elif net_t1 < 0 and net_t < 0:
+                            final_tag = "👀 主力區間震盪"
+                        else:
+                            final_tag = "外資大買" if acc_f > acc_t else "投信作帳"
                             
                         date_str = f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
                         _, _, ex_date, _ = get_latest_dividend_info(code, price)
