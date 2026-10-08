@@ -92,7 +92,7 @@ def get_left_capital_rank(is_above_5ma, is_strong_reversal, is_anti_knife, is_br
         return "S" # 站上5MA、強力反轉、RSI向上、籌碼集中
     if not is_above_5ma and is_anti_knife and buy_days_5d >= 3:
         return "A" # 未過5MA，但出防守K線與籌碼進駐
-    if not is_above_5ma and is_breaking_low and not is_anti_knife:
+        if not is_above_5ma and is_breaking_low and not is_anti_knife:
             if bias60 < -8.0: 
                 return "B" # 嚴重超跌但無防守，嚴格觀望
             return "C" # 破底無支撐
