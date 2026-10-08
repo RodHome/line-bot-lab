@@ -93,11 +93,17 @@ def get_left_capital_rank(is_above_5ma, is_strong_reversal, is_anti_knife, is_br
     if not is_above_5ma and is_anti_knife and buy_days_5d >= 3:
         return "A" # 未過5MA，但出防守K線與籌碼進駐
     if not is_above_5ma and is_breaking_low and not is_anti_knife:
-        if bias60 < -8.0: 
-            return "B" # 嚴重超跌但無防守，嚴格觀望
-        return "C" # 破底無支撐
-    
-    return "A" if is_above_5ma else "B"
+            if bias60 < -8.0: 
+                return "B" # 嚴重超跌但無防守，嚴格觀望
+            return "C" # 破底無支撐
+        
+        # [修正] 移除「站上 5MA 就給 A」的保底，需伴隨連續籌碼或強力反轉
+        if is_above_5ma:
+            if buy_days_5d >= 3 or is_strong_reversal:
+                return "A"
+            return "B"
+
+        return "B"
 
 def merge_history_data(today_data, file_name, sort_key):
     history_dict = {}
@@ -490,12 +496,15 @@ def sync_historical_data(file_name, today_codes, strategy_type, taiwan_50_list=N
                                 upper_shadow_hist = h_price_hist - max(o_price_hist, c_price_hist)
                                 lower_shadow_hist = min(o_price_hist, c_price_hist) - l_price_hist
                                 
+                                lower_shadow_pct_hist = lower_shadow_hist / c_price_hist if c_price_hist > 0 else 0
+                                
                                 close_yest_hist = closes[-2]
                                 open_yest_hist = float(hist['Open'].iloc[-2])
-                                is_hammer_hist = (lower_shadow_hist > body_hist * 2.0) and (upper_shadow_hist < body_hist * 0.5)
+                                # [修正] 同步加入相對比例判斷
+                                is_hammer_hist = (lower_shadow_hist > body_hist * 2.0) and (upper_shadow_hist < body_hist * 0.5) and (lower_shadow_pct_hist > 0.015)
                                 is_be_hist = (close_yest_hist < open_yest_hist) and (o_price_hist < close_yest_hist) and (c_price_hist > open_yest_hist)
                                 is_strong_rev_hist = is_hammer_hist or is_be_hist
-                                is_anti_knife_hist = lower_shadow_hist > max(body_hist, 0.01) * 1.5
+                                is_anti_knife_hist = (lower_shadow_hist > body_hist * 1.5) and (lower_shadow_pct_hist > 0.015)
 
                                 old_s['capital_rank'] = get_left_capital_rank(
                                     is_above_5ma_hist, is_strong_rev_hist, is_anti_knife_hist,
@@ -902,8 +911,9 @@ def generate_daily_recommendations():
                             "debug_info": yoy_data['debug_info']
                         })
                 
-                # 第一階段排序，保留 m_score 最高的 15 檔
-                final_list.sort(key=lambda x: x['m_score'], reverse=True)
+                # 第一階段排序：優先依據最終評級 (S/A/B) 排序，次要依據動能總分 (m_score) 排序
+                rank_order = {"S": 0, "A": 1, "B": 2, "C": 3}
+                final_list.sort(key=lambda x: (rank_order.get(x.get('capital_rank', 'C'), 3), -x.get('m_score', 0)))
                 final_list = final_list[:15]
                 print(f"🎉 掃描結束！共 {len(final_list)} 檔符合【高潛力成長飆股】終極標準。")
             else:
@@ -1122,11 +1132,14 @@ def generate_left_side_value():
             close_yest = closes[-2] if len(closes) > 1 else close_today
             open_yest = opens[-2] if len(opens) > 1 else open_today
 
-            is_hammer = (lower_shadow > body * 2.0) and (upper_shadow < body * 0.5)
+            lower_shadow_pct = lower_shadow / close_today if close_today > 0 else 0
+            
+            # [修正] 加入 lower_shadow_pct > 0.015 條件，並將防守K線改為相對比例
+            is_hammer = (lower_shadow > body * 2.0) and (upper_shadow < body * 0.5) and (lower_shadow_pct > 0.015)
             is_bullish_engulfing = (close_yest < open_yest) and (open_today < close_yest) and (close_today > open_yest)
             
             item['is_strong_reversal'] = bool(is_hammer or is_bullish_engulfing)
-            item['is_anti_knife'] = bool(lower_shadow > max(body, 0.01) * 1.5)
+            item['is_anti_knife'] = bool((lower_shadow > body * 1.5) and (lower_shadow_pct > 0.015))
 
             # 3. L1 高位收紅防騙線確認
             close_position = (close_today - low_today) / (highs[-1] - low_today) if highs[-1] > low_today else 0
