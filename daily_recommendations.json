@@ -438,32 +438,6 @@
     },
     {
         "date": "2026-10-08",
-        "code": "2412",
-        "name": "中華電",
-        "exchange": "上市",
-        "sector": "通信網路業",
-        "cap_size": "大型權值股",
-        "m_score": 88.41,
-        "capital_rank": "A",
-        "ex_dividend_date": null,
-        "price": 146.5,
-        "turnover": 1338632400.0,
-        "chips_display": "14052張 (20.6億)",
-        "buy_value": 2058618000.0,
-        "yoy": 25.61,
-        "tag": "🚀 強勢推升 (連續買超)",
-        "debug_info": {
-            "this_rev": 23309496000,
-            "last_rev": 18556785000,
-            "this_period": "2026/8",
-            "last_period": "2025/8",
-            "formula": "(23309496000 - 18556785000) / 18556785000"
-        },
-        "first_entry_date": "2026-09-11",
-        "first_entry_price": 140.5
-    },
-    {
-        "date": "2026-10-08",
         "code": "2313",
         "name": "華通",
         "exchange": "上市",
