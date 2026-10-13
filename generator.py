@@ -153,9 +153,9 @@ def get_finmind_chips(code):
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
         res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
-        if res.status_code != 200: return None, None, 0
+        if res.status_code != 200: return None, None, 0, 0, 0
         data = res.json().get('data', [])
-        if not data: return None, None, 0
+        if not data: return None, None, 0, 0, 0
         
         unique_dates = sorted(list(set([d['date'] for d in data])), reverse=True)
         target_dates = unique_dates[:5]
