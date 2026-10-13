@@ -76,6 +76,9 @@
         let currentStrategy = 'LEFT'; 
         let currentMode = 'NEW';      
 
+        // 取整份資料中「最新」的日期（YYYY-MM-DD 字串可直接比大小）
+        const latestDate = arr => arr.reduce((m, s) => (s.date && s.date > m ? s.date : m), '');
+
         async function loadData() {
             try {
                 const [resLeft, resRight] = await Promise.all([
@@ -87,8 +90,9 @@
                     const textLeft = await resLeft.text();
                     leftData = JSON.parse(textLeft.replace(/NaN/g, 'null'));
                     if (leftData.length > 0) {
-                        baseDateLeft = new Date(leftData[0].date);
-                        document.getElementById('updateTimeL').innerText = `🛡️ 左側同步: ${leftData[0].date}`;
+                        const dL = latestDate(leftData);
+                        baseDateLeft = new Date(dL);
+                        document.getElementById('updateTimeL').innerText = `🛡️ 左側同步: ${dL}`;
                     }
                 }
 
@@ -96,8 +100,9 @@
                     const textRight = await resRight.text();
                     rightData = JSON.parse(textRight.replace(/NaN/g, 'null'));
                     if (rightData.length > 0) {
-                        baseDateRight = new Date(rightData[0].date);
-                        document.getElementById('updateTimeR').innerText = `🚀 右側同步: ${rightData[0].date}`;
+                        const dR = latestDate(rightData);
+                        baseDateRight = new Date(dR);
+                        document.getElementById('updateTimeR').innerText = `🚀 右側同步: ${dR}`;
                     }
                 }
                 
