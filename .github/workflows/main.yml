@@ -23,7 +23,7 @@ jobs:
     - name: Set up Python (安裝 Python)
       uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
     - name: Install dependencies (安裝爬蟲套件)
       run: |
