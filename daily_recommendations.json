@@ -78,6 +78,32 @@
     },
     {
         "date": "2026-10-30",
+        "code": "3293",
+        "name": "鈊象",
+        "exchange": "上櫃",
+        "sector": "文化創意業",
+        "cap_size": "中小型股",
+        "m_score": 105.52,
+        "capital_rank": "A",
+        "ex_dividend_date": null,
+        "price": 810.0,
+        "turnover": 1456191000.0,
+        "chips_display": "2284張 (18.5億)",
+        "buy_value": 1850040000.0,
+        "yoy": 25.29,
+        "tag": "🚀 強勢推升 (連續買超)",
+        "debug_info": {
+            "this_rev": 2249539000,
+            "last_rev": 1795453000,
+            "this_period": "2026/9",
+            "last_period": "2025/9",
+            "formula": "(2249539000 - 1795453000) / 1795453000"
+        },
+        "first_entry_date": "2026-10-30",
+        "first_entry_price": 810.0
+    },
+    {
+        "date": "2026-10-30",
         "code": "2801",
         "name": "彰銀",
         "exchange": "上市",
