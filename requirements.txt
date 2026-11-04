@@ -5,3 +5,5 @@ twstock
 gunicorn
 lxml
 yfinance
+pandas  #11/4新增
+numpy   #11/4新增
