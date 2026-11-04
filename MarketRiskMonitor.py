@@ -68,6 +68,8 @@ def generate_market_risk_report():
     if isinstance(raw_twii.columns, pd.MultiIndex):
         raw_twii.columns = raw_twii.columns.get_level_values(0)
     df = raw_twii[["Close"]].dropna().copy()
+    if df.index.tz is not None:
+        df.index = df.index.tz_localize(None) # 移除時區差異
     df["MA20"] = df["Close"].rolling(20).mean()
     df["MA60"] = df["Close"].rolling(60).mean()
     hi60 = df["Close"].rolling(60).max()
@@ -82,12 +84,16 @@ def generate_market_risk_report():
     px = yf.download([t+".TW" for t in TICKERS], start=START_DATE, auto_adjust=True, progress=False)["Close"]
     if isinstance(px.columns, pd.MultiIndex):
          px.columns = px.columns.get_level_values(0)
+    if px.index.tz is not None:
+        px.index = px.index.tz_localize(None) # 移除時區差異
+        
     px = px.dropna(axis=1, how="all").reindex(df.index).ffill(limit=3)
     breadth_stock_count = px.shape[1]
     
     ma20s = px.rolling(20).mean()
     v20 = ma20s.notna()
     b20 = ((px > ma20s) & v20).sum(axis=1) / v20.sum(axis=1).replace(0, np.nan)
+    b20 = b20.reindex(df.index) # 強制索引完全對齊大盤 df.index
     
     # [資料 3] 外資期貨淨空單
     print("抓取 FinMind 外資期貨籌碼...")
