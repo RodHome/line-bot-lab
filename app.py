@@ -1396,8 +1396,8 @@ def handle_message(event):
     # ==========================================
     if msg in ["盤點", "庫存", "持股檢查", "庫存盤點"]:
         USER_CSV_MAP = {
-            "Uba1e61555838f40ee9dcafb2be5aa4f6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?gid=0&single=true&output=csv", # 你
-            "U232c6a8b89d6c5c95dd0f9bbbdac5675": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDGiG-D5ILcPVzvKe_1wMvqVRpOh4oDl5D3r24a93qORm6lvKD4GMtqxCrZ9rCVoKPkqBMHLp1XA2c/pub?gid=0&single=true&output=csv"  # 配偶
+            "Uba1e61555838f40ee9dcafb2be5aa4f6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?output=csv", # 你
+            "U232c6a8b89d6c5c95dd0f9bbbdac5675": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDGiG-D5ILcPVzvKe_1wMvqVRpOh4oDl5D3r24a93qORm6lvKD4GMtqxCrZ9rCVoKPkqBMHLp1XA2c/pub?output=csv"  # 配偶
         }
         
         caller_id = event.source.user_id
