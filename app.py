@@ -16,8 +16,8 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v20 
-BOT_VERSION = "v20 (導入gemini-3.8)"
+# 🤖 [版本號] v21 
+BOT_VERSION = "v21(加入盤後大盤檢查)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -52,6 +52,81 @@ token = os.environ.get('LINE_CHANNEL_ACCESS_TOKEN')
 secret = os.environ.get('LINE_CHANNEL_SECRET')
 line_bot_api = LineBotApi(token if token else 'UNKNOWN')
 handler = WebhookHandler(secret if secret else 'UNKNOWN')
+
+# ==========================================
+# 🚨 大盤風險檔讀取與 Flex 警示卡片產生器 (支援單獨查詢)
+# ==========================================
+def get_market_warning_bubble(always_show=False):
+    """
+    讀取 market_risk.json。
+    - always_show=False (預設): 僅 level > 0 (注意/警戒/危險) 時回傳卡片。
+    - always_show=True: 無論 level 為何皆回傳卡片 (用於使用者主動查詢大盤)。
+    """
+    if not os.path.exists("market_risk.json"):
+        return None
+    try:
+        with open("market_risk.json", "r", encoding="utf-8") as f:
+            risk = json.load(f)
+    except Exception as e:
+        print(f"[Warn] 讀取 market_risk.json 失敗: {e}")
+        return None
+
+    level = risk.get("level", 0)
+    # 靜默巡檢模式：大盤正常 (level 0) 且非強制顯示時不回傳
+    if level == 0 and not always_show:
+        return None
+
+    level_name = risk.get("level_name", "正常")
+    lit_signals = risk.get("lit_signals", [])
+    signals_str = "、".join(lit_signals) if lit_signals else "無 (多頭架構健康)"
+    score = risk.get("score", 0)
+    close_price = risk.get("close", "N/A")
+    date_str = risk.get("date", "")
+
+    color_map = {0: "#2E7D32", 1: "#D97706", 2: "#EA580C", 3: "#D32F2F"}
+    icon_map = {0: "🟢", 1: "🟡", 2: "🟠", 3: "🚨"}
+    
+    header_color = color_map.get(level, "#2E7D32")
+    icon = icon_map.get(level, "🟢")
+    note = " (僅供參考)" if level == 1 else ""
+
+    tactics_map = {
+        0: "大盤趨勢健康，可依既有策略正常尋找標的建倉。",
+        1: "大盤出現轉弱訊號，僅供參考，請隨時留意部位控管。",
+        2: "大盤結構明顯轉弱，建議縮減資金規模，暫緩開新倉。",
+        3: "大盤進入高風險危險區，嚴禁追高，既有持股請嚴格執行風控！"
+    }
+
+    bubble = {
+        "type": "bubble", "size": "hecto",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": f"{icon} 大盤狀態：{level_name}{note}", "weight": "bold", "size": "md", "color": "#ffffff"},
+                {"type": "text", "text": f"收盤：{close_price} ({date_str}) ｜ 亮燈數：{score}/6", "size": "xs", "color": "#eeeeee", "margin": "xs"}
+            ],
+            "backgroundColor": header_color
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": [
+                {"type": "text", "text": "📊 亮燈跡象說明：", "size": "xs", "color": "#888888", "weight": "bold"},
+                {"type": "text", "text": signals_str, "size": "xs", "color": "#333333", "wrap": True},
+                {"type": "separator", "margin": "md"},
+                {"type": "text", "text": "⚠️ 戰術指引：", "size": "xs", "color": "#888888", "weight": "bold"},
+                {"type": "text", "text": tactics_map.get(level, ""), "size": "xs", "color": "#333333", "wrap": True}
+            ]
+        }
+    }
+    
+    data_quality = risk.get("data_quality", {})
+    if data_quality.get("status") != "OK":
+        note_msg = data_quality.get("note", "部分資料尚未更新")
+        bubble["body"]["contents"].append({
+            "type": "text", "text": f"*備註：{note_msg}", "size": "xxs", "color": "#888888", "wrap": True, "margin": "xs"
+        })
+
+    return bubble
 
 @app.route("/")
 def health_check(): return f"OK ({BOT_VERSION})", 200
@@ -657,8 +732,23 @@ def handle_message(event):
     msg = event.message.text.strip()
 
     # 👇 加入這段隱藏指令：專門用來查 ID
-    if msg.lower() == "id":
+    if msg.lower() == "id":    
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=event.source.user_id))
+        return
+
+    # 🌟 主動單獨查詢大盤狀態
+    if msg in ["大盤", "大盤動向", "大盤風險", "大盤狀態"]:
+        warning_bubble = get_market_warning_bubble(always_show=True)
+        if warning_bubble:
+            line_bot_api.reply_message(
+                event.reply_token, 
+                FlexSendMessage(alt_text="大盤風險報告", contents=warning_bubble)
+            )
+        else:
+            line_bot_api.reply_message(
+                event.reply_token, 
+                TextSendMessage(text="⚠️ 目前無大盤風險資料，請確認 MarketRiskMonitor.py 是否已執行。")
+            )
         return
     
     #🔥 [效能優化] 零成本引導教學攔截
@@ -921,6 +1011,11 @@ def handle_message(event):
         except Exception as e:
             print(f"降級警示產生失敗: {e}")
 
+        # 🚨 [新增] 檢查大盤健康度，若有狀況（level > 0）則置頂插入大盤警示卡片
+        market_warn = get_market_warning_bubble()
+        if market_warn:
+            bubbles.insert(0, market_warn)  # 強制塞在 Carousel 第一張
+
         line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="AI 精選飆股", contents={"type": "carousel", "contents": bubbles}))
         return
     
@@ -1099,8 +1194,13 @@ def handle_message(event):
                     }
                     bubbles.append(bubble)
                     
+                # 🚨 [新增] 檢查大盤健康度，若有狀況（level > 0）則置頂插入大盤警示卡片
+                market_warn = get_market_warning_bubble()
+                if market_warn:
+                    bubbles.insert(0, market_warn)  # 強制塞在 Carousel 第一張
+
                 line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="左側黃金坑報告", contents={"type": "carousel", "contents": bubbles}))
-                return # 🔥 必須加上這行：確保程式在此停住，不會觸發二次回覆報錯
+                return
                 
         except Exception as e:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 左側資料讀取失敗，請確認今日爬蟲是否已執行。"))
@@ -2006,10 +2106,21 @@ def handle_message(event):
         final_warning = f"{warning_block}" if warning_block else ""
         final_model = used_model if 'used_model' in locals() else "Smart Cache"
 
+        market_warn_text = ""
+        if os.path.exists("market_risk.json"):
+            try:
+                with open("market_risk.json", "r", encoding="utf-8") as f:
+                    rdata = json.load(f)
+                    if rdata.get("level", 0) > 0:
+                        lname = rdata.get("level_name", "注意")
+                        market_warn_text = f"🚨【大盤警示：{lname}】結構轉弱，控制資金!\n------------------\n"
+            except: pass
+        
         reply = (
         f"📈 **{name}({stock_id})**\n"        
         f"{data_dashboard}\n"
         f"------------------\n"
+        f"{market_warn_text}"   # 👈 塞在這裡，大盤異常才會顯示這行
         f"🚩 **指標快篩** :\n"
         f"{signal_str}\n"
         f"------------------\n"
