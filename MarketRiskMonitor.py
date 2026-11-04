@@ -5,7 +5,7 @@ import requests
 import json
 import datetime
 from pathlib import Path
-
+from zoneinfo import ZoneInfo
 # ==========================================
 # 1. 參數與常數設定
 # ==========================================
@@ -69,15 +69,19 @@ def generate_market_risk_report():
         raw_twii.columns = raw_twii.columns.get_level_values(0)
     df = raw_twii[["Close"]].dropna().copy()
     if df.index.tz is not None:
-        df.index = df.index.tz_localize(None) # 移除時區差異
+        df.index = df.index.tz_localize(None)
+
+    # 盤中防護：用台灣時間，且只在「最後一筆是今天、還沒收盤」時才丟掉
+    tw_now = datetime.datetime.now(ZoneInfo("Asia/Taipei"))
+    if df.index[-1].date() == tw_now.date() and (tw_now.hour, tw_now.minute) < (13, 30):
+        df = df.iloc[:-1]
+
+    # 指標一律在最終的 df 確定之後才計算
     df["MA20"] = df["Close"].rolling(20).mean()
     df["MA60"] = df["Close"].rolling(60).mean()
     hi60 = df["Close"].rolling(60).max()
     
-    # 盤中執行防護：丟棄當天未收盤資料
-    now = datetime.datetime.now()
-    if now.hour < 13 or (now.hour == 13 and now.minute < 30):
-        df = df.iloc[:-1] 
+
 
     # [資料 2] 廣度指標
     print(f"下載 {len(TICKERS)} 檔廣度樣本股...")
