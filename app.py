@@ -1405,10 +1405,15 @@ def handle_message(event):
     # 🌟 新增功能 5：極簡版【一鍵庫存盤點】(含完整除錯日誌與防空白防呆)
     # ==========================================
     if msg in ["盤點", "庫存", "持股檢查", "庫存盤點"]:
-        USER_CSV_MAP = {
-            "Uba1e61555838f40ee9dcafb2be5aa4f6": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJHpBZTTQf977odee43y6ZsF_OFTAZwDD4-Z8D02lWpjBWo2Tb1YmQNGCWsoKSIms_vrhtZ8YxR9VA/pub?output=csv", # 你
-            "U232c6a8b89d6c5c95dd0f9bbbdac5675": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRDGiG-D5ILcPVzvKe_1wMvqVRpOh4oDl5D3r24a93qORm6lvKD4GMtqxCrZ9rCVoKPkqBMHLp1XA2c/pub?output=csv"  # 配偶
-        }
+        # 🔒 試算表連結與 LINE ID 一律由環境變數提供，不寫在程式碼裡
+        USER_CSV_MAP = {}
+        for _n in ("1", "2"):
+            _uid = os.environ.get(f"SHEET_USER{_n}_ID", "").strip()
+            _url = os.environ.get(f"SHEET_USER{_n}_URL", "").strip()
+            if _uid and _url:
+                USER_CSV_MAP[_uid] = _url
+        if not USER_CSV_MAP:
+            print("⚠️ [盤點設定] 找不到 SHEET_USER1_ID / SHEET_USER1_URL 環境變數，盤點功能無法使用")
         
         caller_id = event.source.user_id
         
@@ -1427,7 +1432,7 @@ def handle_message(event):
         def background_inventory_check(target_id, csv_url):
             try:
                 import pandas as pd
-                print(f"📥 [盤點Debug] 正在下載 CSV 試算表: {csv_url}")
+                print("📥 [盤點Debug] 正在下載 CSV 試算表...")
                 df = pd.read_csv(csv_url).fillna('')
                 
                 # 自動清理所有欄位前後空白
