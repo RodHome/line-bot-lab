@@ -16,8 +16,16 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v21 
-BOT_VERSION = "v21(加入盤後大盤檢查)"
+# 🤖 [版本號] v22
+# [v22 修訂說明 2026-11-05]
+#  - Gemini 呼叫加 25 秒總時間預算，避免 gunicorn WORKER TIMEOUT 導致機器人被重啟
+#  - 第一個模型最多等 18 秒；大模型逾時後直接改用 lite 模型（方案C）
+#  - 修正推薦短評（tuple 誤用）與短評和漲跌方向矛盾的問題
+#  - 診斷提示詞：持股診斷固定六選項；一般查詢改為專屬「進場評估」提示詞
+#  - 試算表網址與使用者 ID 改讀環境變數（SHEET_USER1/2_ID、_URL）
+#  - 持股診斷：原本送給 AI 的資料沒有「成本」，導致 AI 自行亂猜（例：現價97.15>成本96.86，卻寫「已跌破成本」）；
+#    現在補上使用者成本與程式算好的「現價 vs 成本」，並新增第 9 條規則禁止與之矛盾
+BOT_VERSION = "v22(診斷成本防呆+Gemini逾時保護)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -1939,7 +1947,15 @@ def handle_message(event):
         
         if user_cost:
             profit_pct = round((data['close'] - user_cost) / user_cost * 100, 1)
-            
+
+            # 🤖 預先算好「現價 vs 成本」的結論，避免 AI 自己判斷出錯（例如現價高於成本卻寫成已跌破成本）
+            if profit_pct > 0:
+                cost_rel = f"現價高於成本 {abs(profit_pct)}%（帳面獲利，尚未跌破成本）"
+            elif profit_pct < 0:
+                cost_rel = f"現價低於成本 {abs(profit_pct)}%（帳面虧損，已跌破成本）"
+            else:
+                cost_rel = "現價與成本持平"
+
             # 🧠 操盤手 4.0：極致風控、動態定價與轉機股擴張
             # 🧠 操盤手 4.1：打通轉機股建倉權限，無視短線過熱
             sys_prompt = (
@@ -1960,11 +1976,13 @@ def handle_message(event):
                 "   - 目標價：若為轉機或強勢突破，無視短壓，直接以上方 15%~20% 或前波高點為目標。\n"
                 "   - 防守價：嚴格設定在 10MA、月線或季線等關鍵支撐。\n"
                 "   - ⚠️【名詞鐵律】：若你建議的防守價數字『低於』使用者成本，請務必寫『停損』；若防守價『高於』使用者成本，才可寫『停利』或『保護獲利』。絕不可在跌破成本的價位叫使用者停利！\n"
-                "8. ⚡重大事件濾網：若依常識判斷該股近期有重大法說會或面臨大盤風險，必須在分析中加上【事件警示】。"
+                "8. ⚡重大事件濾網：若依常識判斷該股近期有重大法說會或面臨大盤風險，必須在分析中加上【事件警示】。\n"
+                "9. 📌【成本一致性】：資料中的「使用者成本」與「現價 vs 成本」是程式已算好的事實，【必須照抄，不可自行重算或與之矛盾】。"
+                "只有當資料寫明『已跌破成本』時，才可說跌破成本；若現價高於成本，嚴禁寫成跌破成本或虧損。"
             )
 
             # 🔥 補上 10MA
-            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 當日漲幅:{daily_spread}%, 紅K中值:{k_mid}, 均線發散度(20MA與60MA差距):{ma_gap}%, EPS:{eps}, 【今日籌碼】(外資:{ai_today_f}/投信:{ai_today_t}), 【5日累積】(外資:{ai_af_val}/投信:{ai_at_val}), MA5:{data['ma5']}, MA10:{data.get('ma10',0)}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
+            user_prompt = f"標的:{name}(產業:{sector}), 現價:{data['close']}, 使用者成本:{user_cost}, 現價 vs 成本:{cost_rel}, 當日漲幅:{daily_spread}%, 紅K中值:{k_mid}, 均線發散度(20MA與60MA差距):{ma_gap}%, EPS:{eps}, 【今日籌碼】(外資:{ai_today_f}/投信:{ai_today_t}), 【5日累積】(外資:{ai_af_val}/投信:{ai_at_val}), MA5:{data['ma5']}, MA10:{data.get('ma10',0)}, MA20:{data['ma20']}, MA60:{data['ma60']}, CDP壓力:{cdp_res}, CDP支撐:{cdp_sup}, 半年高:{six_m_high}, 半年低:{six_m_low}, 訊號:{signal_str}"
 
             cost_schema = {
                 "type": "OBJECT",
