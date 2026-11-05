@@ -314,9 +314,15 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
     random.shuffle(keys)
     
     target_models = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"]
-    final_prompt = prompt 
-    
+    final_prompt = prompt
+
+    # 方案C：大模型逾時後，不再浪費時間試同級模型，直接改用較快的 lite 模型
+    FULL_MODELS = ("gemini-3.8-flash", "gemini-3.5-flash")
+    full_timed_out = False
+
     for model in target_models:
+        if full_timed_out and model in FULL_MODELS:
+            continue
         for key in keys:
             remaining = deadline - time.time()
             if remaining < 4:
@@ -359,7 +365,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                     "generationConfig": gen_config,
                     "safetySettings": safety_settings # 👈 把安全設定塞進去
                 }
-                response = requests.post(url, headers=headers, params=params, json=payload, timeout=(3, min(15, remaining)))
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=(3, min(18 if model == target_models[0] else 15, remaining)))
 
                 # 狀況 A：這把鑰匙額度用光了 (429) 👉 換下一把鑰匙試試看！
                 if response.status_code == 429:
@@ -400,6 +406,8 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
             except Exception as e: 
                 print(f"⚠️ [Debug] 請求發生 Exception (模型={model}, 已耗時 {time.time()-t_req:.1f}s): {e}")
                 if "timed out" in str(e).lower():
+                    if model in FULL_MODELS:
+                        full_timed_out = True   # 之後直接跳到 lite 模型
                     break   # 逾時與金鑰無關，直接換下一個模型，不再用另一把金鑰重試同一個模型
                 continue
     return None, "Error"
