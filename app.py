@@ -864,14 +864,14 @@ def handle_message(event):
         }
         
         # 呼叫時把 schema 傳進去
-        ai_json_str = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt, schema=recommend_schema)
+        ai_json_str, _ai_model = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt, schema=recommend_schema)
         
         reasons_map = {}
         try:
             ai_data = json.loads(ai_json_str)
             items = ai_data if isinstance(ai_data, list) else ai_data.get('stocks', [])
             for item in items: 
-                reasons_map[item.get('code')] = item.get('reason', '動能強勁。')
+                reasons_map[str(item.get('code'))] = item.get('reason', '動能強勁。')
         except: pass
 
         bubbles = []
@@ -923,7 +923,7 @@ def handle_message(event):
 
         for stock in good_stocks:
             default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
-            reason = reasons_map.get(stock['code'], default_reason)
+            reason = reasons_map.get(str(stock['code']), default_reason)
             if "量增價漲" in stock['signal_str'] or "RSI過熱" in stock['signal_str']:
                 reason += "\n🚨 留意隔日沖倒貨風險"
                 
