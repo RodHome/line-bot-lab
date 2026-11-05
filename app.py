@@ -304,7 +304,10 @@ def clean_json_string(text):
     text = re.sub(r'```\s*', '', text)
     return text.strip()
 
+GEMINI_BUDGET_SEC = 25   # 單次 Gemini 呼叫（含所有重試）的總時間上限，需小於 gunicorn --timeout
+
 def call_gemini_json(prompt, system_instruction=None, schema=None):
+    deadline = time.time() + GEMINI_BUDGET_SEC
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
     if not keys: return None, "No API Key"
@@ -315,6 +318,11 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
     
     for model in target_models:
         for key in keys:
+            remaining = deadline - time.time()
+            if remaining < 4:
+                print(f"⏱️ [Gemini] 已達 {GEMINI_BUDGET_SEC} 秒總時間預算，停止重試，改走降級回覆")
+                return None, "Error"
+            t_req = time.time()
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
                 headers = {'Content-Type': 'application/json'}
@@ -351,7 +359,7 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                     "generationConfig": gen_config,
                     "safetySettings": safety_settings # 👈 把安全設定塞進去
                 }
-                response = requests.post(url, headers=headers, params=params, json=payload, timeout=30)
+                response = requests.post(url, headers=headers, params=params, json=payload, timeout=(3, min(15, remaining)))
 
                 # 狀況 A：這把鑰匙額度用光了 (429) 👉 換下一把鑰匙試試看！
                 if response.status_code == 429:
@@ -390,7 +398,9 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
                             continue
                             
             except Exception as e: 
-                print(f"⚠️ [Debug] 請求發生 Exception: {e}")
+                print(f"⚠️ [Debug] 請求發生 Exception (模型={model}, 已耗時 {time.time()-t_req:.1f}s): {e}")
+                if "timed out" in str(e).lower():
+                    break   # 逾時與金鑰無關，直接換下一個模型，不再用另一把金鑰重試同一個模型
                 continue
     return None, "Error"
 
