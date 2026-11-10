@@ -1,6 +1,6 @@
 {
-  "date": "2026-11-06",
-  "close": 39701,
+  "date": "2026-11-09",
+  "close": 41661,
   "level": 3,
   "level_name": "危險",
   "raw_level": 3,
@@ -21,14 +21,14 @@
     "外資空單急增": true
   },
   "indicators": {
-    "b20": 0.0946,
-    "foreign_net_oi": -99930,
-    "foreign_chg5": -7689
+    "b20": 0.0811,
+    "foreign_net_oi": -101771,
+    "foreign_chg5": -12392
   },
   "data_quality": {
     "status": "OK",
-    "index_last_date": "2026-11-06",
-    "foreign_last_date": "2026-11-09",
+    "index_last_date": "2026-11-09",
+    "foreign_last_date": "2026-11-10",
     "breadth_stock_count": 74,
     "missing_fields": [],
     "note": ""
