@@ -16,7 +16,16 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v25
+# 🤖 [版本號] v26
+# [v26 修訂說明 2026-11-12] 修正「推薦」逾時導致 Render 重啟、LINE 回 500（log：Worker was sent SIGKILL / POST /callback 500）
+#  - 原因：抓個股資料 fetch_data_light 逾時後會在主執行緒「序列重跑」，且 twstock 即時報價沒有逾時設定，
+#    一遇到資料源變慢就卡過 gunicorn 的 30 秒，整個程序被強制重啟；單一 worker 被卡住時，連「左側」等指令也一起失敗。
+#  - fetch_data_light：不再用 with 等待卡住的執行緒；即時報價最多等 5 秒、歷史價格最多 8 秒，逾時就放棄，不再序列重跑；
+#    新增 fast 模式（推薦批次掃描用）：跳過較慢的 Yahoo 備援，報價取不到改用最近收盤價墊底。
+#  - 推薦批次掃描：整批最多 12 秒，時間到就用已完成的結果；全部沒完成時如實回覆「資料來源較慢，請稍後再試」
+#    （不再誤報「今日暫無符合條件」）。
+#  - 推薦的 Gemini 短評預算改為「24 秒扣掉已花時間」，剩不到 6 秒就略過 AI 短評改用預設短評，優先確保卡片送出。
+#  - 降級提醒讀 GitHub 的逾時由 5 秒縮為 3 秒。
 # [v25 修訂說明 2026-11-12] 前後矛盾與使用說明總檢查（共 12 項，一次修正）
 #  1. 降級提示：改名「近期推薦股轉弱提醒」；只列「入榜時為 S/A 級、現為 B/C 級」者（需爬蟲 first_entry_rank）；
 #     顯示原級別→現級別、推薦價/現價/報酬，整檔可點擊進詳細診斷。舊資料無入榜級別者暫不列入（保守）。
@@ -50,7 +59,7 @@ app = Flask(__name__)
 #  - 試算表網址與使用者 ID 改讀環境變數（SHEET_USER1/2_ID、_URL）
 #  - 持股診斷：原本送給 AI 的資料沒有「成本」，導致 AI 自行亂猜（例：現價97.15>成本96.86，卻寫「已跌破成本」）；
 #    現在補上使用者成本與程式算好的「現價 vs 成本」，並新增第 9 條規則禁止與之矛盾
-BOT_VERSION = "v25(矛盾與說明總檢查+LINE更新持股+盤中量能修正)"
+BOT_VERSION = "v26(推薦逾時保護+矛盾與說明總檢查+LINE更新持股)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -367,8 +376,9 @@ def clean_json_string(text):
 
 GEMINI_BUDGET_SEC = 25   # 單次 Gemini 呼叫（含所有重試）的總時間上限，需小於 gunicorn --timeout
 
-def call_gemini_json(prompt, system_instruction=None, schema=None):
-    deadline = time.time() + GEMINI_BUDGET_SEC
+def call_gemini_json(prompt, system_instruction=None, schema=None, budget=None):
+    # v26：budget 可由呼叫端縮短（例如「推薦」前面已花時間掃描，剩餘時間較少）
+    deadline = time.time() + (min(budget, GEMINI_BUDGET_SEC) if budget else GEMINI_BUDGET_SEC)
     keys = [os.environ.get(f'GEMINI_API_KEY_{i}') for i in range(1, 7) if os.environ.get(f'GEMINI_API_KEY_{i}')]
     if not keys and os.environ.get('GEMINI_API_KEY'): keys = [os.environ.get('GEMINI_API_KEY')]
     if not keys: return None, "No API Key"
@@ -475,7 +485,8 @@ def call_gemini_json(prompt, system_instruction=None, schema=None):
 
 # --- 🔥 優化版：數據並行擷取 (Safe Mode) ---
 # --- 🔥 優化版：數據並行擷取 (Safe Mode + 詳細報錯) ---
-def fetch_data_light(stock_id):
+def fetch_data_light(stock_id, fast=False):
+    # v26：fast=True 供「推薦」批次掃描使用——跳過較慢的 Yahoo 備援，即時報價取不到就用最近收盤價墊底
     # 定義內部子任務
     def get_history():
         token = os.environ.get('FINMIND_TOKEN', '')
@@ -498,19 +509,28 @@ def fetch_data_light(stock_id):
             return None
 
     # 並行執行
+    # v26 修正：原本 (1) 用 with 區塊，結束時會「等待」卡住的執行緒；(2) 逾時後又在主執行緒「序列重跑」，
+    # twstock 即時報價沒有逾時設定，可能卡到 gunicorn 30 秒強制重啟（SIGKILL）→ LINE 回 500。
+    # 改為：不等待卡住的執行緒、即時報價最多等 5 秒、逾時就放棄（改用 Yahoo／最近收盤價墊底），不再序列重跑。
     hist_data = []
     stock_rt = None
+    t_fetch0 = time.time()
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            future_hist = executor.submit(get_history)
-            future_rt = executor.submit(get_realtime)
-            
+        future_hist = executor.submit(get_history)
+        future_rt = executor.submit(get_realtime)
+        try:
             hist_data = future_hist.result(timeout=8)
-            stock_rt = future_rt.result(timeout=8)
-    except Exception as e:
-        print(f"[Warn] {stock_id} 並行擷取逾時/失敗 ({e})，改為序列執行...")
-        hist_data = get_history()
-        stock_rt = get_realtime()
+        except Exception as e:
+            print(f"[Warn] {stock_id} 歷史價格逾時/失敗 ({type(e).__name__})")
+            hist_data = []
+        try:
+            stock_rt = future_rt.result(timeout=max(0.5, 5 - (time.time() - t_fetch0)))
+        except Exception as e:
+            print(f"[Warn] {stock_id} 即時報價逾時/失敗 ({type(e).__name__})，改用備援價格")
+            stock_rt = None
+    finally:
+        executor.shutdown(wait=False)
 
     if not hist_data:
         print(f"❌ [爬蟲失敗] {stock_id} 無法取得任何歷史 K 棒資料！")
@@ -538,8 +558,8 @@ def fetch_data_light(stock_id):
                     source_name = "TWSE(試)"
     except: pass
 
-    # 第二道防線：Yahoo 即時備援引擎
-    if latest_price == 0:
+    # 第二道防線：Yahoo 即時備援引擎（v26：批次掃描 fast 模式跳過，避免拖慢整體時間）
+    if latest_price == 0 and not fast:
         try:
             df = yf.Ticker(f"{stock_id}.TW").history(period="1d")
             if df.empty:
@@ -684,9 +704,9 @@ def check_stock_worker_turbo(item):
 
     try:
         # 1. 抓取「即時」股價與均線
-        data = fetch_data_light(code)
+        data = fetch_data_light(code, fast=True)   # v26：批次掃描用快速模式
         if not data: return None
-        
+
         # 🔥 修改點：取消防追高強制淘汰，改為動態標記過熱
         ma20 = data.get('ma20', 0)
         is_live_overheated = False
@@ -746,7 +766,10 @@ def check_stock_worker_turbo(item):
         print(f"Worker Error: {e}")
         return None
 
+SCAN_BUDGET_SEC = 12   # v26：「推薦」批次掃描的時間上限（秒）；之後還要 Gemini 短評與組卡片，總和需小於 gunicorn --timeout 30
+
 def scan_recommendations_turbo(filter_type=None):
+    scan_recommendations_turbo.timed_out = False
     twse_list = fetch_twse_candidates()
     if not twse_list: return []
 
@@ -776,11 +799,19 @@ def scan_recommendations_turbo(filter_type=None):
         candidates_pool = pool[:10]
 
     valid_candidates = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        results = executor.map(check_stock_worker_turbo, candidates_pool)
-    
-    for res in results:
-        if res: valid_candidates.append(res)
+    # v26：整批掃描設時間上限（SCAN_BUDGET_SEC），時間到就用「已完成」的結果，不再傻等最慢的那檔，
+    # 且不用 with（避免結束時等待卡住的執行緒），確保整個「推薦」流程不會超過 gunicorn 的 30 秒而被強制重啟。
+    scan_executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
+    futures = [scan_executor.submit(check_stock_worker_turbo, c) for c in candidates_pool]
+    done, not_done = concurrent.futures.wait(futures, timeout=SCAN_BUDGET_SEC)
+    scan_executor.shutdown(wait=False, cancel_futures=True)
+    scan_recommendations_turbo.timed_out = bool(not_done)
+    if not_done:
+        print(f"⏱️ [推薦掃描] 時間上限 {SCAN_BUDGET_SEC} 秒已到，{len(not_done)}/{len(futures)} 檔未完成，改用已完成的結果")
+    for f in futures:   # 依原順序取已完成的結果，維持排序
+        if f in done and not f.cancelled() and f.exception() is None:
+            res = f.result()
+            if res: valid_candidates.append(res)
         
     # 如果不是抽盲盒，先把球員依照「資金級別」與「分數」雙重排序
     if filter_type != "中小盲盒" and valid_candidates:
@@ -1147,13 +1178,18 @@ def handle_message(event):
         choice = msg.split(" ", 1)[1]
         
         # 🔥 修正盲盒與 Top5 分類失效的 Bug，直接傳遞精確指令
-        target_type = choice 
-        
+        target_type = choice
+
+        t_rec_start = time.time()   # v26：整個推薦流程的計時起點（需在 gunicorn 30 秒內完成）
         good_stocks = scan_recommendations_turbo(target_type)
-        
+
        # 🔥 優化：更精確的回報找不到標的之原因
         if not good_stocks:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 今日「{choice}」中暫無符合條件的標的。"))
+            if getattr(scan_recommendations_turbo, "timed_out", False):
+                # v26：不是「沒有標的」，而是資料源太慢、時間內沒掃完，如實告知
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⏳ 目前行情資料來源回應較慢，這次沒來得及掃描完，請稍後 1~2 分鐘再試一次。"))
+            else:
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"⚠️ 今日「{choice}」中暫無符合條件的標的。"))
             return
             
         stocks_payload = [{
@@ -1196,7 +1232,14 @@ def handle_message(event):
         }
         
         # 呼叫時把 schema 傳進去
-        ai_json_str, _ai_model = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt, schema=recommend_schema)
+        # v26：短評是加分項（失敗會用預設短評）。依「已花掉的時間」縮短 Gemini 預算，保證整體 < 約 27 秒；
+        # 剩餘時間不足 6 秒就直接略過 AI 短評，改用預設短評，優先確保卡片送得出去。
+        _rec_budget = 24 - (time.time() - t_rec_start)
+        if _rec_budget >= 6:
+            ai_json_str, _ai_model = call_gemini_json(f"清單: {json.dumps(stocks_payload, ensure_ascii=False)}", system_instruction=sys_prompt, schema=recommend_schema, budget=_rec_budget)
+        else:
+            print(f"⏱️ [推薦] 剩餘時間不足 ({_rec_budget:.1f}s)，略過 AI 短評，使用預設短評")
+            ai_json_str = "[]"
         
         reasons_map = {}
         try:
@@ -1309,7 +1352,7 @@ def handle_message(event):
 
         # 🚨 [新增功能] 歷史庫存降級防護網：抓出過去15天內推薦，但今日轉弱的標的
         try:
-            raw_data = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json", headers={'Cache-Control': 'no-cache'}, timeout=5).json()
+            raw_data = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json", headers={'Cache-Control': 'no-cache'}, timeout=3).json()
             downgraded = []
             tw_now = datetime.now(timezone.utc) + timedelta(hours=8)
             for s in raw_data:
