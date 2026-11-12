@@ -16,7 +16,15 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v22
+# 🤖 [版本號] v23
+# [v23 修訂說明 2026-11-12]
+#  - 新增：LINE 直接更新持股（更新持股 / 清倉 / 持股清單，寫入前先預覽、回 Y 才執行）
+#    透過 Google Apps Script 寫入試算表；需環境變數 SHEET_USERn_WRITE_URL、SHEET_WRITE_SECRET
+#    （未設定時指令只回「尚未啟用」，不影響盤點等既有功能）
+#  - 修正：盤中 FinMind 尚無今日資料時，原本把今日成交量補 0，導致
+#      ① 「🚀量增價漲」盤中永遠不會亮；
+#      ② 持股盤點（波段）盤中虧損 ≥8% 恆判為「量縮/觀望躺平」、量縮跌破短均線等量能判斷失真。
+#    改為標記 vol_partial，盤中量能相關判斷一律略過並於訊息註明「盤中量能未計」
 # [v22 修訂說明 2026-11-05]
 #  - Gemini 呼叫加 25 秒總時間預算，避免 gunicorn WORKER TIMEOUT 導致機器人被重啟
 #  - 第一個模型最多等 18 秒；大模型逾時後直接改用 lite 模型（方案C）
@@ -25,7 +33,7 @@ app = Flask(__name__)
 #  - 試算表網址與使用者 ID 改讀環境變數（SHEET_USER1/2_ID、_URL）
 #  - 持股診斷：原本送給 AI 的資料沒有「成本」，導致 AI 自行亂猜（例：現價97.15>成本96.86，卻寫「已跌破成本」）；
 #    現在補上使用者成本與程式算好的「現價 vs 成本」，並新增第 9 條規則禁止與之矛盾
-BOT_VERSION = "v22(診斷成本防呆+Gemini逾時保護)"
+BOT_VERSION = "v23(LINE更新持股+盤中量能修正)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -273,7 +281,7 @@ def get_technical_signals(data, chips_val):
     bias_20 = (close - ma20) / ma20 * 100
     if bias_20 > 15: signals.append("⚠️乖離過大")
     
-    if len(volumes) >= 6:
+    if len(volumes) >= 6 and not data.get('vol_partial', False):  # v23：盤中量能未完整時略過
         avg_vol = sum(volumes[-6:-1]) / 5
         if avg_vol > 0 and volumes[-1] > avg_vol * 1.5 and close > data['open']: signals.append("🚀量增價漲")
     
@@ -511,11 +519,13 @@ def fetch_data_light(stock_id):
     today_str = datetime.now().strftime('%Y-%m-%d')
     hist_last_date = hist_data[-1]['date']
 
+    vol_partial = False  # v23：今日成交量是否為「盤中補的占位值」
     if hist_last_date != today_str:
         closes.append(latest_price)
         highs.append(latest_price)
         lows.append(latest_price)
         volumes.append(0)
+        vol_partial = True
     else:
         closes[-1] = latest_price
 
@@ -542,6 +552,7 @@ def fetch_data_light(stock_id):
         "change_display": f"({sign}{round(change, 2)}, {sign}{change_pct}%)", 
         "color": color,
         "raw_closes": closes, "raw_highs": highs, "raw_lows": lows, "raw_volumes": volumes,
+        "vol_partial": vol_partial,
         "open": hist_data[-1]['open']
     }
 
@@ -752,14 +763,249 @@ def callback():
         abort(400)
     return 'OK'
 
+# ==========================================
+# 🌟 v23 新增：LINE 直接更新持股（透過 Google Apps Script 寫入試算表）
+# ==========================================
+HOLDING_CMDS_UPDATE = ("更新持股", "持股更新")
+HOLDING_CMD_REMOVE = "清倉"
+HOLDING_CMD_LIST = ("持股清單", "我的持股")
+HOLDING_PENDING = {}            # {user_id: {...預覽內容..., "ts": 時間戳}}
+HOLDING_PENDING_LOCK = threading.Lock()
+HOLDING_PENDING_TTL = 300       # 預覽 5 分鐘內有效
+HOLDING_USAGE = (
+    "📝【更新持股】用法（股數單位=股，1 張=1000 股）\n\n"
+    "➕ 新增／修改：\n"
+    "更新持股 2330 1000 650\n"
+    "（代號 股數 成本；已有的股票成本可省略，沿用舊成本）\n"
+    "新增定存股可加類別：更新持股 00878 2000 21.5 定存\n\n"
+    "🗑 清倉：清倉 2330\n"
+    "📋 查看：持股清單\n\n"
+    "送出後會先預覽，回覆 Y 才寫入、N 取消。"
+)
+
+def _holding_users():
+    """讀環境變數：{LINE user_id: 該使用者的 Apps Script 寫入網址}。網址與密鑰不寫進程式碼、不進日誌。"""
+    users = {}
+    for n in ("1", "2"):
+        uid = os.environ.get(f"SHEET_USER{n}_ID", "").strip()
+        url = os.environ.get(f"SHEET_USER{n}_WRITE_URL", "").strip()
+        if uid:
+            users[uid] = url
+    return users
+
+def _holding_call(url, payload):
+    """呼叫 Apps Script；成功回傳 (dict, None)，失敗回傳 (None, 錯誤文字)。"""
+    secret = os.environ.get("SHEET_WRITE_SECRET", "").strip()
+    if not url or not secret:
+        return None, "尚未啟用（缺少寫入網址或密鑰設定）"
+    body = dict(payload); body["secret"] = secret
+    try:
+        r = requests.post(url, data=json.dumps(body), headers={"Content-Type": "text/plain;charset=utf-8"}, timeout=15)
+        if r.status_code != 200:
+            print(f"⚠️ [持股更新] Apps Script HTTP {r.status_code}")
+            return None, f"試算表服務回應異常（HTTP {r.status_code}）"
+        res = r.json()
+    except requests.exceptions.Timeout:
+        return None, "試算表服務逾時，請稍後再試"
+    except Exception as e:
+        print(f"⚠️ [持股更新] 呼叫失敗: {type(e).__name__}")
+        return None, "試算表服務無法連線或回應格式不正確（請確認部署網址與權限）"
+    if not res.get("ok"):
+        return None, str(res.get("error", "未知錯誤"))
+    return res, None
+
+def _holding_norm_code(token):
+    """名稱或代號 → 標準代號（格式不合回傳 None）。邏輯與盤點一致（3碼補成5碼ETF、<4碼補0）。
+    是否為已知股票由呼叫端決定：已在持股清單內的（含已下市）可修改／清倉，新增才要求必須在 stock_list.json 內。"""
+    t = token.strip()
+    if t in ALL_STOCK_MAP:
+        return ALL_STOCK_MAP[t]
+    c = t.upper()
+    if c.endswith(".0"): c = c[:-2]
+    if c.isdigit():
+        if len(c) == 3: c = "00" + c
+        elif len(c) < 4: c = c.zfill(4)
+    return c if re.fullmatch(r"[0-9A-Z]{4,6}", c) else None
+
+def _holding_num(s):
+    try:
+        v = float(str(s).replace(",", "").strip())
+        return v if v > 0 else None
+    except Exception:
+        return None
+
+def _fmt_num(v):
+    return f"{int(v)}" if float(v).is_integer() else f"{v:g}"
+
+def handle_holding_command(event, msg):
+    """處理持股更新相關指令；有處理（含回覆）回傳 True，否則 False 讓原流程繼續。"""
+    uid = event.source.user_id
+    tokens = msg.split()
+    head = tokens[0] if tokens else ""
+    is_update = head in HOLDING_CMDS_UPDATE
+    is_remove = head == HOLDING_CMD_REMOVE
+    is_list = msg in HOLDING_CMD_LIST
+    confirm_yes = msg.upper() in ("Y", "確認", "確定")
+    confirm_no = msg.upper() in ("N", "取消")
+
+    def reply(text):
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=text))
+
+    # --- 回 Y / N：僅在有待確認內容時攔截，否則交還原流程 ---
+    if confirm_yes or confirm_no:
+        with HOLDING_PENDING_LOCK:
+            pend = HOLDING_PENDING.pop(uid, None)
+        if not pend:
+            return False
+        if time.time() - pend["ts"] > HOLDING_PENDING_TTL:
+            reply("⌛ 這筆異動已逾時（超過 5 分鐘）作廢，請重新輸入指令。")
+            return True
+        if confirm_no:
+            reply("🚫 已取消，試算表沒有任何變動。")
+            return True
+        url = _holding_users().get(uid, "")
+        if pend["action"] == "upsert":
+            payload = {"action": "upsert", "code": pend["code"], "qty": pend["qty"]}
+            if pend.get("cost") is not None: payload["cost"] = pend["cost"]
+            if pend.get("type"): payload["type"] = pend["type"]
+        else:
+            payload = {"action": "delete", "code": pend["code"]}
+        res, err = _holding_call(url, payload)
+        if err:
+            reply(f"❌ 寫入失敗：{err}\n試算表沒有變動，請檢查後重試。")
+            return True
+        name = CODE_TO_NAME.get(pend["code"], "")
+        if pend["action"] == "delete":
+            reply(f"✅ 已清倉 {pend['code']} {name}\n（原 {_fmt_num(res.get('old_qty', 0))} 股、成本 {_fmt_num(res.get('old_cost', 0))}）\n"
+                  "⏱ 盤點讀取的 CSV 約 1~5 分鐘後同步，立即盤點可能還看到舊資料。")
+        else:
+            mode = "新增" if res.get("mode") == "insert" else "修改"
+            reply(f"✅ 已{mode} {pend['code']} {name}\n股數 {_fmt_num(res.get('qty', 0))}、成本 {_fmt_num(res.get('cost', 0))}\n"
+                  "⏱ 盤點讀取的 CSV 約 1~5 分鐘後同步，立即盤點可能還看到舊資料。")
+        print(f"📝 [持股更新] 已執行 {pend['action']} {pend['code']}")
+        return True
+
+    if not (is_update or is_remove or is_list):
+        return False
+
+    # --- 權限與啟用檢查 ---
+    users = _holding_users()
+    if uid not in users:
+        reply("⚠️ 權限不足：此為專屬資產管理功能。")
+        return True
+    url = users[uid]
+    if not url or not os.environ.get("SHEET_WRITE_SECRET", "").strip():
+        reply("⚙️ 持股更新功能尚未啟用（管理者尚未設定寫入網址與密鑰）。")
+        return True
+
+    # --- 持股清單 ---
+    if is_list:
+        res, err = _holding_call(url, {"action": "list"})
+        if err:
+            reply(f"❌ 讀取持股失敗：{err}")
+            return True
+        rows = res.get("rows", [])
+        if not rows:
+            reply("💼 目前持股清單是空的。")
+            return True
+        lines = [f"📋 目前持股（共 {len(rows)} 檔）"]
+        for r in rows:
+            nm = CODE_TO_NAME.get(r["code"], "")
+            lines.append(f"{r['code']} {nm}｜{_fmt_num(r['qty'])}股｜成本 {_fmt_num(r['cost'])}｜{r.get('type') or '-'}")
+        text = "\n".join(lines)
+        reply(text[:4800])
+        return True
+
+    # --- 清倉 ---
+    if is_remove:
+        if len(tokens) != 2:
+            reply("用法：清倉 2330")
+            return True
+        code = _holding_norm_code(tokens[1])
+        if not code:
+            reply(f"❓ 找不到「{tokens[1]}」，請確認代號或名稱。")
+            return True
+        res, err = _holding_call(url, {"action": "list"})
+        if err:
+            reply(f"❌ 讀取持股失敗：{err}")
+            return True
+        old = next((r for r in res.get("rows", []) if r["code"] == code), None)
+        if not old:
+            reply(f"❓ 持股清單中沒有 {code} {CODE_TO_NAME.get(code, '')}。")
+            return True
+        with HOLDING_PENDING_LOCK:
+            HOLDING_PENDING[uid] = {"action": "delete", "code": code, "ts": time.time()}
+        reply(f"🗑 清倉預覽\n{code} {CODE_TO_NAME.get(code, '')}\n將刪除：{_fmt_num(old['qty'])} 股、成本 {_fmt_num(old['cost'])}\n\n回覆 Y 確認、N 取消（5 分鐘內有效）")
+        return True
+
+    # --- 更新持股：更新持股 代號 股數 [成本] [定存|波段] ---
+    args = tokens[1:]
+    s_type = None
+    if args and args[-1] in ("定存", "波段"):
+        s_type = args[-1]; args = args[:-1]
+    args = [a for a in args if a != "成本"]
+    if len(args) not in (2, 3):
+        reply(HOLDING_USAGE)
+        return True
+    code = _holding_norm_code(args[0])
+    if not code:
+        reply(f"❓ 找不到「{args[0]}」，請確認代號或名稱。\n\n{HOLDING_USAGE}")
+        return True
+    qty = _holding_num(args[1])
+    if qty is None or not float(qty).is_integer() or qty > 10_000_000:
+        reply("❌ 股數必須是大於 0 的整數（單位：股，1 張=1000 股）。要刪除請用「清倉」。")
+        return True
+    cost = None
+    if len(args) == 3:
+        cost = _holding_num(args[2])
+        if cost is None or cost > 100000:
+            reply("❌ 成本必須是大於 0 的數字（每股成本價）。")
+            return True
+
+    res, err = _holding_call(url, {"action": "list"})
+    if err:
+        reply(f"❌ 讀取持股失敗：{err}")
+        return True
+    old = next((r for r in res.get("rows", []) if r["code"] == code), None)
+    if old is None and CODE_TO_NAME and code not in CODE_TO_NAME:
+        reply(f"❓ 找不到「{args[0]}」，請確認代號或名稱。\n\n{HOLDING_USAGE}")
+        return True
+    if old is None and cost is None:
+        reply(f"❌ {code} 尚未在持股清單中，新增時請一併輸入每股成本。\n格式：更新持股 {code} {_fmt_num(qty)} 每股成本")
+        return True
+
+    nm = CODE_TO_NAME.get(code, "")
+    if old:
+        cost_line = f"成本：{_fmt_num(old['cost'])} → {_fmt_num(cost)}" if cost is not None else f"成本：{_fmt_num(old['cost'])}（沿用）"
+        preview = f"✏️ 修改預覽\n{code} {nm}\n股數：{_fmt_num(old['qty'])} → {_fmt_num(qty)}\n{cost_line}"
+    else:
+        preview = f"➕ 新增預覽\n{code} {nm}\n股數：{_fmt_num(qty)}\n成本：{_fmt_num(cost)}\n類別：{s_type or '波段'}"
+    with HOLDING_PENDING_LOCK:
+        HOLDING_PENDING[uid] = {"action": "upsert", "code": code, "qty": qty, "cost": cost,
+                                "type": (s_type if old is None else None), "ts": time.time()}
+    reply(preview + "\n\n回覆 Y 確認、N 取消（5 分鐘內有效）")
+    return True
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     global TWSE_CACHE
     msg = event.message.text.strip()
 
     # 👇 加入這段隱藏指令：專門用來查 ID
-    if msg.lower() == "id":    
+    if msg.lower() == "id":
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=event.source.user_id))
+        return
+
+    # 🌟 v23：持股更新指令（更新持股 / 清倉 / 持股清單 / 回 Y、N 確認）
+    try:
+        if handle_holding_command(event, msg):
+            return
+    except Exception as e:
+        print(f"🚨 [持股更新] 指令處理例外: {type(e).__name__}: {e}")
+        try:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="❌ 持股更新處理發生錯誤，試算表沒有變動，請稍後再試。"))
+        except Exception:
+            pass
         return
 
     # 🌟 主動單獨查詢大盤狀態
@@ -1564,8 +1810,11 @@ def handle_message(event):
 
                     # ================= 波段策略 =================
                     if s_type == "波段":
-                        vol_today = volumes[-1] if volumes else 0
                         vol_5ma = sum(volumes[-6:-1]) / 5 if len(volumes) >= 6 else 1
+                        # v23：盤中尚無今日成交量時，量能一律當作「中性」(=5日均量)，並在訊息註明
+                        vol_unknown = bool(data.get('vol_partial', False))
+                        vol_today = vol_5ma if vol_unknown else (volumes[-1] if volumes else 0)
+                        vol_note = "（盤中量能未計）" if vol_unknown else ""
                         
                         highest_recent = max(highs[-20:]) if len(highs) >= 20 else live_price
                         pullback = (highest_recent - live_price) / highest_recent * 100 if highest_recent > 0 else 0
@@ -1592,6 +1841,11 @@ def handle_message(event):
                                 status_msg = f"📉狀態：虧損達 {profit_pct}% (量縮/超跌)"
                                 action_msg = f"🧘動作：【觀望/躺平等待反彈】切勿殺低！"
                                 alert_type = "warn"
+                            elif vol_unknown:
+                                # v23：虧損 ≥8% 且非超跌，原本靠成交量決定「觀望」或「砍倉」；盤中沒有量就不下結論
+                                status_msg = f"🚨狀態：虧損達 {profit_pct}% {vol_note}"
+                                action_msg = f"⏳動作：【收盤後再盤點一次，確認量能後再決定是否停損】"
+                                alert_type = "warn"
                             else:
                                 status_msg = f"🚨狀態：虧損達 {profit_pct}%"
                                 action_msg = f"🔪動作：【無情砍倉】紀律停損，收回資金！"
@@ -1616,12 +1870,15 @@ def handle_message(event):
                             if vol_today > vol_5ma * 1.5:
                                 status_msg = f"⚠️狀態：帶量跌破短均線雙殺"
                                 action_msg = f"⚖️動作：【提前減碼 1/2】賣壓湧現！(盈虧 {sign}{profit_pct}%)"
+                            elif vol_unknown:
+                                status_msg = f"⚠️狀態：跌破 5MA、10MA {vol_note}"
+                                action_msg = f"🛡️動作：【戒備狀態】防守退至 20MA，收盤後再看量能！(盈虧 {sign}{profit_pct}%)"
                             else:
                                 status_msg = f"⚠️狀態：量縮跌破短均線"
                                 action_msg = f"🛡️動作：【戒備狀態】防守退至 20MA！(盈虧 {sign}{profit_pct}%)"
                             alert_type = "warn"
                         else:
-                            status_msg = f"✅狀態：均線與量價結構健康"
+                            status_msg = f"✅狀態：均線與量價結構健康{vol_note}"
                             action_msg = f"🚀動作：【強勢續抱】(盈虧 {sign}{profit_pct}%)"
 
                     # ================= 定存策略 =================
