@@ -23,6 +23,8 @@ jobs:
           pip install yfinance pandas requests numpy
 
       - name: Run MarketRiskMonitor
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: python MarketRiskMonitor.py
 
       - name: Commit and Push if market_risk.json changed
