@@ -1,3 +1,14 @@
+# [修訂 2026-11-12] 新增 first_entry_rank（入榜當天的資金級別）
+#  - 目的：LINE「近期推薦股轉弱提醒」只列「入榜時是 S/A 級、現在降到 B/C 級」的股票；
+#    入榜即為 B 級（從未被推薦）的股票不再被誤當成「降級」。
+#  - 新入榜的股票：記下當天 capital_rank；舊資料（本次改版前就在榜上的）沒有此欄位，維持 null（未知），
+#    由 LINE 端保守處理（不列入降級提醒），約 15~30 天後舊資料自然淘汰。
+# [修訂 2026-11-05] 爬蟲可靠度強化（A 組）
+#  - 不再於日誌印出 FINMIND_TOKEN 的任何字元（倉庫與日誌為公開）
+#  - 新增 API 成敗統計；失敗比例過高或關鍵資料源失敗時以非 0 狀態結束，讓 GitHub Actions 顯示失敗並寄信通知
+#    （失敗時不會提交當天資料，沿用前一次的好資料）
+#  - 左側第三層補上節流（原本標示節流但迴圈內沒有 sleep）
+#  - ETF 股利計算補上空值防呆
 import requests
 import pandas as pd
 import json
@@ -20,8 +31,32 @@ FINMIND_TOKEN = os.environ.get("FINMIND_TOKEN", "")
 if not FINMIND_TOKEN:
     print("❌ [Token 檢查失敗] 系統未取得 FINMIND_TOKEN，請檢查 GitHub Secrets 或環境變數設定！")
 else:
-    masked = FINMIND_TOKEN[:6] + "..." + FINMIND_TOKEN[-4:] if len(FINMIND_TOKEN) > 10 else "***"
-    print(f"🔑 [Token 檢查成功] 已順利載入 FINMIND_TOKEN ({masked})，長度: {len(FINMIND_TOKEN)}")
+    # 不印出 token 的任何字元，只顯示長度（日誌為公開）
+    print(f"🔑 [Token 檢查成功] 已載入 FINMIND_TOKEN，長度: {len(FINMIND_TOKEN)}")
+
+# 📊 本次執行的 API 成敗統計（用於判斷爬蟲是否「悄悄壞掉」）
+import sys
+API_STATS = {"finmind_total": 0, "finmind_fail": 0, "yf_total": 0, "yf_fail": 0}
+TASK_ERRORS = []
+FAIL_RATE_LIMIT = 0.5   # 失敗比例超過此值視為異常（首版先放寬，觀察實際比例後再調整）
+MIN_CALLS_TO_JUDGE = 20  # 呼叫次數太少時不判斷比例
+
+def report_and_exit_if_degraded():
+    print("\n📊 ===== 本次執行 API 統計 =====")
+    problems = []
+    for kind, label in (("finmind", "FinMind"), ("yf", "yfinance")):
+        total = API_STATS[f"{kind}_total"]; fail = API_STATS[f"{kind}_fail"]
+        rate = (fail / total) if total else 0
+        print(f"   {label}: 共 {total} 次，失敗 {fail} 次 ({rate*100:.0f}%)")
+        if total >= MIN_CALLS_TO_JUDGE and rate > FAIL_RATE_LIMIT:
+            problems.append(f"{label} 失敗比例過高 ({rate*100:.0f}% > {FAIL_RATE_LIMIT*100:.0f}%)")
+    for e in TASK_ERRORS:
+        problems.append(e)
+    if problems:
+        print("🚨 偵測到資料異常，本次標記為失敗（不會提交當天資料）：")
+        for p in problems: print(f"   - {p}")
+        sys.exit(1)
+    print("✅ API 統計正常")
 
 def clean_nan(data):
     if isinstance(data, list):
@@ -136,11 +171,18 @@ def merge_history_data(today_data, file_name, sort_key):
             first_price = float(item.get('price', 0.0))
             
         first_date = history_dict.get(code, {}).get('first_entry_date', item_date)
-        
+
+        # 入榜當天的級別：舊資料有就沿用；舊資料沒有該欄位 = 未知(None)；全新入榜才記今天的級別
+        if code in history_dict:
+            first_rank = history_dict[code].get('first_entry_rank')
+        else:
+            first_rank = item.get('capital_rank')
+
         new_item = item.copy()
         new_item['first_entry_date'] = first_date
         new_item['first_entry_price'] = first_price
-        
+        new_item['first_entry_rank'] = first_rank
+
         merged_list.append(new_item)
 
     # 依照指定的分數或邏輯重新排序
@@ -152,8 +194,11 @@ def get_finmind_chips(code):
     start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     url = "https://api.finmindtrade.com/api/v4/data"
     try:
+        API_STATS["finmind_total"] += 1
         res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
-        if res.status_code != 200: return None, None, 0, 0, 0
+        if res.status_code != 200:
+            API_STATS["finmind_fail"] += 1
+            return None, None, 0, 0, 0
         data = res.json().get('data', [])
         if not data: return None, None, 0, 0, 0
         
@@ -187,7 +232,9 @@ def get_finmind_chips(code):
         net_t1 = daily_net.get(t1_date, 0)
         
         return acc_f, acc_t, buy_days, net_t, net_t1
-    except: return None, None, 0, 0, 0
+    except:
+        API_STATS["finmind_fail"] += 1
+        return None, None, 0, 0, 0
 
 def get_finmind_revenue_yoy(code):
     start = (datetime.now() - timedelta(days=480)).strftime('%Y-%m-%d')
@@ -198,8 +245,11 @@ def get_finmind_revenue_yoy(code):
     }
     
     try:
+        API_STATS["finmind_total"] += 1
         res = requests.get(url, params={"dataset": "TaiwanStockMonthRevenue", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
-        if res.status_code != 200: return default_res
+        if res.status_code != 200:
+            API_STATS["finmind_fail"] += 1
+            return default_res
         data = res.json().get('data', [])
         
         if not data: return default_res
@@ -231,6 +281,7 @@ def get_finmind_revenue_yoy(code):
                 }
         return default_res
     except Exception as e:
+        API_STATS["finmind_fail"] += 1
         default_res["debug_info"]["status"] = f"Error: {str(e)}"
         return default_res
 
@@ -239,8 +290,11 @@ def get_finmind_chips_history(code, days=3):
     url = "https://api.finmindtrade.com/api/v4/data"
     history = []
     try:
+        API_STATS["finmind_total"] += 1
         res = requests.get(url, params={"dataset": "TaiwanStockInstitutionalInvestorsBuySell", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=10)
-        if res.status_code != 200: return None
+        if res.status_code != 200:
+            API_STATS["finmind_fail"] += 1
+            return None
         data = res.json().get('data', [])
         if not data: return None
         
@@ -265,7 +319,9 @@ def get_finmind_chips_history(code, days=3):
                         daily_net += val
             history.append(daily_net)
         return history
-    except: return None
+    except:
+        API_STATS["finmind_fail"] += 1
+        return None
 
 def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     eps_latest = None
@@ -276,14 +332,16 @@ def get_finmind_fundamentals(code, current_price, fetch_yield=True):
     url = "https://api.finmindtrade.com/api/v4/data"
     
     try:
+        API_STATS["finmind_total"] += 1
         res = requests.get(url, params={"dataset": "TaiwanStockFinancialStatements", "data_id": code, "start_date": start, "token": FINMIND_TOKEN}, timeout=5)
+        if res.status_code != 200: API_STATS["finmind_fail"] += 1
         if res.status_code == 200:
             data = res.json().get('data', [])
             eps_data = [d for d in data if d['type'] == 'EPS']
             if eps_data:
                 eps_data.sort(key=lambda x: x.get('date', ''))
                 eps_latest = float(eps_data[-1].get('value', 0))
-    except: pass
+    except: API_STATS["finmind_fail"] += 1
     
     if not fetch_yield:
         return eps_latest, yield_rate, annual_div
@@ -365,7 +423,7 @@ def get_latest_dividend_info(code, current_price):
 
         if current_price > 0:
             if is_etf:
-                total_cash = sum([float(d.get('CashEarningsDistribution', 0)) for d in data])
+                total_cash = sum([float(d.get('CashEarningsDistribution') or 0) for d in data])
                 if total_cash > 0:
                     yield_rate = round((total_cash / current_price) * 100, 2)
                     formula = f"ETF推算(近一年): {round(total_cash, 3)} / 現價 {current_price}"
@@ -795,6 +853,7 @@ def generate_daily_recommendations():
                     print(f"✅ 上櫃 (TPEx) 飆股已成功合併至候選池！(共 {tpex_count} 檔)")
                 else:
                     print("❌ 仍無法取得上櫃資料，請檢查 API 狀態。")
+                    TASK_ERRORS.append("Task 2：無法取得上櫃(TPEx)行情")
                             
                 # 🔥 恢復單純的排序邏輯 (拔掉會卡死的 fast_info.shares)
                 candidates.sort(key=lambda x: x['turnover'], reverse=True)
@@ -826,12 +885,17 @@ def generate_daily_recommendations():
                     stock_exchange = item.get('exchange', '未知')
                     suffix = ".TWO" if stock_exchange == '上櫃' else ".TW"
                     try:
+                        API_STATS["yf_total"] += 1
                         hist = yf.Ticker(f"{code}{suffix}").history(period="2mo")
                         if not hist.empty:
                             hist = hist.dropna(subset=['Close'])
-                        if hist.empty or len(hist) < 22:
+                        if hist.empty:
+                            API_STATS["yf_fail"] += 1
+                            continue
+                        if len(hist) < 22:
                             continue
                     except Exception as e:
+                        API_STATS["yf_fail"] += 1
                         continue
 
                     closes = hist['Close']
@@ -937,9 +1001,11 @@ def generate_daily_recommendations():
                 print("⚠️ [Task 2] 找不到對應的資料表")
         else:
             print("⚠️ [Task 2] API 回傳狀態非 OK")
+            TASK_ERRORS.append("Task 2：證交所行情 API 回傳狀態非 OK")
 
     except Exception as e:
         print(f"❌ [Task 2] 發生錯誤: {e}")
+        TASK_ERRORS.append(f"Task 2：執行發生例外 ({e})")
 
     today_codes = {s['code'] for s in final_list}
     updated_history = sync_historical_data('daily_recommendations.json', today_codes, 'RIGHT', TAIWAN_50)
@@ -1029,6 +1095,7 @@ def generate_left_side_value():
                     except: pass
     except Exception as e:
         print(f"⚠️ TWSE 第一層抓取錯誤: {e}")
+        TASK_ERRORS.append(f"Task 3：證交所第一層抓取失敗 ({e})")
 
     print(f"🔄 正在尋找最新上櫃 (TPEx) 行情...")
     try:
@@ -1086,13 +1153,17 @@ def generate_left_side_value():
             
         code = item['code']
         try:
+            API_STATS["yf_total"] += 1
             ticker = yf.Ticker(f"{code}.{item['market']}")
             df = ticker.history(period="6mo") 
             
             if not df.empty:
                 df = df.dropna(subset=['Close'])
                 
-            if df.empty or len(df) < 60: continue
+            if df.empty:
+                API_STATS["yf_fail"] += 1
+                continue
+            if len(df) < 60: continue
 
             closes = df['Close'].tolist()
             lows = df['Low'].tolist()
@@ -1178,7 +1249,7 @@ def generate_left_side_value():
             item['vol_5d'] = sum(volumes[-5:]) 
             layer2_candidates.append(item)
             
-        except Exception: pass
+        except Exception: API_STATS["yf_fail"] += 1
         time.sleep(0.1)
 
     print(f"✅ 第二層過濾完畢，剩餘 {len(layer2_candidates)} 檔進入終極基本面與評分查核。")
@@ -1189,6 +1260,7 @@ def generate_left_side_value():
     for item in layer2_candidates:
         code = item['code']
         print(f"   🔍 查核 {code}...", end=" ")
+        time.sleep(0.5)  # API 節流：避免超過 FinMind 額度
         
         chips_history = get_finmind_chips_history(code, days=5)
         if chips_history is None:
@@ -1505,3 +1577,4 @@ if __name__ == "__main__":
     generate_daily_recommendations()  
     generate_left_side_value()        
     generate_deposit_stocks()
+    report_and_exit_if_degraded()

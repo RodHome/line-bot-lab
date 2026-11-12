@@ -1,3 +1,5 @@
+# [修訂 2026-11-05] 版本 1.0.1：FinMind 請求帶入 token；加入指數/期貨最後日期診斷輸出；FinMind 回應異常時印出警告
+import os
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -67,6 +69,10 @@ def generate_market_risk_report():
     raw_twii = yf.download("^TWII", start=START_DATE, auto_adjust=True, progress=False)
     if isinstance(raw_twii.columns, pd.MultiIndex):
         raw_twii.columns = raw_twii.columns.get_level_values(0)
+    try:
+        print("[診斷] ^TWII 原始最後 3 筆:", [(i.strftime("%Y-%m-%d"), (None if pd.isna(v) else round(float(v), 1))) for i, v in raw_twii["Close"].tail(3).items()])
+    except Exception as _e:
+        print(f"[診斷] 無法列出原始指數資料: {_e}")
     df = raw_twii[["Close"]].dropna().copy()
     if df.index.tz is not None:
         df.index = df.index.tz_localize(None)
@@ -75,6 +81,8 @@ def generate_market_risk_report():
     tw_now = datetime.datetime.now(ZoneInfo("Asia/Taipei"))
     if df.index[-1].date() == tw_now.date() and (tw_now.hour, tw_now.minute) < (13, 30):
         df = df.iloc[:-1]
+
+    print(f"[診斷] 台灣現在時間: {tw_now.strftime('%Y-%m-%d %H:%M')}；採用的指數最後日期: {df.index[-1].strftime('%Y-%m-%d')}")
 
     # 指標一律在最終的 df 確定之後才計算
     df["MA20"] = df["Close"].rolling(20).mean()
@@ -101,11 +109,20 @@ def generate_market_risk_report():
     
     # [資料 3] 外資期貨淨空單
     print("抓取 FinMind 外資期貨籌碼...")
-    res = requests.get(
-        "https://api.finmindtrade.com/api/v4/data", 
-        params={"dataset": "TaiwanFuturesInstitutionalInvestors", "data_id": "TX", "start_date": START_DATE},
-        timeout=30
-    ).json()
+    fm_params = {"dataset": "TaiwanFuturesInstitutionalInvestors", "data_id": "TX", "start_date": START_DATE}
+    fm_token = os.environ.get("FINMIND_TOKEN", "")
+    if fm_token:
+        fm_params["token"] = fm_token
+    else:
+        print("⚠️ 未提供 FINMIND_TOKEN，將以未登入額度呼叫 FinMind")
+    fm_resp = requests.get("https://api.finmindtrade.com/api/v4/data", params=fm_params, timeout=30)
+    if fm_resp.status_code != 200:
+        print(f"⚠️ FinMind 回應異常: HTTP {fm_resp.status_code}（外資期貨資料可能缺漏，將標示 PARTIAL_DATA）")
+    try:
+        res = fm_resp.json()
+    except Exception as _e:
+        print(f"⚠️ FinMind 回應無法解析: {_e}")
+        res = {}
     
     fut = pd.DataFrame(res.get("data", []))
     if not fut.empty:
@@ -115,6 +132,8 @@ def generate_market_risk_report():
         fnet.index = pd.to_datetime(fnet.index)
     else:
         fnet = pd.Series(dtype=float)
+
+    print(f"[診斷] 外資期貨最後日期: {fnet.index[-1].strftime('%Y-%m-%d') if not fnet.empty else '無資料'}；廣度樣本最後日期: {px.index[-1].strftime('%Y-%m-%d')}（樣本股 {breadth_stock_count} 檔）")
 
     # 組合資料對齊大盤交易日
     d = df.join(fnet.rename("fnet")).ffill()
@@ -189,7 +208,7 @@ def generate_market_risk_report():
             "missing_fields": missing_fields,
             "note": note
         },
-        "version": {"model": "1.0.0", "threshold": "B-rolling250-buf3"}
+        "version": {"model": "1.0.1", "threshold": "B-rolling250-buf3"}
     }
     
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:

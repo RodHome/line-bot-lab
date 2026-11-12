@@ -16,7 +16,24 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v23
+# 🤖 [版本號] v25
+# [v25 修訂說明 2026-11-12] 前後矛盾與使用說明總檢查（共 12 項，一次修正）
+#  1. 降級提示：改名「近期推薦股轉弱提醒」；只列「入榜時為 S/A 級、現為 B/C 級」者（需爬蟲 first_entry_rank）；
+#     顯示原級別→現級別、推薦價/現價/報酬，整檔可點擊進詳細診斷。舊資料無入榜級別者暫不列入（保守）。
+#  2. 診斷「🏆右側推薦／🛡️左側潛伏」戰績橫幅：僅 S/A 級才顯示，從未被推薦（B 級入榜）的不再冒充推薦。
+#  3. 盤點：策略分類不是「波段／定存」者不再整檔消失；含「存股」視為定存，其餘依波段處理並註明原分類。
+#  4. 出場規則統一以盤點為準：持股診斷的防守說明、AI 規則 6 改為「守 10MA；跌破 10MA 量縮戒備守月線、帶量才減碼 1/2」。
+#  5. 大盤警示語氣統一（注意＝僅供參考；警戒＝縮減資金暫緩開新倉；危險＝嚴禁追高）；
+#     診斷開頭改依級別分語氣；警戒/危險時，推薦、左側卡片加註提醒，存股雷達也補上大盤提醒。
+#  6. 左側卡片：級別標籤改用左側專屬字樣；B 級顯示「觀望」且不再給進場價；停損文字改為與爬蟲實際除名條件一致。
+#  7. 診斷教學：耗時改約 10~25 秒；補上盤點與更新持股入口。
+#  8. 選股邏輯說明改為與爬蟲實際條件一致（成交金額前 60 名；法人佔比>5% 或高價股例外）。
+#  9. 左側邏輯說明：EPS<0 改為實際四合一濾網；補註 LINE 只顯示最近 5 個交易日入榜者；除名條件與爬蟲一致。
+#  11. 導覽選單：版本字樣自動帶入；新增大盤、更新持股入口。
+#  12. 存股選單：「開發者的存股名單」改為「本系統追蹤的存股名單」。
+#  （第 10 項：網頁 index.html 說明文字另檔修正）
+# [v24 修訂說明 2026-11-12]
+#  - 移除「歷史庫存降級警示」卡片底部的「💡 點我一鍵持股診斷」按鈕（其餘內容不變）
 # [v23 修訂說明 2026-11-12]
 #  - 新增：LINE 直接更新持股（更新持股 / 清倉 / 持股清單，寫入前先預覽、回 Y 才執行）
 #    透過 Google Apps Script 寫入試算表；需環境變數 SHEET_USERn_WRITE_URL、SHEET_WRITE_SECRET
@@ -33,7 +50,7 @@ app = Flask(__name__)
 #  - 試算表網址與使用者 ID 改讀環境變數（SHEET_USER1/2_ID、_URL）
 #  - 持股診斷：原本送給 AI 的資料沒有「成本」，導致 AI 自行亂猜（例：現價97.15>成本96.86，卻寫「已跌破成本」）；
 #    現在補上使用者成本與程式算好的「現價 vs 成本」，並新增第 9 條規則禁止與之矛盾
-BOT_VERSION = "v23(LINE更新持股+盤中量能修正)"
+BOT_VERSION = "v25(矛盾與說明總檢查+LINE更新持股+盤中量能修正)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -72,6 +89,34 @@ handler = WebhookHandler(secret if secret else 'UNKNOWN')
 # ==========================================
 # 🚨 大盤風險檔讀取與 Flex 警示卡片產生器 (支援單獨查詢)
 # ==========================================
+def _was_recommended(item):
+    """v25：這檔是否「真的被推薦過」。入榜時為 S/A 級＝是；舊資料沒有 first_entry_rank 時，
+    以目前仍是 S/A 級視為推薦中；B/C 級入榜者從未被推薦，不顯示推薦戰績。"""
+    fr = item.get('first_entry_rank')
+    if fr in ('S', 'A'):
+        return True
+    if fr is None and item.get('capital_rank') in ('S', 'A'):
+        return True
+    return False
+
+# v25：各處大盤警示的統一語氣（與大盤卡片的「戰術指引」一致）
+MARKET_BANNER = {
+    1: "🟡【大盤注意】僅供參考，請留意部位控管。",
+    2: "🟠【大盤警戒】結構明顯轉弱，建議縮減資金、暫緩開新倉。",
+    3: "🚨【大盤危險】嚴禁追高，既有持股請嚴格執行風控！",
+}
+
+def get_market_level():
+    """讀 market_risk.json，回傳 (level, level_name)；讀不到回 (0, '')。"""
+    try:
+        if os.path.exists("market_risk.json"):
+            with open("market_risk.json", "r", encoding="utf-8") as f:
+                r = json.load(f)
+            return int(r.get("level", 0) or 0), r.get("level_name", "")
+    except Exception as e:
+        print(f"[Warn] 讀取大盤等級失敗: {e}")
+    return 0, ""
+
 def get_market_warning_bubble(always_show=False):
     """
     讀取 market_risk.json。
@@ -1033,7 +1078,10 @@ def handle_message(event):
             "📊 帶有成本的持股健檢：\n"
             "請輸入「代號」加上「成本 XX」。\n"
             "👉 例如：2330 成本 800\n\n"
-            "⚠️ 注意：每次AI診斷約 8-15 秒，請耐心等候喔！"
+            "📦 整批持股檢查：輸入「盤點」，依你的持股表一次檢查全部持股。\n"
+            "📝 更新持股：輸入「更新持股」查看用法，可直接在 LINE 修改股數與成本。\n"
+            "（盤點與更新持股僅限已授權的使用者）\n\n"
+            "⚠️ 注意：每次AI診斷約 10~25 秒，請耐心等候喔！"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=guide_text))
         return
@@ -1042,17 +1090,18 @@ def handle_message(event):
     if msg in ["選股邏輯", "推薦說明", "篩選條件","右側邏輯"]:
         logic_text = (
             "🤖【AI 右側動能飆股：篩選邏輯】\n"
-            "1️⃣ 雙軌資金漏斗：權值股與中小黑馬 (週轉率 > 3%) 前 30 名。\n"
-            "2️⃣ 大戶業績定錨：最新營收 YoY > 10% 且近 5 日法人買超 > 3 億元。\n"
+            "1️⃣ 雙軌資金漏斗：當日上漲且成交金額 > 1 億，取成交金額前 60 名，再分「大型權值股(台灣50)」與「中小型股」。\n"
+            "2️⃣ 大戶業績定錨：最新營收 YoY > 10%，且近 5 日法人買超佔 5 日成交量 > 5%（股價 ≥ 1000 元的高價股，改看買超 ≥ 5000 萬且連買 3 天）。\n"
             "3️⃣ 動態資金投入級別 (S/A/B/C Rank)：\n"
-            " ‧ 🥇 S級：帶量溫和突破平台 (優先建倉)\n"
-            " ‧ 🥈 A級：均線多頭推升中 (拉回防守買)\n"
-            " ‧ 🟡 B級：單日爆天量或震盪 (防隔日沖，不推播)\n"
-            " ‧ 🔴 C級：破線或主力出貨 (強制淘汰)\n"
+            " ‧ 🥇 S級：帶量溫和突破平台，量比 1.5~3 倍 (優先建倉)\n"
+            " ‧ 🥈 A級：均線多頭，接近或突破前高 (可等量縮拉回再佈局)\n"
+            " ‧ 🟡 B級：單日量比 > 3 倍、跌破 5MA 或僅震盪整理 (防隔日沖，不推播)\n"
+            " ‧ 🔴 C級：跌破 20MA 或爆量避雷針 (強制淘汰)\n"
             "────────────────\n"
-            "🎯 【波段無情出場鐵律】\n"
-            " ‧ 沿 10MA 或波段紅K低點抱緊不賣。\n"
-            " ‧ 歷史推薦標的若轉弱降級至 B/C 級，系統將發出 15 日內降級警告！"
+            "🎯 【波段出場鐵律】\n"
+            " ‧ 沿 10MA 抱緊不賣；跌破 10MA 量縮先戒備、守月線，帶量跌破才提前減碼 1/2。\n"
+            " ‧ 入榜時為 S/A 級的推薦股，若 15 日內轉弱降到 B/C 級，會出現「近期推薦股轉弱提醒」。\n"
+            " ‧ 入榜滿 30 天，或較入榜價虧損達 8%，系統自動除名。"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=logic_text))
         return
@@ -1061,14 +1110,18 @@ def handle_message(event):
     if msg in ["左側邏輯", "左側說明", "左側條件", "黃金坑邏輯"]:
         left_logic_text = (
             "🤖【AI 左側黃金坑：篩選邏輯】\n"
-            "1️⃣ 流動性降維：成交額 1000萬~5億，避開熱門當沖，鎖定冷門潛伏區。\n"
+            "1️⃣ 流動性降維：成交額 1000萬~5億、股價 ≥ 10 元，避開熱門當沖，鎖定冷門潛伏區。\n"
             "2️⃣ 技術面尋底：股價在季線(60MA)下方，嚴選量縮窒息或出現防守K線(長下影線/吞噬)。\n"
-            "3️⃣ 重罰虧損殭屍股：若 EPS < 0 且營收 YoY < 20%，直接一票否決或重扣分！\n"
-            "4️⃣ 資金級別與 PTS 評分：結合 RSI 超賣反轉與籌碼集中度進行綜合評分，並賦予 S/A/B/C 資金優先順位。\n"
+            "3️⃣ 虧損股嚴審：EPS < 0 者須同時符合「營收 YoY > 0、法人連買 ≥ 4 天且佔比 > 8%、未破底、有強力反轉K線」，缺一即淘汰！\n"
+            "4️⃣ 資金級別與評分：結合 RSI 超賣反轉與籌碼集中度綜合評分，並賦予級別：\n"
+            " ‧ 🥇 S級：反轉確認　‧ 🥈 A級：防守K線\n"
+            " ‧ 🟡 B級：觀望，尚無防守（僅追蹤，不建議進場）\n"
+            " ‧ 🔴 C級：破底（直接淘汰）\n"
             "────────────────\n"
-            "🎯 【左側無情出場鐵律】\n"
-            " ‧ 達標停利：底部反彈達 15%~20%，或撞擊季線壓力即停利。\n"
-            " ‧ 破底停損：一旦跌破系統精算的防守低點，或入榜滿 30 天未發動，系統將強制除名！"
+            "🎯 【左側出場鐵律】\n"
+            " ‧ 建議停利：底部反彈達 15%~20%，或撞擊季線壓力即停利。\n"
+            " ‧ 系統除名：收盤跌破防守低點、較入榜價虧損達 10%，或入榜滿 30 天。\n"
+            " ‧ LINE 只顯示最近 5 個交易日入榜者，完整名單請見網頁。"
         )
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=left_logic_text))
         return
@@ -1198,6 +1251,12 @@ def handle_message(event):
                 ]
             }
         }
+        # v25：大盤警戒/危險時，在導覽卡直接註明，避免「嚴禁追高」與「優先建倉」同時出現而矛盾
+        _lv, _ln = get_market_level()
+        if _lv >= 2:
+            info_bubble["body"]["contents"].insert(3, {
+                "type": "text", "text": f"⚠️ 大盤{_ln}：以下標的僅供觀察，暫緩開新倉、嚴禁追高", "size": "xs",
+                "color": "#D32F2F", "weight": "bold", "wrap": True, "align": "center", "margin": "md"})
         bubbles.append(info_bubble)
 
         for stock in good_stocks:
@@ -1258,7 +1317,8 @@ def handle_message(event):
                 if "中小" in target_type and s.get('cap_size') != "中小型股": continue
                 
                 rank = s.get('capital_rank', 'C')
-                if rank in ['B', 'C']:
+                # v25：只有「入榜時是 S/A 級（真的被推薦過）」才算降級；舊資料無 first_entry_rank（None）者保守不列入
+                if rank in ['B', 'C'] and s.get('first_entry_rank') in ('S', 'A'):
                     try:
                         f_date = datetime.strptime(s.get('first_entry_date', ''), '%Y-%m-%d').replace(tzinfo=timezone(timedelta(hours=8)))
                         if (tw_now - f_date).days <= 15: # 15天內推薦過
@@ -1269,32 +1329,42 @@ def handle_message(event):
                 # 依危險程度排序 (C級最危險)
                 downgraded.sort(key=lambda x: (1 if x.get('capital_rank')=='C' else 2, x.get('date', '')))
                 warn_contents = [
-                    {"type": "text", "text": "⚠️ 歷史庫存降級警示", "weight": "bold", "size": "md", "color": "#ffffff"},
-                    {"type": "text", "text": "過去15天曾入榜，今日已轉弱或過熱，請留意出場時機：", "size": "xs", "color": "#ffcccc", "wrap": True, "margin": "sm"},
+                    {"type": "text", "text": "📉 近期推薦股轉弱提醒", "weight": "bold", "size": "md", "color": "#ffffff"},
+                    {"type": "text", "text": "過去15天曾推薦（入榜為S/A級），今日轉弱。若你有買進，請點選該檔查看詳細診斷：", "size": "xs", "color": "#ffcccc", "wrap": True, "margin": "sm"},
                     {"type": "separator", "margin": "md", "color": "#ff9999"}
                 ]
                 for ds in downgraded[:5]: # 考量版面，最多顯示5檔最危險的
-                    r_txt = "🔴 破線出貨" if ds.get('capital_rank')=='C' else "🟡 爆量過熱"
+                    cur_rank = ds.get('capital_rank', 'C')
+                    r_txt = "🔴 破線出貨" if cur_rank == 'C' else "🟡 轉弱(爆量/回測)"
+                    # 推薦價、現價與報酬（來自榜單資料；推薦價＝入榜日價格）
+                    try:
+                        fp = float(ds.get('first_entry_price')); cp = float(ds.get('price'))
+                        pct = round((cp - fp) / fp * 100, 1) if fp > 0 else 0
+                        perf_txt = f"推薦價 {_fmt_num(fp)} → 現價 {_fmt_num(cp)} ({'+' if pct > 0 else ''}{pct}%)"
+                    except Exception:
+                        perf_txt = "推薦價/現價：資料不足"
                     warn_contents.append({
-                        "type": "box", "layout": "horizontal", "margin": "sm",
+                        "type": "box", "layout": "vertical", "margin": "md", "spacing": "xs",
+                        "action": {"type": "message", "label": "詳細診斷", "text": str(ds['code'])},
                         "contents": [
-                            {"type": "text", "text": f"{ds['name']}({ds['code']})", "size": "sm", "color": "#ffffff", "weight": "bold", "flex": 3},
-                            {"type": "text", "text": r_txt, "size": "xs", "color": "#ffb3b3", "align": "end", "flex": 2}
+                            {
+                                "type": "box", "layout": "horizontal",
+                                "contents": [
+                                    {"type": "text", "text": f"{ds['name']}({ds['code']})", "size": "sm", "color": "#ffffff", "weight": "bold", "flex": 3, "wrap": True},
+                                    {"type": "text", "text": f"{ds.get('first_entry_rank')}→{cur_rank}　{r_txt}", "size": "xs", "color": "#ffb3b3", "align": "end", "flex": 3, "wrap": True}
+                                ]
+                            },
+                            {"type": "text", "text": perf_txt, "size": "xxs", "color": "#ffdddd", "wrap": True}
                         ]
                     })
-                
+
                 warn_bubble = {
                     "type": "bubble", "size": "hecto",
                     "body": {
                         "type": "box", "layout": "vertical", "backgroundColor": "#D32F2F", "spacing": "sm",
                         "contents": warn_contents
-                    },
-                    "footer": {
-                        "type": "box", "layout": "vertical", "backgroundColor": "#D32F2F",
-                        "contents": [
-                            {"type": "button", "action": {"type": "message", "label": "💡 點我一鍵持股診斷", "text": "如何診斷"}, "style": "primary", "color": "#b71c1c", "height": "sm"}
-                        ]
                     }
+                    # v24：移除卡片底部「💡 點我一鍵持股診斷」按鈕
                 }
                 bubbles.append(warn_bubble)
         except Exception as e:
@@ -1404,6 +1474,15 @@ def handle_message(event):
                         ]
                     }
                 }
+                # v25：補註 LINE 顯示範圍；大盤警戒/危險時提醒勿重壓接刀
+                info_bubble["body"]["contents"].insert(2, {
+                    "type": "text", "text": "（LINE 顯示最近 5 個交易日入榜者，完整名單請見網頁）", "size": "xxs",
+                    "color": "#9E9E9E", "align": "center", "wrap": True, "margin": "sm"})
+                _lv, _ln = get_market_level()
+                if _lv >= 2:
+                    info_bubble["body"]["contents"].insert(3, {
+                        "type": "text", "text": f"⚠️ 大盤{_ln}：左側標的僅供觀察，勿重壓、勿急著接刀", "size": "xs",
+                        "color": "#D32F2F", "weight": "bold", "wrap": True, "align": "center", "margin": "md"})
                 bubbles.append(info_bubble)
 
                 for item in left_data[:5]:
@@ -1426,13 +1505,15 @@ def handle_message(event):
 
                     # 👇 新增：讀取左側資金級別並轉換為視覺標籤
                     rank = item.get('capital_rank', 'C')
+                    # v25：左側專屬級別字樣（原本沿用右側的「帶量突破」等，與左側「量縮築底」內容矛盾）
                     rank_icons = {
-                        "S": "🥇 S級｜帶量突破", 
-                        "A": "🥈 A級｜股價推升", 
-                        "B": "🟡 B級｜震盪整理/回測", 
-                        "C": "🔴 C級｜技術線型破線"
+                        "S": "🥇 S級｜反轉確認",
+                        "A": "🥈 A級｜防守K線",
+                        "B": "🟡 B級｜觀望（尚無防守）",
+                        "C": "🔴 C級｜破底"
                     }
                     rank_str = rank_icons.get(rank, "🔴 C級(暫避)")
+                    is_watch_only = (rank not in ("S", "A"))   # B 級：僅追蹤，不給進場價
 
                     bubble = {
                         "type": "bubble", "size": "hecto",
@@ -1475,8 +1556,11 @@ def handle_message(event):
                                 {"type": "separator", "margin": "md"},
                                 {"type": "text", "text": "💡 實戰策略", "size": "xs", "color": "#888888", "weight": "bold", "margin": "md"},
                                 {"type": "text", "text": f"狀態：{item.get('trend_status', '築底中')}", "size": "xs", "color": "#333333", "wrap": True},
-                                {"type": "text", "text": f"進場：{item.get('entry_price', 'N/A')} 元分批試單", "size": "xs", "color": "#2E7D32", "weight": "bold"},
-                                {"type": "text", "text": "停損：波段最低價跌破 3%", "size": "xs", "color": "#C62828", "weight": "bold"},
+                                # v25：B 級只觀望、不給進場價；停損文字改為與爬蟲實際除名條件一致
+                                ({"type": "text", "text": "觀望：尚無防守K線訊號，僅追蹤、暫不進場", "size": "xs", "color": "#8D6E63", "weight": "bold", "wrap": True}
+                                 if is_watch_only else
+                                 {"type": "text", "text": f"進場：{item.get('entry_price', 'N/A')} 元分批試單", "size": "xs", "color": "#2E7D32", "weight": "bold"}),
+                                {"type": "text", "text": "停損：收盤跌破防守低點，或較入榜價虧損達 10%（系統除名）", "size": "xs", "color": "#C62828", "weight": "bold", "wrap": True},
                                 {"type": "button", "action": {"type": "message", "label": "詳細診斷", "text": item['code']}, "style": "link", "margin": "md"}
                             ]
                         }
@@ -1505,7 +1589,7 @@ def handle_message(event):
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
                     {"type": "text", "text": "🏦 存股打折加碼雷達", "weight": "bold", "size": "lg", "color": "#1E88E5"},
-                    {"type": "text", "text": "這是開發者的存股名單\n點選下方類別👇", "wrap": True, "size": "sm", "color": "#666666"},
+                    {"type": "text", "text": "本系統追蹤的存股名單\n點選下方類別👇", "wrap": True, "size": "sm", "color": "#666666"},
                     {"type": "separator", "margin": "md"},
                     {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🏦 金融控股", "text": "金融股"}, "margin": "md"},
                     {"type": "button", "style": "primary", "color": "#00897B", "action": {"type": "message", "label": "📈 國民 ETF", "text": "存股 ETF"}, "margin": "sm"},
@@ -1594,6 +1678,11 @@ def handle_message(event):
                 },
                 {"type": "separator", "margin": "md"}
             ]
+            # v25：存股雷達原本完全沒有大盤提醒；大盤有警示時在最上方補一行（加碼請分批）
+            _lv, _ln = get_market_level()
+            if _lv > 0:
+                flex_contents.insert(1, {"type": "text", "text": f"{MARKET_BANNER.get(_lv, MARKET_BANNER[1])}\n存股加碼請分批、控制單次金額。",
+                                         "size": "xs", "color": "#D32F2F", "weight": "bold", "wrap": True, "margin": "sm"})
 
             # --- 1. 🛒 打折加碼區 (🔥 還原遺落的迴圈代碼) ---
             if buy_list:
@@ -1764,9 +1853,24 @@ def handle_message(event):
                     s_type = str(row.get(col_type, '波段')).strip() if col_type else '波段'
                     broker = str(row.get(col_broker, '未指定')).strip() if col_broker else '未指定'
 
+                    # v25：策略分類只認「波段／定存」。含「存股」「定存」視為定存；其他（含手動亂填）依波段處理並註明，
+                    # 避免該檔持股在盤點報告中整檔消失。空白視為波段。
+                    type_note = ""
+                    if not s_type or s_type.lower() == 'nan':
+                        s_type = '波段'
+                    elif s_type not in ('波段', '定存'):
+                        orig_type = s_type
+                        if '定存' in s_type or '存股' in s_type:
+                            s_type = '定存'
+                            type_note = f"（分類「{orig_type}」已視為定存）"
+                        else:
+                            s_type = '波段'
+                            type_note = f"（分類「{orig_type}」已依波段處理）"
+
                     portfolio.append({
                         "code": code_raw, "cost": cost, "quantity": qty,
-                        "type": s_type if s_type else '波段',
+                        "type": s_type,
+                        "type_note": type_note,
                         "broker": broker
                     })
 
@@ -1783,8 +1887,9 @@ def handle_message(event):
                     cost = float(item.get('cost', 0))
                     qty = item.get('quantity', 0)
                     s_type = item.get('type', '波段')
+                    type_note = item.get('type_note', '')
                     broker = item.get('broker', '未指定')
-                    
+
                     data = fetch_data_light(code)
                     if not data:
                         print(f"❌ [盤點Debug] {code} 爬蟲抓取報價失敗，已跳過該標的！")
@@ -1910,7 +2015,7 @@ def handle_message(event):
                         "name": name, 
                         "qty": qty_str,
                         "cost": cost,
-                        "status": status_msg, 
+                        "status": status_msg + (f"\n{type_note}" if type_note else ""),
                         "action": action_msg,
                         "color": "#D32F2F" if alert_type == "warn" else "#2E7D32"
                     }
@@ -2008,7 +2113,7 @@ def handle_message(event):
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
                     {"type": "text", "text": "⚠️ 找不到您輸入的代號或指令喔！", "weight": "bold", "color": "#D32F2F", "wrap": True},
-                    {"type": "text", "text": "💡 【V20.0 雙引擎戰情室 指南】\n請直接輸入股票代號進行 AI 診斷，或點擊下方按鈕探索：", "wrap": True, "size": "sm", "color": "#666666"},
+                    {"type": "text", "text": f"💡 【雙引擎戰情室 {BOT_VERSION.split('(')[0]} 指南】\n請直接輸入股票代號進行 AI 診斷，或點擊下方按鈕探索：", "wrap": True, "size": "sm", "color": "#666666"},
                     
                     # --- 三大主力策略區 (用顏色區分) ---
                     {"type": "button", "style": "primary", "color": "#1E88E5", "action": {"type": "message", "label": "🚀 右側動能：今日推薦", "text": "推薦"}, "margin": "md"},
@@ -2018,6 +2123,10 @@ def handle_message(event):
                     # --- 個股與進階查詢區 (灰色次要按鈕) ---
                     {"type": "separator", "margin": "lg"},
                     {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📦 一鍵庫存盤點 (支援多帳號)", "text": "盤點"}, "margin": "md"},
+                    {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "sm", "contents": [
+                        {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📈 大盤狀態", "text": "大盤"}},
+                        {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📝 更新持股", "text": "更新持股"}}
+                    ]},
                     {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "sm", "contents": [
                         {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🔎 診斷教學", "text": "如何評估"}},
                         {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🚨 隔日沖名單", "text": "隔日沖"}}
@@ -2149,7 +2258,7 @@ def handle_message(event):
             res_r = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/daily_recommendations.json", headers={'Cache-Control': 'no-cache'}, timeout=4)
             if res_r.status_code == 200:
                 for item in res_r.json():
-                    if str(item.get('code')) == str(stock_id) and item.get('first_entry_date'):
+                    if str(item.get('code')) == str(stock_id) and item.get('first_entry_date') and _was_recommended(item):
                         f_date = item['first_entry_date']
                         f_price = float(item['first_entry_price'])
                         profit = round((data['close'] - f_price) / f_price * 100, 1)
@@ -2162,7 +2271,7 @@ def handle_message(event):
                 res_l = requests.get("https://raw.githubusercontent.com/RodHome/line-bot-lab/main/left_side_value.json", headers={'Cache-Control': 'no-cache'}, timeout=4)
                 if res_l.status_code == 200:
                     for item in res_l.json():
-                        if str(item.get('code')) == str(stock_id) and item.get('first_entry_date'):
+                        if str(item.get('code')) == str(stock_id) and item.get('first_entry_date') and _was_recommended(item):
                             f_date = item['first_entry_date']
                             f_price = float(item['first_entry_price'])
                             profit = round((data['close'] - f_price) / f_price * 100, 1)
@@ -2228,7 +2337,7 @@ def handle_message(event):
                 "   - 💡【初升段突破】：若發散度 < 10% 且出量長紅，判定為『🔴強勢加碼』。但【絕對禁止】現價追買，進場策略強制寫明在【紅K中值】與【5MA】區間量縮承接。\n"
                 "   - 🚨【高檔過熱出貨】：若發散度 > 15% 且單日漲幅 > 5%，判定為『🟡續抱觀察』或『🟢分批停利』。強制警告「長線發散且乖離過大，嚴防主力出貨，嚴禁追高」。\n"
                 "5. 🛡️防飛刀鐵律(左側救援)：若跌深近季線(60MA)且基本面佳，【必須同時具備『量縮窒息』或『打底止跌』】才判定『🔴逢低分批加碼』；若呈爆量長黑下殺，強制判定『🟡續抱觀察』，並在【strategy】寫明不加碼、不接刀。\n"
-                "6. 📈獲利操作與存股鐵律：若帳面獲利且無避險訊號，啟動『📈移動停利』策略（沿5MA或10MA抱緊，不破不賣）。若為定存股且現價大漲導致「殖利率 < 4%」，強制判定『🟢分批停利』，並在【strategy】寫明改為獲利換股，失去高息保護傘即離場。\n"
+                "6. 📈獲利操作與存股鐵律：若帳面獲利且無避險訊號，啟動『📈移動停利』策略（沿10MA抱緊，不破10MA不賣；跌破10MA且量縮先戒備、守月線，帶量跌破才提前減碼 1/2，與盤點規則一致）。若為定存股且現價大漲導致「殖利率 < 4%」，強制判定『🟢分批停利』，並在【strategy】寫明改為獲利換股，失去高息保護傘即離場。\n"
                 "7. 🎯動態定價模型(捨棄廢話)：【strategy】欄位必須給出『絕對的價格數字』。\n"
                 "   - 目標價：若為轉機或強勢突破，無視短壓，直接以上方 15%~20% 或前波高點為目標。\n"
                 "   - 防守價：嚴格設定在 10MA、月線或季線等關鍵支撐。\n"
@@ -2411,7 +2520,7 @@ def handle_message(event):
             if live_price > ma10:
                 anti_shake_msg += f"🛡️ 【防守】波段防守價為 {ma10} 元 (10MA)。收盤不破此價位，盤中震盪皆視為洗盤，建議抱緊處理！\n"
             elif live_price > ma20:
-                anti_shake_msg += f"🛡️ 【防守】短線跌破10MA，防守退至月線 {ma20} 元。未跌破前仍屬多頭整理，可續抱觀察。\n"
+                anti_shake_msg += f"🛡️ 【防守】短線跌破10MA，防守退至月線 {ma20} 元：量縮屬戒備、守住月線前可續抱觀察；若帶量下殺，請提前減碼 1/2（與盤點規則一致）。\n"
             else:
                 anti_shake_msg += f"🚨 【防守】現價已跌破月線 {ma20} 元！短線趨勢轉弱，請留意出場時機或嚴防回測季線。\n"
 
@@ -2425,9 +2534,10 @@ def handle_message(event):
             try:
                 with open("market_risk.json", "r", encoding="utf-8") as f:
                     rdata = json.load(f)
-                    if rdata.get("level", 0) > 0:
-                        lname = rdata.get("level_name", "注意")
-                        market_warn_text = f"🚨【大盤警示：{lname}】結構轉弱，控制資金!\n------------------\n"
+                    _lv = int(rdata.get("level", 0) or 0)
+                    if _lv > 0:
+                        # v25：依級別使用統一語氣（注意＝僅供參考，不再一律寫「結構轉弱」）
+                        market_warn_text = f"{MARKET_BANNER.get(_lv, MARKET_BANNER[1])}\n------------------\n"
             except: pass
         
         reply = (
