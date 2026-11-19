@@ -1,6 +1,6 @@
 {
-  "date": "2026-11-17",
-  "close": 40092,
+  "date": "2026-11-18",
+  "close": 40194,
   "level": 3,
   "level_name": "危險",
   "raw_level": 3,
@@ -9,25 +9,25 @@
     "指數破MA20",
     "指數破MA60",
     "廣度<50%",
-    "外資空單急增"
+    "廣度急降"
   ],
   "signals": {
     "指數破MA20": true,
     "指數破MA60": true,
     "廣度<50%": true,
-    "廣度急降": false,
+    "廣度急降": true,
     "高檔背離": false,
-    "外資空單急增": true
+    "外資空單急增": false
   },
   "indicators": {
-    "b20": 0.1486,
-    "foreign_net_oi": -97896,
-    "foreign_chg5": 5577
+    "b20": 0.1081,
+    "foreign_net_oi": -99438,
+    "foreign_chg5": 4833
   },
   "data_quality": {
     "status": "OK",
-    "index_last_date": "2026-11-17",
-    "foreign_last_date": "2026-11-18",
+    "index_last_date": "2026-11-18",
+    "foreign_last_date": "2026-11-19",
     "breadth_stock_count": 74,
     "missing_fields": [],
     "note": ""
