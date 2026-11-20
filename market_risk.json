@@ -1,6 +1,6 @@
 {
-  "date": "2026-11-18",
-  "close": 40194,
+  "date": "2026-11-19",
+  "close": 38426,
   "level": 3,
   "level_name": "危險",
   "raw_level": 3,
@@ -21,13 +21,13 @@
   },
   "indicators": {
     "b20": 0.1081,
-    "foreign_net_oi": -99438,
-    "foreign_chg5": 4833
+    "foreign_net_oi": -99219,
+    "foreign_chg5": 354
   },
   "data_quality": {
     "status": "OK",
-    "index_last_date": "2026-11-18",
-    "foreign_last_date": "2026-11-19",
+    "index_last_date": "2026-11-19",
+    "foreign_last_date": "2026-11-20",
     "breadth_stock_count": 74,
     "missing_fields": [],
     "note": ""
