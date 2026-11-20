@@ -1,0 +1,585 @@
+{
+ "version": "1.0.0",
+ "unit": "億元",
+ "latest_date": "2026-11-20",
+ "data_quality": "ok",
+ "days": [
+  {
+   "date": "2026-08-24",
+   "foreign": -157.36,
+   "trust": 30.55,
+   "dealer": -43.33,
+   "total": -170.14,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-08-25",
+   "foreign": -7.87,
+   "trust": -39.84,
+   "dealer": 0.6,
+   "total": -47.11,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-08-26",
+   "foreign": 366.13,
+   "trust": 33.66,
+   "dealer": 179.34,
+   "total": 579.13,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-08-27",
+   "foreign": 490.94,
+   "trust": -14.5,
+   "dealer": 150.35,
+   "total": 626.79,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-08-28",
+   "foreign": 417.54,
+   "trust": -1.97,
+   "dealer": 42.71,
+   "total": 458.28,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-08-31",
+   "foreign": -143.92,
+   "trust": -40.0,
+   "dealer": -74.53,
+   "total": -258.46,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-01",
+   "foreign": 267.08,
+   "trust": 136.0,
+   "dealer": 163.3,
+   "total": 566.37,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-02",
+   "foreign": -913.55,
+   "trust": -35.28,
+   "dealer": -203.62,
+   "total": -1152.44,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-03",
+   "foreign": -481.46,
+   "trust": 6.94,
+   "dealer": -167.08,
+   "total": -641.6,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-04",
+   "foreign": 562.13,
+   "trust": -9.11,
+   "dealer": 63.7,
+   "total": 616.72,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-07",
+   "foreign": 883.08,
+   "trust": 87.24,
+   "dealer": 156.87,
+   "total": 1127.19,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-08",
+   "foreign": 132.69,
+   "trust": -72.43,
+   "dealer": -185.4,
+   "total": -125.15,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-09",
+   "foreign": 209.24,
+   "trust": 20.85,
+   "dealer": -18.84,
+   "total": 211.25,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-10",
+   "foreign": -383.34,
+   "trust": 33.51,
+   "dealer": -137.64,
+   "total": -487.47,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-11",
+   "foreign": -892.7,
+   "trust": 82.14,
+   "dealer": -302.02,
+   "total": -1112.59,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-14",
+   "foreign": -369.64,
+   "trust": 36.96,
+   "dealer": -150.93,
+   "total": -483.61,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-15",
+   "foreign": -626.99,
+   "trust": -19.91,
+   "dealer": -142.06,
+   "total": -788.96,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-16",
+   "foreign": -179.8,
+   "trust": 106.46,
+   "dealer": -129.74,
+   "total": -203.09,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-17",
+   "foreign": 121.85,
+   "trust": 117.03,
+   "dealer": 15.78,
+   "total": 254.66,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-18",
+   "foreign": 869.94,
+   "trust": 81.53,
+   "dealer": 243.03,
+   "total": 1194.51,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-21",
+   "foreign": 204.79,
+   "trust": 45.96,
+   "dealer": 227.3,
+   "total": 478.05,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-22",
+   "foreign": 453.21,
+   "trust": -3.66,
+   "dealer": 158.54,
+   "total": 608.09,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-23",
+   "foreign": 373.13,
+   "trust": -47.59,
+   "dealer": 58.25,
+   "total": 383.79,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-24",
+   "foreign": -329.65,
+   "trust": -128.23,
+   "dealer": 13.38,
+   "total": -444.49,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-29",
+   "foreign": -625.83,
+   "trust": 5.79,
+   "dealer": -164.03,
+   "total": -784.06,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-09-30",
+   "foreign": 308.57,
+   "trust": 82.91,
+   "dealer": 12.4,
+   "total": 403.88,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-01",
+   "foreign": 219.37,
+   "trust": 58.65,
+   "dealer": 16.59,
+   "total": 294.62,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-02",
+   "foreign": 26.22,
+   "trust": 57.69,
+   "dealer": 20.26,
+   "total": 104.17,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-05",
+   "foreign": 718.97,
+   "trust": -52.93,
+   "dealer": 109.48,
+   "total": 775.52,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-06",
+   "foreign": -66.57,
+   "trust": -142.65,
+   "dealer": 17.21,
+   "total": -192.01,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-07",
+   "foreign": -130.44,
+   "trust": -33.23,
+   "dealer": -77.96,
+   "total": -241.64,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-08",
+   "foreign": -758.52,
+   "trust": 30.09,
+   "dealer": -187.31,
+   "total": -915.75,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-12",
+   "foreign": -521.98,
+   "trust": 71.41,
+   "dealer": -142.94,
+   "total": -593.51,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-13",
+   "foreign": -1652.91,
+   "trust": 246.25,
+   "dealer": -569.76,
+   "total": -1976.41,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-14",
+   "foreign": -200.37,
+   "trust": 160.27,
+   "dealer": -114.7,
+   "total": -154.81,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-15",
+   "foreign": -3025.55,
+   "trust": 292.83,
+   "dealer": -958.23,
+   "total": -3690.96,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-16",
+   "foreign": -461.47,
+   "trust": 110.48,
+   "dealer": -334.14,
+   "total": -685.14,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-19",
+   "foreign": -767.43,
+   "trust": 241.42,
+   "dealer": -362.63,
+   "total": -888.64,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-20",
+   "foreign": -795.4,
+   "trust": 187.59,
+   "dealer": -355.79,
+   "total": -963.6,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-21",
+   "foreign": 22.39,
+   "trust": 127.99,
+   "dealer": -135.72,
+   "total": 14.66,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-22",
+   "foreign": -815.82,
+   "trust": 94.92,
+   "dealer": -273.77,
+   "total": -994.67,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-27",
+   "foreign": -80.39,
+   "trust": 236.05,
+   "dealer": -123.99,
+   "total": 31.67,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-28",
+   "foreign": 159.57,
+   "trust": 143.2,
+   "dealer": 21.65,
+   "total": 324.42,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-29",
+   "foreign": -688.15,
+   "trust": 70.44,
+   "dealer": -215.0,
+   "total": -832.71,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-10-30",
+   "foreign": -1124.67,
+   "trust": 236.19,
+   "dealer": -513.69,
+   "total": -1402.18,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-02",
+   "foreign": -735.21,
+   "trust": 338.16,
+   "dealer": -152.88,
+   "total": -549.93,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-03",
+   "foreign": -1073.07,
+   "trust": 184.6,
+   "dealer": -590.54,
+   "total": -1479.01,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-04",
+   "foreign": -1499.0,
+   "trust": 272.58,
+   "dealer": -375.19,
+   "total": -1601.6,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-05",
+   "foreign": -1024.61,
+   "trust": 225.94,
+   "dealer": -435.27,
+   "total": -1233.94,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-06",
+   "foreign": -911.88,
+   "trust": 266.91,
+   "dealer": -494.76,
+   "total": -1139.73,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-09",
+   "foreign": -900.56,
+   "trust": 313.12,
+   "dealer": -312.19,
+   "total": -899.63,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-10",
+   "foreign": -341.17,
+   "trust": 398.91,
+   "dealer": -175.36,
+   "total": -117.62,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-11",
+   "foreign": -7.66,
+   "trust": 185.85,
+   "dealer": 62.57,
+   "total": 240.76,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-12",
+   "foreign": -6.85,
+   "trust": 125.68,
+   "dealer": -65.41,
+   "total": 53.42,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-13",
+   "foreign": 288.37,
+   "trust": 95.39,
+   "dealer": 68.92,
+   "total": 452.68,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-16",
+   "foreign": -701.89,
+   "trust": -183.02,
+   "dealer": -259.03,
+   "total": -1143.94,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-17",
+   "foreign": -380.94,
+   "trust": -38.21,
+   "dealer": -156.96,
+   "total": -576.11,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-18",
+   "foreign": -765.64,
+   "trust": 166.12,
+   "dealer": -42.01,
+   "total": -641.53,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-19",
+   "foreign": -243.12,
+   "trust": 43.9,
+   "dealer": -233.03,
+   "total": -432.25,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  },
+  {
+   "date": "2026-11-20",
+   "foreign": -94.13,
+   "trust": -87.49,
+   "dealer": -340.84,
+   "total": -522.46,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
+  }
+ ],
+ "summary": {
+  "foreign": {
+   "today": -94.13,
+   "sum5": -2185.72,
+   "sum20": -10946.82,
+   "streak": -5,
+   "avg_sell20": 633.04,
+   "signals": [
+    "賣壓縮小"
+   ]
+  },
+  "trust": {
+   "today": -87.49,
+   "sum5": -98.7,
+   "sum20": 3089.24,
+   "streak": -1,
+   "avg_sell20": 102.91,
+   "signals": []
+  },
+  "dealer": {
+   "today": -340.84,
+   "sum5": -1031.87,
+   "sum20": -4606.78,
+   "streak": -5,
+   "avg_sell20": 280.0,
+   "signals": []
+  },
+  "total": {
+   "today": -522.46,
+   "sum5": -3316.29,
+   "sum20": -12464.36,
+   "streak": -5,
+   "avg_sell20": 904.49,
+   "signals": []
+  }
+ },
+ "updated_at": "2026-11-20 17:34"
+}
