@@ -16,7 +16,19 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, FlexSendM
 #---restart
 app = Flask(__name__)
 
-# 🤖 [版本號] v26
+# 🤖 [版本號] v27
+# [v27 修訂說明 2026-11-23] 新增「全市場外資／投信買賣超」＋ 推薦預設短評資料化
+#  - 新增：讀取 institutional_flow.json（由 institutional_flow.py 於收盤後更新），用來觀察外資何時回頭買超、賣壓何時縮小。
+#    1. 新指令「法人」（也可輸入：法人動向／外資／投信／外資投信／三大法人）：
+#       回傳外資、投信、自營商、合計的今日／5日／20日買賣超（億元）、連買連賣天數、試水溫訊號與近 5 日明細。
+#    2. 「大盤」狀態卡下方加註外資／投信最新買賣超。
+#    3. 個股診斷回覆加一行「大盤法人」摘要（由程式直接帶入，不經 AI，避免 AI 說法與數字矛盾）。
+#    4. 導覽選單新增「🏛️ 法人動向」按鈕。
+#    5. 檔案不存在、讀取失敗或資料超過 3 天沒更新時：只標示「資料較舊」或略過，不影響既有功能。
+#  - 修正：推薦卡片「AI 短評暫缺」時的預設短評，原為固定句「主力控盤，…，多頭排列」，與實際資料無關；
+#    改為只列卡片已有的資料（技術訊號／近5日法人／營收YoY），不再下結論。
+#  - 試水溫訊號（僅供觀察，不單獨作為進場依據）：轉買超＝今日買超且前一日賣超；
+#    賣壓縮小＝今日賣超但不到近20日平均賣超金額的一半；5日累計翻正＝近5日累計由負轉正（昨日≦0）。
 # [v26 修訂說明 2026-11-12] 修正「推薦」逾時導致 Render 重啟、LINE 回 500（log：Worker was sent SIGKILL / POST /callback 500）
 #  - 原因：抓個股資料 fetch_data_light 逾時後會在主執行緒「序列重跑」，且 twstock 即時報價沒有逾時設定，
 #    一遇到資料源變慢就卡過 gunicorn 的 30 秒，整個程序被強制重啟；單一 worker 被卡住時，連「左側」等指令也一起失敗。
@@ -59,7 +71,7 @@ app = Flask(__name__)
 #  - 試算表網址與使用者 ID 改讀環境變數（SHEET_USER1/2_ID、_URL）
 #  - 持股診斷：原本送給 AI 的資料沒有「成本」，導致 AI 自行亂猜（例：現價97.15>成本96.86，卻寫「已跌破成本」）；
 #    現在補上使用者成本與程式算好的「現價 vs 成本」，並新增第 9 條規則禁止與之矛盾
-BOT_VERSION = "v26(推薦逾時保護+矛盾與說明總檢查+LINE更新持股)"
+BOT_VERSION = "v27(全市場法人買賣超+預設短評資料化)"
 
 # --- 1. 全域快取與設定 ---
 AI_RESPONSE_CACHE = {}
@@ -189,6 +201,9 @@ def get_market_warning_bubble(always_show=False):
         }
     }
     
+    # v27：大盤卡下方加註外資／投信最新買賣超（讀不到就略過）
+    bubble["body"]["contents"].extend(_inst_market_section())
+
     data_quality = risk.get("data_quality", {})
     if data_quality.get("status") != "OK":
         note_msg = data_quality.get("note", "部分資料尚未更新")
@@ -197,6 +212,202 @@ def get_market_warning_bubble(always_show=False):
         })
 
     return bubble
+
+# ==========================================
+# 🏛️ v27：全市場外資／投信買賣超（讀 institutional_flow.json，單位：億元）
+# ==========================================
+INST_FLOW_FILE = "institutional_flow.json"
+INST_FLOW_CMDS = ["法人", "法人動向", "外資", "投信", "外資投信", "三大法人", "法人買賣超"]
+INST_STALE_DAYS = 3   # 資料日期距今超過幾天，就標示「資料較舊」
+
+def load_inst_flow():
+    """讀取全市場法人資料；檔案不存在、壞掉或內容不完整一律回 None（呼叫端自行略過）。"""
+    try:
+        if not os.path.exists(INST_FLOW_FILE):
+            return None
+        with open(INST_FLOW_FILE, "r", encoding="utf-8") as f:
+            js = json.load(f)
+        s = js.get("summary") or {}
+        if not js.get("days") or not js.get("latest_date") or "foreign" not in s or "trust" not in s:
+            return None
+        return js
+    except Exception as e:
+        print(f"[Warn] 讀取 {INST_FLOW_FILE} 失敗: {e}")
+        return None
+
+def _inst_age_days(latest_date):
+    """資料日期距今幾天（台灣時間）；解析失敗回 None。"""
+    try:
+        today_tw = (datetime.now(timezone.utc) + timedelta(hours=8)).date()
+        return (today_tw - datetime.strptime(latest_date, "%Y-%m-%d").date()).days
+    except Exception:
+        return None
+
+def _inst_is_stale(js):
+    age = _inst_age_days(js.get("latest_date", ""))
+    return js.get("data_quality") == "stale" or (age is not None and age > INST_STALE_DAYS), age
+
+def _fy(v, digits=0):
+    """億元數字：帶正負號與千分位。"""
+    try:
+        return f"{float(v):+,.{digits}f}"
+    except Exception:
+        return "N/A"
+
+def _inst_color(v):
+    """台股慣例：買超紅、賣超綠。"""
+    try:
+        v = float(v)
+    except Exception:
+        return "#888888"
+    return "#D32F2F" if v > 0 else ("#2E7D32" if v < 0 else "#888888")
+
+def _inst_streak_text(st):
+    try:
+        st = int(st)
+    except Exception:
+        return ""
+    if st >= 2: return f"連買{st}日"
+    if st <= -2: return f"連賣{-st}日"
+    return ""
+
+def _inst_md(date_str):
+    return str(date_str)[5:].replace("-", "/") if date_str else ""
+
+def get_inst_flow_oneliner():
+    """個股診斷用：一行（有訊號時兩行）大盤法人摘要，結尾附分隔線；沒資料回空字串。"""
+    try:
+        js = load_inst_flow()
+        if not js:
+            return ""
+        s = js["summary"]; f = s["foreign"]; t = s["trust"]
+        def seg(label, x):
+            stxt = _inst_streak_text(x.get("streak", 0))
+            return f"{label}{_fy(x.get('today'))}億" + (f"({stxt})" if stxt else "")
+        stale, _ = _inst_is_stale(js)
+        line = f"🏛️ 大盤法人({_inst_md(js['latest_date'])})：{seg('外資', f)}｜{seg('投信', t)}"
+        if stale:
+            line += " ⚠️資料較舊"
+        sigs = f.get("signals") or []
+        if sigs:
+            line += f"\n🔔 外資訊號：{'、'.join(sigs)}（僅供觀察）"
+        return line + "\n------------------\n"
+    except Exception as e:
+        print(f"[Warn] 法人摘要產生失敗: {e}")
+        return ""
+
+def _inst_market_section():
+    """附加在「大盤」狀態卡下方的 Flex 元件清單；沒資料回空 list。"""
+    try:
+        js = load_inst_flow()
+        if not js:
+            return []
+        s = js["summary"]; f = s["foreign"]; t = s["trust"]
+        stale, age = _inst_is_stale(js)
+        def line(label, x):
+            stxt = _inst_streak_text(x.get("streak", 0))
+            return f"{label} 今日{_fy(x.get('today'))}｜5日{_fy(x.get('sum5'))}｜20日{_fy(x.get('sum20'))}" + (f"｜{stxt}" if stxt else "")
+        items = [
+            {"type": "separator", "margin": "md"},
+            {"type": "text", "text": f"🏛️ 外資/投信買賣超（{_inst_md(js['latest_date'])}，億元）", "size": "xs", "color": "#888888", "weight": "bold"},
+            {"type": "text", "text": line("外資", f), "size": "xs", "color": _inst_color(f.get("today")), "wrap": True},
+            {"type": "text", "text": line("投信", t), "size": "xs", "color": _inst_color(t.get("today")), "wrap": True},
+        ]
+        sigs = f.get("signals") or []
+        if sigs:
+            items.append({"type": "text", "text": f"🔔 外資訊號：{'、'.join(sigs)}（僅供觀察；輸入「法人」看詳情）", "size": "xxs", "color": "#555555", "wrap": True})
+        if stale:
+            items.append({"type": "text", "text": f"⚠️ 法人資料日期距今 {age} 天，可能尚未更新或休市", "size": "xxs", "color": "#EA580C", "wrap": True})
+        return items
+    except Exception as e:
+        print(f"[Warn] 大盤卡法人區塊失敗: {e}")
+        return []
+
+def build_inst_flow_bubble():
+    """「法人」指令的 Flex 卡片；沒資料回 None。"""
+    js = load_inst_flow()
+    if not js:
+        return None
+    s = js["summary"]; days = js["days"]
+    stale, age = _inst_is_stale(js)
+
+    def cell(text, flex, color="#333333", bold=False, align="end", size="sm"):
+        c = {"type": "text", "text": str(text), "size": size, "flex": flex, "align": align, "color": color}
+        if bold: c["weight"] = "bold"
+        return c
+
+    def sum_row(label, x):
+        return {"type": "box", "layout": "horizontal", "margin": "sm", "contents": [
+            cell(label, 3, bold=True, align="start"),
+            cell(_fy(x.get("today"), 1), 4, _inst_color(x.get("today")), True),
+            cell(_fy(x.get("sum5")), 4, _inst_color(x.get("sum5"))),
+            cell(_fy(x.get("sum20")), 4, _inst_color(x.get("sum20"))),
+        ]}
+
+    body = [
+        {"type": "box", "layout": "horizontal", "contents": [
+            {"type": "filler", "flex": 3}, cell("今日", 4, "#888888", size="xs"),
+            cell("5日", 4, "#888888", size="xs"), cell("20日", 4, "#888888", size="xs")]},
+        sum_row("外資", s["foreign"]),
+        sum_row("投信", s["trust"]),
+        sum_row("自營商", s.get("dealer", {})) if s.get("dealer") else None,
+        sum_row("三大合計", s.get("total", {})) if s.get("total") else None,
+        {"type": "separator", "margin": "md"},
+    ]
+    body = [b for b in body if b]
+
+    for label, key in (("外資", "foreign"), ("投信", "trust")):
+        x = s[key]
+        stxt = _inst_streak_text(x.get("streak", 0)) or "今日方向未連續"
+        sigs = x.get("signals") or []
+        txt = f"{label}：{stxt}" + (f"｜🔔 {'、'.join(sigs)}" if sigs else "｜無訊號")
+        body.append({"type": "text", "text": txt, "size": "xs", "wrap": True, "margin": "sm",
+                     "color": "#D84315" if sigs else "#555555", "weight": "bold" if sigs else "regular"})
+
+    body.append({"type": "separator", "margin": "md"})
+    body.append({"type": "text", "text": "近 5 個交易日（億元）", "size": "xs", "color": "#888888", "weight": "bold", "margin": "sm"})
+    body.append({"type": "box", "layout": "horizontal", "margin": "xs", "contents": [
+        cell("日期", 3, "#888888", size="xs", align="start"), cell("外資", 4, "#888888", size="xs"),
+        cell("投信", 4, "#888888", size="xs"), cell("合計", 4, "#888888", size="xs")]})
+    for d in reversed(days[-5:]):
+        body.append({"type": "box", "layout": "horizontal", "margin": "xs", "contents": [
+            cell(_inst_md(d.get("date")), 3, "#555555", size="xs", align="start"),
+            cell(_fy(d.get("foreign")), 4, _inst_color(d.get("foreign")), size="xs"),
+            cell(_fy(d.get("trust")), 4, _inst_color(d.get("trust")), size="xs"),
+            cell(_fy(d.get("total")), 4, _inst_color(d.get("total")), size="xs"),
+        ]})
+
+    if stale:
+        body.append({"type": "text", "text": f"⚠️ 資料日期距今 {age} 天，可能尚未更新或休市，數字僅供參考。", "size": "xxs",
+                     "color": "#EA580C", "wrap": True, "margin": "md"})
+    body.append({"type": "text", "wrap": True, "size": "xxs", "color": "#888888", "margin": "md",
+                 "text": "單位：億元（正＝買超、負＝賣超）。訊號定義：轉買超＝今日買超且前一日賣超；賣壓縮小＝今日賣超但不到近20日平均賣超金額的一半；"
+                         "5日累計翻正＝近5日累計由負轉正。最新一日數字可能於當晚被資料來源修正，以隔日資料為準。訊號僅供觀察，請搭配大盤狀態與個股條件判斷，不單獨作為進場依據。"})
+
+    return {
+        "type": "bubble", "size": "mega",
+        "header": {"type": "box", "layout": "vertical", "backgroundColor": "#37474F", "contents": [
+            {"type": "text", "text": "🏛️ 全市場法人買賣超", "weight": "bold", "size": "lg", "color": "#ffffff"},
+            {"type": "text", "text": f"資料日期 {js.get('latest_date', '')}（每個交易日收盤後更新）", "size": "xs", "color": "#eeeeee", "margin": "xs"}]},
+        "body": {"type": "box", "layout": "vertical", "spacing": "none", "contents": body},
+        "footer": {"type": "box", "layout": "vertical", "contents": [
+            {"type": "button", "style": "primary", "color": "#37474F", "height": "sm",
+             "action": {"type": "uri", "label": "🌐 網頁看 60 日圖表", "uri": "https://rodhome.github.io/line-bot-lab/#flow"}}]}
+    }
+
+def build_default_reason(stock):
+    """v27：AI 短評取不到時的預設說明。只陳述卡片上已有的資料，不下結論、不編造。"""
+    parts = []
+    sig = str(stock.get('signal_str') or '').strip()
+    if sig:
+        parts.append(sig)
+    chips = str(stock.get('chips') or '').strip()
+    if chips and chips != 'N/A':
+        parts.append(f"近5日法人 {chips}")
+    yoy = str(stock.get('yoy_display') or '').strip()
+    if yoy and 'N/A' not in yoy:
+        parts.append(f"營收YoY {yoy}")
+    return "（AI 短評暫缺）" + ("｜".join(parts) if parts else "資料不足，請自行評估")
 
 @app.route("/")
 def health_check(): return f"OK ({BOT_VERSION})", 200
@@ -1099,6 +1310,19 @@ def handle_message(event):
             )
         return
     
+    # 🌟 v27：全市場外資／投信買賣超
+    if msg in INST_FLOW_CMDS:
+        try:
+            inst_bubble = build_inst_flow_bubble()
+        except Exception as e:
+            print(f"🚨 [法人] 卡片產生失敗: {type(e).__name__}: {e}")
+            inst_bubble = None
+        if inst_bubble:
+            line_bot_api.reply_message(event.reply_token, FlexSendMessage(alt_text="全市場法人買賣超", contents=inst_bubble))
+        else:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 目前沒有法人買賣超資料，請確認 institutional_flow.py 是否已執行（GitHub Actions：Run Institutional Flow）。"))
+        return
+
     #🔥 [效能優化] 零成本引導教學攔截
     if msg in ["如何評估", "如何診斷"]:
         guide_text = (
@@ -1303,7 +1527,7 @@ def handle_message(event):
         bubbles.append(info_bubble)
 
         for stock in good_stocks:
-            default_reason = f"主力控盤，{stock['signal_str']}，多頭排列。"
+            default_reason = build_default_reason(stock)   # v27：只列卡片已有資料，不再套固定句
             reason = reasons_map.get(str(stock['code']), default_reason)
             if "量增價漲" in stock['signal_str'] or "RSI過熱" in stock['signal_str']:
                 reason += "\n🚨 留意隔日沖倒貨風險"
@@ -2168,6 +2392,9 @@ def handle_message(event):
                     {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📦 一鍵庫存盤點 (支援多帳號)", "text": "盤點"}, "margin": "md"},
                     {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "sm", "contents": [
                         {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📈 大盤狀態", "text": "大盤"}},
+                        {"type": "button", "style": "secondary", "action": {"type": "message", "label": "🏛️ 法人動向", "text": "法人"}}
+                    ]},
+                    {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "sm", "contents": [
                         {"type": "button", "style": "secondary", "action": {"type": "message", "label": "📝 更新持股", "text": "更新持股"}}
                     ]},
                     {"type": "box", "layout": "horizontal", "spacing": "sm", "margin": "sm", "contents": [
@@ -2583,11 +2810,14 @@ def handle_message(event):
                         market_warn_text = f"{MARKET_BANNER.get(_lv, MARKET_BANNER[1])}\n------------------\n"
             except: pass
         
+        inst_flow_text = get_inst_flow_oneliner()
+
         reply = (
         f"📈 **{name}({stock_id})**\n"        
         f"{data_dashboard}\n"
         f"------------------\n"
         f"{market_warn_text}"   # 👈 塞在這裡，大盤異常才會顯示這行
+        f"{inst_flow_text}"     # v27：大盤法人一行摘要（沒資料時為空字串）
         f"🚩 **指標快篩** :\n"
         f"{signal_str}\n"
         f"------------------\n"

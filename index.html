@@ -1,9 +1,17 @@
 <!DOCTYPE html>
+<!--
+  v3.2 (2026-11-23) 變更說明
+  - 新增第三個分頁「🏛️ 法人動向」：顯示全市場外資／投信／自營商買賣超（億元）。
+    資料來源 institutional_flow.json（由 institutional_flow.py 於收盤後更新）；
+    內容：今日／5日／20日、連買連賣、試水溫訊號、近20日長條圖、近10日明細。
+  - 可用網址 #flow 直接開啟該分頁（LINE「法人」卡片的按鈕使用）。
+  - 左側／右側原有功能與畫面不變；法人資料讀取失敗時只影響新分頁。
+-->
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ 雙引擎雷達戰情室 V3.1</title>
+    <title>⚡ 雙引擎雷達戰情室 V3.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f1a; color: #f8fafc; }
@@ -27,11 +35,12 @@
         .tab-active-right { background-color: #dc2626; color: white; border-color: #ef4444; }
         .tab-inactive { background-color: #1e293b; color: #94a3b8; border-color: #334155; }
         .tab-inactive:hover { background-color: #334155; color: white; }
+        .tab-active-flow { background-color: #0d9488; color: white; border-color: #14b8a6; }
     </style>
 </head>
 <body class="p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-left" id="main-body">
 
-    <div class="ver-tag">Ver 3.1 (Dual Engine + SABC Rank)</div>
+    <div class="ver-tag">Ver 3.2 (Dual Engine + SABC Rank + 法人動向)</div>
 
     <header class="mb-8 text-center md:text-left border-b border-slate-800 pb-6">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -42,6 +51,7 @@
             <div class="flex flex-col items-end gap-2">
                 <div id="updateTimeL" class="text-slate-500 text-xs font-mono">左側同步: 讀取中...</div>
                 <div id="updateTimeR" class="text-slate-500 text-xs font-mono">右側同步: 讀取中...</div>
+                <div id="updateTimeF" class="text-slate-500 text-xs font-mono">法人同步: 讀取中...</div>
             </div>
         </div>
     </header>
@@ -49,12 +59,13 @@
     <div class="flex gap-4 mb-8 justify-center md:justify-start flex-wrap items-center">
         <button onclick="switchStrategy('LEFT')" id="tab-LEFT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-left">🛡️ 左側黃金坑</button>
         <button onclick="switchStrategy('RIGHT')" id="tab-RIGHT" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive">🚀 右側動能飆股</button>
+        <button onclick="switchStrategy('FLOW')" id="tab-FLOW" class="px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive">🏛️ 法人動向</button>
         <button onclick="document.getElementById('paramModal').style.display='flex'" class="md:ml-auto px-5 py-2.5 rounded-xl font-bold text-sm border-2 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2">
             <span>📘</span> 資金順位說明
         </button>
     </div>
 
-    <div class="flex flex-col md:flex-row gap-4 mb-10 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+    <div id="filter-panel" class="flex flex-col md:flex-row gap-4 mb-10 items-center justify-between bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
         <div class="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto">
             <button onclick="renderData('NEW')" id="btn-NEW" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold transition-all bg-blue-600 text-white shadow-lg">🆕 今日最新 (3日)</button>
             <button onclick="renderData('HISTORY')" id="btn-HISTORY" class="whitespace-nowrap px-6 py-2.5 rounded-lg font-bold text-slate-500 hover:text-slate-300 transition-all">📊 歷史追蹤 (15日)</button>
@@ -67,12 +78,18 @@
         <div class="col-span-full text-center py-20 text-slate-500 font-bold text-xl">雙引擎數據載入中...</div>
     </div>
 
+    <!-- 🏛️ 法人動向分頁（預設隱藏，點「法人動向」才顯示）-->
+    <section id="flow-section" style="display:none;">
+        <div id="flow-content" class="text-center py-20 text-slate-500 font-bold text-xl">法人資料載入中...</div>
+    </section>
+
     <script>
         let leftData = [];
         let rightData = [];
         let baseDateLeft = new Date();
         let baseDateRight = new Date();
         
+        let flowData = null;
         let currentStrategy = 'LEFT'; 
         let currentMode = 'NEW';      
 
@@ -123,6 +140,31 @@
             const mainTitle = document.getElementById('main-title');
             const subTitle = document.getElementById('sub-title');
 
+            // v3.2：法人動向分頁
+            const btnFlow = document.getElementById('tab-FLOW');
+            const flowSec = document.getElementById('flow-section');
+            const filterPanel = document.getElementById('filter-panel');
+            const stockGrid = document.getElementById('stock-grid');
+            const tabBase = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all";
+            if (strategy === 'FLOW') {
+                btnLeft.className = tabBase + " tab-inactive";
+                btnRight.className = tabBase + " tab-inactive";
+                btnFlow.className = tabBase + " shadow-lg tab-active-flow";
+                mainBody.className = "p-4 md:p-10 max-w-7xl mx-auto min-h-screen mode-flow";
+                mainTitle.className = "text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-300 mb-2 transition-all";
+                subTitle.innerText = "觀察外資何時回頭買超、賣壓何時縮小 · 全市場法人動向";
+                flowSec.style.display = '';
+                filterPanel.style.display = 'none';
+                stockGrid.style.display = 'none';
+                try { history.replaceState(null, '', '#flow'); } catch (e) {}
+                return;
+            }
+            flowSec.style.display = 'none';
+            filterPanel.style.display = '';
+            stockGrid.style.display = '';
+            btnFlow.className = tabBase + " tab-inactive";
+            try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+
             if (strategy === 'LEFT') {
                 btnLeft.className = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all shadow-lg tab-active-left";
                 btnRight.className = "px-8 py-3 rounded-xl font-black text-lg border-2 transition-all tab-inactive";
@@ -143,6 +185,7 @@
         }
 
         function renderData(mode) {
+            if (currentStrategy === 'FLOW') { currentMode = mode; return; }   // v3.2：法人分頁不畫個股卡片
             currentMode = mode;
             const buttons = ['NEW', 'HISTORY', 'DEV_ALL'];
             const activeBgClass = currentStrategy === 'LEFT' ? 'bg-blue-600' : 'bg-red-600';
@@ -308,7 +351,130 @@
             document.getElementById('stats-banner').innerHTML = `顯示 <strong>${filtered.length}</strong> 檔 | ${stratName} - ${modeName}`;
         }
 
+
+        // ================= v3.2：法人動向 =================
+        const fFmt = (v, d = 0) => (v === null || v === undefined || isNaN(v)) ? 'N/A' : ((v > 0 ? '+' : '') + Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }));
+        // 台股慣例：買超紅、賣超綠
+        const fCls = v => v > 0 ? 'text-red-400' : (v < 0 ? 'text-emerald-400' : 'text-slate-400');
+        const fStreak = st => st >= 2 ? `連買 ${st} 日` : (st <= -2 ? `連賣 ${-st} 日` : '—');
+        const fMD = d => (d || '').slice(5).replace('-', '/');
+
+        function flowBars(days, key, label) {
+            const n = days.length;
+            if (!n) return '';
+            const W = 640, H = 170, padX = 34, mid = 80;
+            const vals = days.map(d => d[key]);
+            const maxAbs = Math.max(1, ...vals.map(v => Math.abs(v)));
+            const bw = (W - padX * 2) / n;
+            let g = '';
+            days.forEach((d, i) => {
+                const v = d[key];
+                const h = Math.max(Math.abs(v) / maxAbs * (mid - 14), 0.8);
+                const x = padX + i * bw + bw * 0.15, w = bw * 0.7;
+                const y = v >= 0 ? mid - h : mid;
+                const last = i === n - 1;
+                g += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${v >= 0 ? '#f87171' : '#34d399'}" ${last ? 'stroke="#f8fafc" stroke-width="1.5"' : ''}><title>${d.date}　${label} ${fFmt(v, 1)} 億</title></rect>`;
+            });
+            return `<svg viewBox="0 0 ${W} ${H}" class="w-full h-auto" role="img" aria-label="${label}近${n}日買賣超">
+                <line x1="${padX}" y1="${mid}" x2="${W - padX}" y2="${mid}" stroke="#475569" stroke-width="1"/>
+                <text x="4" y="22" fill="#64748b" font-size="11">+${Math.round(maxAbs)}</text>
+                <text x="4" y="${H - 52}" fill="#64748b" font-size="11">-${Math.round(maxAbs)}</text>
+                ${g}
+                <text x="${padX}" y="${H - 10}" fill="#94a3b8" font-size="12">${fMD(days[0].date)}</text>
+                <text x="${W - padX}" y="${H - 10}" fill="#94a3b8" font-size="12" text-anchor="end">${fMD(days[n - 1].date)}（最新）</text>
+            </svg>`;
+        }
+
+        function flowSignalBadges(sigs) {
+            if (!sigs || !sigs.length) return '<span class="text-slate-600 text-xs font-bold">無訊號</span>';
+            const color = { '轉買超': 'bg-red-500/20 text-red-300 border-red-500/40', '賣壓縮小': 'bg-amber-500/20 text-amber-300 border-amber-500/40', '5日累計翻正': 'bg-sky-500/20 text-sky-300 border-sky-500/40' };
+            return sigs.map(t => `<span class="px-2 py-0.5 rounded text-[11px] font-black border ${color[t] || 'bg-slate-700 text-slate-200 border-slate-600'}">🔔 ${t}</span>`).join(' ');
+        }
+
+        function flowCard(label, x, withSignals) {
+            if (!x) return '';
+            return `<div class="rounded-2xl p-5 border border-slate-800 bg-slate-900/60">
+                <div class="text-slate-400 text-sm font-bold mb-1">${label}</div>
+                <div class="text-3xl font-black ${fCls(x.today)}">${fFmt(x.today, 1)}<span class="text-xs text-slate-500 ml-1 font-bold">億</span></div>
+                <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+                    <div class="bg-slate-950/60 rounded-lg p-2"><span class="text-[10px] text-slate-600 block font-bold">5日累計</span><span class="text-sm font-black ${fCls(x.sum5)}">${fFmt(x.sum5)}</span></div>
+                    <div class="bg-slate-950/60 rounded-lg p-2"><span class="text-[10px] text-slate-600 block font-bold">20日累計</span><span class="text-sm font-black ${fCls(x.sum20)}">${fFmt(x.sum20)}</span></div>
+                    <div class="bg-slate-950/60 rounded-lg p-2"><span class="text-[10px] text-slate-600 block font-bold">連買賣</span><span class="text-sm font-black ${fCls(x.streak)}">${fStreak(x.streak)}</span></div>
+                </div>
+                ${withSignals ? `<div class="mt-3 flex flex-wrap gap-1.5 min-h-[24px]">${flowSignalBadges(x.signals)}</div>` : ''}
+            </div>`;
+        }
+
+        function renderFlow() {
+            const box = document.getElementById('flow-content');
+            const js = flowData;
+            if (!js || !js.days || !js.days.length || !js.summary) {
+                box.className = 'text-center py-20 text-slate-500 font-bold text-xl';
+                box.innerHTML = '目前沒有法人資料，請確認 institutional_flow.py 是否已執行。';
+                return;
+            }
+            box.className = '';
+            const s = js.summary, days = js.days;
+            const age = Math.floor((Date.now() - new Date(js.latest_date + 'T00:00:00+08:00').getTime()) / 86400000);
+            const stale = js.data_quality === 'stale' || age > 3;
+
+            let html = `<div class="flex flex-wrap items-end justify-between gap-2 mb-5">
+                <div><h2 class="text-2xl font-black text-white">🏛️ 全市場法人買賣超</h2>
+                <p class="text-slate-500 text-sm mt-1">資料日期 <span class="font-mono text-slate-300">${js.latest_date}</span>　單位：億元（紅＝買超、綠＝賣超）</p></div>
+                <div class="text-slate-600 text-xs font-mono">更新：${js.updated_at || ''}</div></div>`;
+            if (stale) html += `<div class="mb-5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm font-bold">⚠️ 資料日期距今 ${age} 天，可能尚未更新或休市，數字僅供參考。</div>`;
+
+            html += `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+                ${flowCard('外資（不含外資自營）', s.foreign, true)}${flowCard('投信', s.trust, true)}${flowCard('自營商', s.dealer, false)}${flowCard('三大法人合計', s.total, false)}</div>`;
+
+            const recent = days.slice(-20);
+            html += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+                <div class="rounded-2xl p-5 border border-slate-800 bg-slate-900/60"><div class="text-slate-300 font-bold mb-2">外資 近 ${recent.length} 日買賣超（億元）</div>${flowBars(recent, 'foreign', '外資')}</div>
+                <div class="rounded-2xl p-5 border border-slate-800 bg-slate-900/60"><div class="text-slate-300 font-bold mb-2">投信 近 ${recent.length} 日買賣超（億元）</div>${flowBars(recent, 'trust', '投信')}</div></div>`;
+
+            const rows = days.slice(-10).reverse().map(d => `<tr class="border-t border-slate-800">
+                <td class="py-2 px-2 sm:px-3 font-mono text-slate-300 whitespace-nowrap" title="${d.date}">${fMD(d.date)}</td>
+                <td class="py-2 px-2 sm:px-3 text-right font-bold ${fCls(d.foreign)}">${fFmt(d.foreign, 2)}</td>
+                <td class="py-2 px-2 sm:px-3 text-right font-bold ${fCls(d.trust)}">${fFmt(d.trust, 2)}</td>
+                <td class="py-2 px-2 sm:px-3 text-right font-bold ${fCls(d.dealer)}">${fFmt(d.dealer, 2)}</td>
+                <td class="py-2 px-2 sm:px-3 text-right font-black ${fCls(d.total)}">${fFmt(d.total, 2)}</td></tr>`).join('');
+            html += `<div class="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-x-auto mb-8">
+                <div class="px-4 pt-4 pb-2 text-slate-300 font-bold">近 10 個交易日明細（億元）</div>
+                <table class="w-full text-xs sm:text-sm"><thead><tr class="text-slate-500 text-xs">
+                    <th class="py-2 px-2 sm:px-3 text-left">月/日</th><th class="py-2 px-2 sm:px-3 text-right">外資</th><th class="py-2 px-2 sm:px-3 text-right">投信</th><th class="py-2 px-2 sm:px-3 text-right">自營商</th><th class="py-2 px-2 sm:px-3 text-right">三大合計</th></tr></thead>
+                <tbody>${rows}</tbody></table></div>`;
+
+            html += `<div class="rounded-2xl p-5 border border-slate-800 bg-slate-900/40 text-slate-400 text-sm leading-relaxed">
+                <div class="font-bold text-slate-300 mb-2">📘 訊號說明（僅供觀察，不單獨作為進場依據）</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><b class="text-red-300">轉買超</b>：今日買超，且前一個交易日是賣超。</li>
+                    <li><b class="text-amber-300">賣壓縮小</b>：今日仍賣超，但金額不到近 20 日「平均賣超金額」的一半。</li>
+                    <li><b class="text-sky-300">5日累計翻正</b>：近 5 日累計由負轉正（昨日的 5 日累計 ≤ 0）。</li>
+                </ul>
+                <p class="mt-3 text-xs text-slate-500">資料來源：證交所三大法人買賣金額統計／FinMind，每個交易日收盤後更新，無開盤日不顯示。最新一日數字可能於當晚被資料來源修正，請以隔日資料為準。請搭配 LINE 機器人的「大盤」狀態與個股條件一併判斷。</p></div>`;
+
+            box.innerHTML = html;
+        }
+
+        async function loadFlow() {
+            try {
+                const res = await fetch('institutional_flow.json?t=' + Date.now());
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                flowData = JSON.parse(await res.text());
+                document.getElementById('updateTimeF').innerText = `🏛️ 法人同步: ${flowData.latest_date}`;
+                renderFlow();
+            } catch (e) {
+                console.error('法人資料讀取失敗:', e);
+                document.getElementById('updateTimeF').innerText = '🏛️ 法人同步: 讀取失敗';
+                const box = document.getElementById('flow-content');
+                box.className = 'text-center py-20 text-slate-500 font-bold text-xl';
+                box.innerHTML = '🚨 法人資料讀取失敗，請確認 institutional_flow.json 是否存在。';
+            }
+        }
+
         loadData();
+        loadFlow();
+        if (location.hash === '#flow') switchStrategy('FLOW');
     </script>
 
     <div id="paramModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(5px);">
