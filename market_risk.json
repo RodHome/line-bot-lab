@@ -1,33 +1,32 @@
 {
-  "date": "2026-11-24",
-  "close": 40122,
+  "date": "2026-11-25",
+  "close": 38195,
   "level": 3,
   "level_name": "危險",
-  "raw_level": 3,
-  "score": 4,
+  "raw_level": 2,
+  "score": 3,
   "lit_signals": [
     "指數破MA20",
     "指數破MA60",
-    "廣度<50%",
-    "廣度急降"
+    "廣度<50%"
   ],
   "signals": {
     "指數破MA20": true,
     "指數破MA60": true,
     "廣度<50%": true,
-    "廣度急降": true,
+    "廣度急降": false,
     "高檔背離": false,
     "外資空單急增": false
   },
   "indicators": {
-    "b20": 0.1757,
-    "foreign_net_oi": -103182,
-    "foreign_chg5": -5286
+    "b20": 0.1081,
+    "foreign_net_oi": -105709,
+    "foreign_chg5": -6271
   },
   "data_quality": {
     "status": "OK",
-    "index_last_date": "2026-11-24",
-    "foreign_last_date": "2026-11-25",
+    "index_last_date": "2026-11-25",
+    "foreign_last_date": "2026-11-26",
     "breadth_stock_count": 74,
     "missing_fields": [],
     "note": ""
