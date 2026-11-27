@@ -1,18 +1,9 @@
 {
  "version": "1.0.0",
  "unit": "億元",
- "latest_date": "2026-11-26",
+ "latest_date": "2026-11-27",
  "data_quality": "ok",
  "days": [
-  {
-   "date": "2026-08-28",
-   "foreign": 417.54,
-   "trust": -1.97,
-   "dealer": 42.71,
-   "total": 458.28,
-   "foreign_dealer": 0.0,
-   "src": "finmind"
-  },
   {
    "date": "2026-08-31",
    "foreign": -143.92,
@@ -543,45 +534,56 @@
    "total": -151.03,
    "foreign_dealer": 0.0,
    "src": "finmind"
+  },
+  {
+   "date": "2026-11-27",
+   "foreign": -296.28,
+   "trust": 85.21,
+   "dealer": -1.95,
+   "total": -213.03,
+   "foreign_dealer": 0.0,
+   "src": "finmind"
   }
  ],
  "summary": {
   "foreign": {
-   "today": -491.81,
-   "sum5": -2616.85,
-   "sum20": -12044.75,
-   "streak": -9,
-   "avg_sell20": 649.11,
-   "signals": []
+   "today": -296.28,
+   "sum5": -2818.02,
+   "sum20": -11216.36,
+   "streak": -10,
+   "avg_sell20": 605.51,
+   "signals": [
+    "賣壓縮小"
+   ]
   },
   "trust": {
-   "today": 212.13,
-   "sum5": 745.09,
-   "sum20": 3377.21,
-   "streak": 3,
+   "today": 85.21,
+   "sum5": 903.77,
+   "sum20": 3226.23,
+   "streak": 4,
    "avg_sell20": 84.06,
    "signals": []
   },
   "dealer": {
-   "today": 128.65,
-   "sum5": -1340.77,
-   "sum20": -5015.6,
-   "streak": 1,
-   "avg_sell20": 310.34,
+   "today": -1.95,
+   "sum5": -1001.89,
+   "sum20": -4503.86,
+   "streak": -1,
+   "avg_sell20": 280.24,
    "signals": [
-    "轉買超"
+    "賣壓縮小"
    ]
   },
   "total": {
-   "today": -151.03,
-   "sum5": -3212.53,
-   "sum20": -13683.14,
-   "streak": -9,
-   "avg_sell20": 848.82,
+   "today": -213.03,
+   "sum5": -2916.15,
+   "sum20": -12493.99,
+   "streak": -10,
+   "avg_sell20": 778.87,
    "signals": [
     "賣壓縮小"
    ]
   }
  },
- "updated_at": "2026-11-27 03:44"
+ "updated_at": "2026-11-28 03:35"
 }
